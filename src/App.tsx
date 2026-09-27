@@ -1,0 +1,5149 @@
+import { useEffect, useMemo, useState } from 'react';
+import { API_URL } from './api';
+import type { ProposalPdfData } from './proposalPdf';
+import { allocateProposalCosts } from './proposalPricing';
+import { proposalServiceOptions, type ProposalService } from './proposalServices';
+import { ChemicalsPage } from './ChemicalsPage';
+import { HealthDepartmentPage } from './HealthDepartmentPage';
+import { PropertyHistoryPage } from './PropertyHistoryPage';
+import { ReportsPage } from './ReportsPage';
+import './App.css';
+
+type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports' | 'estimates' | 'operations' | 'finance';
+type PropertyTab = 'overview' | 'commercial' | 'estimates' | 'contracts';
+
+function initialAppArea(): AppArea {
+  const query = new URLSearchParams(window.location.search);
+  const sharedChemicalAccess = query.get('technicianAccess') === '1' || Boolean(query.get('technicianToken')?.trim());
+  return sharedChemicalAccess ? 'chemicals' : 'home';
+}
+
+type EstimateOpportunity = {
+  title: string;
+  propertyLink: string;
+  estimateNumber: string;
+  value: number;
+  status: string;
+  category: string;
+  contractor: string;
+  opportunityName: string;
+  createdAt: string;
+  requestedBy: string;
+  approvalDate: string;
+  approvedBy: string;
+  estimatedRepairDate: string;
+  technician: string;
+  actualRepairDate: string;
+  invoiceNumber: string;
+  invoiceValue: number;
+  invoiceDate: string;
+};
+
+function parseCsvRows(csv: string) {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+
+  for (let index = 0; index < csv.length; index += 1) {
+    const character = csv[index];
+    if (character === '"') {
+      if (quoted && csv[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === ',' && !quoted) {
+      row.push(field);
+      field = '';
+    } else if ((character === '\n' || character === '\r') && !quoted) {
+      if (character === '\r' && csv[index + 1] === '\n') index += 1;
+      row.push(field);
+      if (row.some((value) => value.length > 0)) rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += character;
+    }
+  }
+
+  if (field || row.length) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function parseMoney(value: string) {
+  return Number(value.replaceAll(',', '').replace(/[^0-9.-]/g, '')) || 0;
+}
+
+type ContactRelation = {
+  id: string;
+  role: string | null;
+  isPrimary: boolean;
+  contact: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    phone: string | null;
+  };
+};
+
+type WaterBody = {
+  id: string;
+  name: string;
+  type: string;
+  size: string | null;
+  gallons: number | null;
+  active: boolean;
+};
+
+type SalesActivityStatus = 'CREATED' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
+
+type ProposalFollowUp = {
+  id: string;
+  occurredAt: string;
+  notes: string | null;
+  channel: string;
+};
+
+type StoredProposalData = Partial<Omit<ProposalPdfData, 'proposalDate'>> & {
+  proposalDate?: string;
+};
+
+type SalesActivity = {
+  id: string;
+  type: string;
+  occurredAt: string;
+  notes: string | null;
+  status: SalesActivityStatus;
+  sentAt: string | null;
+  approvedAt: string | null;
+  rejectedAt: string | null;
+  proposalData?: StoredProposalData | null;
+  emailDraftId?: string | null;
+  emailDraftWebUrl?: string | null;
+  emailDraftCreatedAt?: string | null;
+  emailDraftFileName?: string | null;
+  proposalPdfSharepointId?: string | null;
+  proposalPdfSharepointUrl?: string | null;
+  proposalPdfFileName?: string | null;
+  proposalPdfUploadedAt?: string | null;
+  followUps?: ProposalFollowUp[];
+};
+
+function proposalPdfDataFromActivity(activity: SalesActivity): ProposalPdfData | null {
+  const data = activity.proposalData;
+  if (
+    !data ||
+    typeof data.proposalNumber !== 'string' ||
+    typeof data.propertyName !== 'string' ||
+    typeof data.proposalDate !== 'string' ||
+    !Array.isArray(data.waterBodies) ||
+    !Array.isArray(data.services)
+  ) {
+    return null;
+  }
+
+  const proposalDate = new Date(data.proposalDate);
+  if (Number.isNaN(proposalDate.getTime())) return null;
+
+  return {
+    proposalNumber: data.proposalNumber,
+    proposalDate,
+    clientName: data.clientName ?? '-',
+    propertyName: data.propertyName,
+    address: data.address ?? '-',
+    contactName: data.contactName ?? '-',
+    email: data.email ?? '-',
+    phone: data.phone ?? '-',
+    waterBodies: data.waterBodies,
+    services: data.services,
+    monthlyTransportationCost: data.monthlyTransportationCost ?? 0,
+    discountPercentage: data.discountPercentage ?? 0,
+    totalMonthlyInvestment: data.totalMonthlyInvestment ?? 0,
+  };
+}
+
+const proposalBoardStatuses: SalesActivityStatus[] = [
+  'CREATED',
+  'SENT',
+  'APPROVED',
+  'REJECTED',
+  'EXPIRED',
+];
+
+type ProposalWaterBody = {
+  name: string;
+  type: string;
+  include: boolean;
+  category: string;
+  monthlyPrice: number;
+  frequency: string;
+  disinfectionSystem: boolean;
+  accessDifficulty: 'SIMPLE' | 'COMPLEX';
+  priceManuallyAdjusted: boolean;
+  priceMode: 'SUGGESTED' | 'CUSTOM';
+};
+
+const poolPrices: Record<string, number[]> = {
+  SMALL: [600],
+  MEDIUM: [700],
+  LARGE: [900],
+  EXTRA_LARGE: [1300],
+};
+
+const automaticWaterBodyPrices: Record<string, number> = {
+  SPA: 250,
+  KIDDIE_POOL: 400,
+  SPLASH_PAD: 400,
+  DECORATIVE_WATER_FEATURE: 150,
+};
+
+const vipDiscountPercentage = 20;
+
+const frequencyMultipliers: Record<string, number> = {
+  '1x Weekly': 0.55,
+  '2x Weekly': 0.8,
+  '3x Weekly': 1,
+  '5x Weekly': 1.35,
+  '7x Weekly': 1.65,
+};
+
+const accessMultipliers: Record<ProposalWaterBody['accessDifficulty'], number> = {
+  SIMPLE: 1.03,
+  COMPLEX: 1.05,
+};
+
+const chemicalCostPercentages: Record<string, number> = {
+  SMALL: 14.5,
+  MEDIUM: 16.3,
+  LARGE: 26.5,
+  EXTRA_LARGE: 26.5,
+};
+
+function chemicalCostPercentage(body: ProposalWaterBody) {
+  if (body.type !== 'SWIMMING_POOL') return chemicalCostPercentages.SMALL;
+  return chemicalCostPercentages[body.category] ?? chemicalCostPercentages.SMALL;
+}
+
+function weeklyVisitsForFrequency(frequency: string) {
+  return Math.max(1, Number.parseInt(frequency, 10) || 1);
+}
+
+function monthlyVisitsForFrequency(frequency: string) {
+  return weeklyVisitsForFrequency(frequency) * (13 / 3);
+}
+
+function calculateWaterBodyPrice(body: ProposalWaterBody) {
+  const basePrice = body.type === 'SWIMMING_POOL'
+    ? poolPrices[body.category]?.[0] ?? 600
+    : automaticWaterBodyPrices[body.type] ?? 150;
+  const frequencyMultiplier = frequencyMultipliers[body.frequency] ?? 1;
+  const accessMultiplier = accessMultipliers[body.accessDifficulty] ?? 1;
+  // Category prices are the 3x-weekly commercial base. Frequency may reduce
+  // or increase that base; access and equipment conditions adjust it after.
+  const disinfectionMultiplier = body.disinfectionSystem ? 1 : 1.05;
+  return Math.ceil(
+    basePrice * frequencyMultiplier * accessMultiplier * disinfectionMultiplier,
+  );
+}
+
+function effectiveWaterBodyPrice(body: ProposalWaterBody) {
+  return Math.ceil(
+    body.priceManuallyAdjusted ? body.monthlyPrice : calculateWaterBodyPrice(body),
+  );
+}
+
+function suggestedPricesForWaterBody(body: ProposalWaterBody) {
+  return body.type === 'SWIMMING_POOL'
+    ? poolPrices[body.category] ?? []
+    : [automaticWaterBodyPrices[body.type] ?? 150];
+}
+
+const serviceBaseAddress = '811 E 131ST AVE, TAMPA, FL 33612-4424';
+
+type Property = {
+  id: string;
+  name: string;
+  code: string | null;
+  lifecycleStatus: string;
+  serviceStartDate: string | null;
+  leadSource: string | null;
+  propertyType: string | null;
+  segment: string | null;
+
+  addressLine1: string | null;
+  city: string | null;
+  county: string | null;
+  state: string | null;
+  zipCode: string | null;
+
+  sharepointFolderUrl: string | null;
+  maintenanceChiefInfo: string | null;
+  followUpNotes: string | null;
+  deletedAt?: string | null;
+
+  managementCompany: {
+    id: string;
+    name: string;
+  } | null;
+
+  contacts: ContactRelation[];
+  waterBodies: WaterBody[];
+  salesActivities: SalesActivity[];
+};
+
+type EditPropertyForm = {
+  name: string;
+  leadSource: string;
+  propertyType: string;
+  segment: string;
+  managementCompanyName: string;
+
+  addressLine1: string;
+  city: string;
+  county: string;
+  state: string;
+  zipCode: string;
+
+  sharepointFolderUrl: string;
+  maintenanceChiefInfo: string;
+};
+
+type PropertyForm = EditPropertyForm;
+
+type ContactForm = {
+  firstName: string;
+  lastName: string;
+  role: string;
+  email: string;
+  phone: string;
+  isPrimary: boolean;
+};
+
+type EditContactForm = ContactForm & {
+  contactId?: string;
+};
+
+type WaterBodyForm = {
+  id?: string;
+  name: string;
+  type: string;
+  size: string;
+  gallons: string;
+  photoFiles?: File[];
+};
+
+const emptyWaterBodyForm: WaterBodyForm = {
+  name: '',
+  type: 'SWIMMING_POOL',
+  size: 'MEDIUM',
+  gallons: '',
+  photoFiles: [],
+};
+
+function isWaterBodyFormValid(waterBody: WaterBodyForm) {
+  const gallons = waterBody.gallons.trim();
+  const gallonsAreValid =
+    gallons === '' || (/^\d+$/.test(gallons) && Number(gallons) > 0);
+
+  return Boolean(
+    waterBody.type &&
+    (waterBody.type === 'SPA' || waterBody.size) &&
+    waterBody.name.trim() &&
+    gallonsAreValid,
+  );
+}
+
+const emptyPropertyForm: PropertyForm = {
+  name: '',
+  leadSource: '',
+  propertyType: '',
+  segment: '',
+  managementCompanyName: '',
+  addressLine1: '',
+  city: '',
+  county: '',
+  state: '',
+  zipCode: '',
+  sharepointFolderUrl: '',
+  maintenanceChiefInfo: '',
+};
+
+const emptyContactForm: ContactForm = {
+  firstName: '',
+  lastName: '',
+  role: 'PROPERTY_MANAGER',
+  email: '',
+  phone: '',
+  isPrimary: true,
+};
+
+const requiredPropertyFields: Array<keyof PropertyForm> = [
+  'name',
+  'leadSource',
+  'propertyType',
+  'segment',
+  'addressLine1',
+  'city',
+  'county',
+  'state',
+  'zipCode',
+];
+
+function formatLabel(value: string | null) {
+  if (!value) return '-';
+
+  return value
+    .toLowerCase()
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function propertySku(id: string) {
+  return id.slice(0, 7).toLowerCase();
+}
+
+function isValidHttpUrl(value: string) {
+  if (!value.trim()) return true;
+
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function propertyToForm(
+  property: Property,
+): EditPropertyForm {
+  return {
+    name: property.name ?? '',
+    leadSource: property.leadSource ?? '',
+    propertyType: property.propertyType ?? '',
+    segment: property.segment ?? '',
+    managementCompanyName: property.managementCompany?.name ?? '',
+
+    addressLine1: property.addressLine1 ?? '',
+    city: property.city ?? '',
+    county: property.county ?? '',
+    state: property.state ?? '',
+    zipCode: property.zipCode ?? '',
+
+    sharepointFolderUrl:
+      property.sharepointFolderUrl ?? '',
+
+    maintenanceChiefInfo:
+      property.maintenanceChiefInfo ?? '',
+  };
+}
+
+function WaterBodiesEditor({
+  bodies,
+  idPrefix,
+  onAdd,
+  onUpdate,
+  onRemove,
+  onFilesSelected,
+}: {
+  bodies: WaterBodyForm[];
+  idPrefix: string;
+  onAdd: () => void;
+  onUpdate: (
+    index: number,
+    field: keyof WaterBodyForm,
+    value: string,
+  ) => void;
+  onRemove: (index: number) => void;
+  onFilesSelected?: (index: number, files: File[]) => void;
+}) {
+  const counts = bodies.reduce<Record<string, number>>(
+    (result, body) => ({
+      ...result,
+      [body.type]: (result[body.type] ?? 0) + 1,
+    }),
+    {},
+  );
+
+  return (
+    <>
+      <div className="form-section-title form-field-wide">
+        <div>
+          <h3>Water Bodies</h3>
+          <p>Add each pool, spa or fountain separately.</p>
+        </div>
+        <button className="secondary-button" type="button" onClick={onAdd}>
+          + Add water body
+        </button>
+      </div>
+
+      <div className="water-bodies-editor form-field-wide">
+        {bodies.length === 0 ? (
+          <p className="empty-text">No water bodies added.</p>
+        ) : (
+          <>
+            <div className="water-body-summary">
+              {Object.entries(counts).map(([type, count]) => (
+                <span className="tag" key={type}>
+                  {count} {formatLabel(type)}{count > 1 ? 's' : ''}
+                </span>
+              ))}
+            </div>
+
+            {bodies.map((body, index) => (
+              <div
+                className={`water-body-editor${body.type === 'SPA' ? ' water-body-editor-spa' : ''}`}
+                key={`${idPrefix}-${index}`}
+              >
+                <div className="form-field water-body-type-field">
+                  <label htmlFor={`${idPrefix}-type-${index}`}>Type *</label>
+                  <select
+                    id={`${idPrefix}-type-${index}`}
+                    value={body.type}
+                    onChange={(event) =>
+                      onUpdate(index, 'type', event.target.value)
+                    }
+                  >
+                    <option value="SWIMMING_POOL">Swimming Pool</option>
+                    <option value="SPA">Spa</option>
+                    <option value="KIDDIE_POOL">Kiddie Pool</option>
+                    <option value="SPLASH_PAD">Splash Pad</option>
+                    <option value="DECORATIVE_WATER_FEATURE">
+                      Decorative Water Feature
+                    </option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-field water-body-name-field">
+                  <label htmlFor={`${idPrefix}-name-${index}`}>
+                    Name or identifier *
+                  </label>
+                  <input
+                    id={`${idPrefix}-name-${index}`}
+                    placeholder="Example: Main Pool or North Spa"
+                    value={body.name}
+                    onChange={(event) =>
+                      onUpdate(index, 'name', event.target.value)
+                    }
+                  />
+                </div>
+
+                {body.type !== 'SPA' && (
+                  <div className="form-field water-body-size-field">
+                    <label htmlFor={`${idPrefix}-size-${index}`}>
+                      Size *
+                    </label>
+                    <select
+                      id={`${idPrefix}-size-${index}`}
+                      value={body.size}
+                      onChange={(event) =>
+                        onUpdate(index, 'size', event.target.value)
+                      }
+                    >
+                      <option value="">Select size</option>
+                      <option value="SMALL">Small</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="LARGE">Large</option>
+                      <option value="EXTRA_LARGE">Extra Large</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="form-field water-body-gallons-field">
+                  <label htmlFor={`${idPrefix}-gallons-${index}`}>
+                    Gallons (optional)
+                  </label>
+                  <input
+                    id={`${idPrefix}-gallons-${index}`}
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="numeric"
+                    placeholder="Example: 15000"
+                    value={body.gallons}
+                    onChange={(event) =>
+                      onUpdate(index, 'gallons', event.target.value)
+                    }
+                  />
+                  {body.gallons &&
+                    (!/^\d+$/.test(body.gallons) || Number(body.gallons) <= 0) && (
+                      <span className="field-error">
+                        Enter a whole number greater than zero.
+                      </span>
+                    )}
+                </div>
+
+                <button
+                  className="delete-button water-body-remove"
+                  type="button"
+                  onClick={() => onRemove(index)}
+                >
+                  Remove
+                </button>
+
+                {onFilesSelected && (
+                  <div className="form-field form-field-wide water-body-photo-field">
+                    <label htmlFor={`${idPrefix}-photos-${index}`}>
+                      Photos (optional)
+                    </label>
+                    <input
+                      id={`${idPrefix}-photos-${index}`}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(event) =>
+                        onFilesSelected(
+                          index,
+                          Array.from(event.target.files ?? []),
+                        )
+                      }
+                    />
+                    <small className="water-body-photo-help">
+                      {body.photoFiles?.length
+                        ? `${body.photoFiles.length} photo${body.photoFiles.length === 1 ? '' : 's'} selected. They will be uploaded when you save the property.`
+                        : 'Select one or more photos for this water body.'}
+                    </small>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+function formatDashboardCurrency(value: number) {
+  return value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+}
+
+function proposalStatusLabel(status: SalesActivityStatus) {
+  return status === 'SENT' ? 'Sent - No Response' : formatLabel(status);
+}
+
+async function uploadWaterBodyPhotoFiles(
+  propertyId: string,
+  waterBodyId: string,
+  files: File[],
+) {
+  let failures = 0;
+
+  for (const file of files) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file, file.name);
+      const response = await fetch(
+        `${API_URL}/properties/${propertyId}/water-bodies/${waterBodyId}/photos`,
+        {
+          method: 'POST',
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Photo upload failed (${response.status})`);
+      }
+    } catch (error) {
+      failures += 1;
+      console.error(error);
+    }
+  }
+
+  return failures;
+}
+
+function App() {
+  const [activeArea, setActiveArea] = useState<AppArea>(initialAppArea);
+  const [healthUnassignedOnly, setHealthUnassignedOnly] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return window.localStorage.getItem('bluelife-sidebar-collapsed') === 'true'; }
+    catch { return false; }
+  });
+  const [estimateOpportunities, setEstimateOpportunities] = useState<EstimateOpportunity[]>([]);
+  const [estimateSearch, setEstimateSearch] = useState('');
+  const [estimateStatus, setEstimateStatus] = useState('ALL');
+  const [estimatesLoading, setEstimatesLoading] = useState(true);
+  const [showRepairRequest, setShowRepairRequest] = useState(false);
+  const [repairRequest, setRepairRequest] = useState({ property: '', description: '', category: '', requestedBy: 'Commercial' });
+  const [propertyTab, setPropertyTab] = useState<PropertyTab>('overview');
+  const [properties, setProperties] =
+    useState<Property[]>([]);
+
+  useEffect(() => {
+    document.body.classList.toggle('sidebar-collapsed', sidebarCollapsed);
+    try { window.localStorage.setItem('bluelife-sidebar-collapsed', String(sidebarCollapsed)); }
+    catch { /* The layout still works when browser storage is unavailable. */ }
+    return () => document.body.classList.remove('sidebar-collapsed');
+  }, [sidebarCollapsed]);
+
+  const [deletedProperties, setDeletedProperties] =
+    useState<Property[]>([]);
+
+  const [showDeleted, setShowDeleted] =
+    useState(false);
+
+  const [trashActionId, setTrashActionId] =
+    useState<string | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [search, setSearch] =
+    useState('');
+
+  const [proposalStatusFilter, setProposalStatusFilter] =
+    useState<SalesActivityStatus | null>(null);
+
+  const [
+    selectedProperty,
+    setSelectedProperty,
+  ] = useState<Property | null>(null);
+
+  const [
+    detailLoading,
+    setDetailLoading,
+  ] = useState(false);
+
+  const [
+    isEditing,
+    setIsEditing,
+  ] = useState(false);
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [creatingSharePointFolder, setCreatingSharePointFolder] =
+    useState(false);
+
+  const [showProposal, setShowProposal] = useState(false);
+  const [showProposalReminders, setShowProposalReminders] = useState(false);
+  const [reminderReferenceTime, setReminderReferenceTime] = useState(() => Date.now());
+  const [focusedReminderActivityId, setFocusedReminderActivityId] = useState<string | null>(null);
+  const [savingProposal, setSavingProposal] = useState(false);
+  const [proposalFileAction, setProposalFileAction] = useState<{
+    activityId: string;
+    action: 'CREATE' | 'EMAIL';
+  } | null>(null);
+  const [previewActivityId, setPreviewActivityId] = useState<string | null>(null);
+  const [proposalDraftNotes, setProposalDraftNotes] = useState('');
+  const [, setSavingProposalText] = useState(false);
+  const [managementStatus, setManagementStatus] = useState('CURRENT');
+  const [adjustments, setAdjustments] = useState('0');
+  const [proposalNotes, setProposalNotes] = useState('');
+  const [proposalWaterBodies, setProposalWaterBodies] = useState<
+    ProposalWaterBody[]
+  >([]);
+  const [proposalServices, setProposalServices] = useState<ProposalService[]>(
+    () => [...proposalServiceOptions],
+  );
+  const [routeDistanceMiles, setRouteDistanceMiles] = useState<number | null>(null);
+  const [fuelPricePerGallon, setFuelPricePerGallon] = useState('3.50');
+  const [vehicleMpg, setVehicleMpg] = useState('25');
+
+  const baseMonthlyPrice = proposalWaterBodies
+    .filter((body) => body.include)
+    .reduce((sum, body) => sum + effectiveWaterBodyPrice(body), 0);
+  const serviceVisitsPerWeek = Math.max(
+    1,
+    ...proposalWaterBodies
+      .filter((body) => body.include)
+      .map((body) => Number.parseInt(body.frequency, 10) || 1),
+  );
+  const fuelPrice = Math.max(0, Number(fuelPricePerGallon) || 0);
+  const mpg = Math.max(0, Number(vehicleMpg) || 0);
+  const calculatedTransportationCost =
+    routeDistanceMiles !== null && mpg > 0
+      ? Math.ceil(
+          (routeDistanceMiles * serviceVisitsPerWeek * 52 / 12 / mpg) * fuelPrice,
+        )
+      : 0;
+  const monthlyTransportationCost = calculatedTransportationCost;
+  const baseMonthlyPriceWithTransportation = baseMonthlyPrice + monthlyTransportationCost;
+  const adjustmentPercentage =
+    managementStatus === 'VIP'
+      ? vipDiscountPercentage
+      : managementStatus === 'NEGOTIATED'
+        ? Math.min(100, Math.max(0, Number(adjustments || 0)))
+      : 0;
+  const monthlyInvestment = Math.ceil(
+    baseMonthlyPriceWithTransportation * (1 - adjustmentPercentage / 100),
+  );
+  const waterBodiesMonthlyInvestment = Math.ceil(
+    baseMonthlyPrice * (1 - adjustmentPercentage / 100),
+  );
+  const includedWaterBodies = proposalWaterBodies.filter((body) => body.include);
+  const profitAllocations = allocateProposalCosts(
+    includedWaterBodies.map((body) => ({
+      description: body.name,
+      type: body.type,
+      frequency: body.frequency,
+      baseMonthlyCost: effectiveWaterBodyPrice(body),
+    })),
+    monthlyTransportationCost,
+    adjustmentPercentage,
+    monthlyInvestment,
+  );
+  const profitAllocationByWaterBody = new Map(
+    includedWaterBodies.map((body, index) => [body, profitAllocations[index]]),
+  );
+  const estimatedWaterBodyProfits = proposalWaterBodies.map((body) => {
+    if (!body.include) return null;
+
+    const allocation = profitAllocationByWaterBody.get(body);
+    const monthlyRevenue = (allocation?.monthlyCents ?? 0) / 100;
+    const laborBasis = Math.min(monthlyRevenue, 999);
+    const laborPerVisit = (laborBasis * 0.2) / 13;
+    const laborCost = laborPerVisit * monthlyVisitsForFrequency(body.frequency);
+    const chemicalFrequencyFactor = weeklyVisitsForFrequency(body.frequency) / 3;
+    const chemicalCost =
+      monthlyRevenue * (chemicalCostPercentage(body) / 100) * chemicalFrequencyFactor;
+    const suppliesCost = monthlyRevenue * 0.02;
+    const gasolineCost = (allocation?.fuelCents ?? 0) / 100;
+
+    return monthlyRevenue - laborCost - chemicalCost - suppliesCost - gasolineCost;
+  });
+
+  const [
+    editForm,
+    setEditForm,
+  ] = useState<EditPropertyForm | null>(
+    null,
+  );
+
+  const [editContacts, setEditContacts] =
+    useState<EditContactForm[]>([]);
+
+  const [editWaterBodies, setEditWaterBodies] =
+    useState<WaterBodyForm[]>([]);
+
+  const editContactEmails = editContacts.map((contact) =>
+    contact.email.trim().toLowerCase(),
+  );
+  const editContactsAreValid =
+    editContacts.some(
+      (contact) => contact.role === 'PROPERTY_MANAGER',
+    ) &&
+    editContacts.every(
+      (contact) =>
+        Boolean(contact.role) &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          contact.email.trim(),
+        ),
+    ) &&
+    new Set(editContactEmails).size === editContactEmails.length &&
+    editContacts.filter((contact) => contact.isPrimary).length === 1;
+
+  const [isCreating, setIsCreating] =
+    useState(false);
+
+  const [creating, setCreating] =
+    useState(false);
+
+  const [createError, setCreateError] =
+    useState('');
+
+  const [createForm, setCreateForm] =
+    useState<PropertyForm>(emptyPropertyForm);
+
+  const [createContacts, setCreateContacts] =
+    useState<ContactForm[]>([{ ...emptyContactForm }]);
+
+  const [createWaterBodies, setCreateWaterBodies] =
+    useState<WaterBodyForm[]>([]);
+
+  const createWaterBodiesAreValid = createWaterBodies.every(
+    isWaterBodyFormValid,
+  );
+
+  const editWaterBodiesAreValid = editWaterBodies.every(
+    isWaterBodyFormValid,
+  );
+
+  const normalizedContactEmails = createContacts.map((contact) =>
+    contact.email.trim().toLowerCase(),
+  );
+  const contactEmailsAreUnique =
+    new Set(normalizedContactEmails).size ===
+    normalizedContactEmails.length;
+  const contactsAreValid =
+    createContacts.some(
+      (contact) => contact.role === 'PROPERTY_MANAGER',
+    ) &&
+    createContacts.every(
+      (contact) =>
+        Boolean(contact.role) &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          contact.email.trim(),
+        ),
+    ) &&
+    contactEmailsAreUnique &&
+    createContacts.filter((contact) => contact.isPrimary).length === 1;
+
+  const createFormIsValid =
+    requiredPropertyFields.every((field) =>
+      createForm[field].trim(),
+    ) &&
+    /^[A-Za-z]{2}$/.test(createForm.state.trim()) &&
+    /^\d{5}(-\d{4})?$/.test(createForm.zipCode.trim()) &&
+    isValidHttpUrl(createForm.sharepointFolderUrl) &&
+    contactsAreValid &&
+    createWaterBodiesAreValid;
+
+  useEffect(() => {
+    async function loadProperties() {
+      try {
+        const [response, deletedResponse] = await Promise.all([
+          fetch(`${API_URL}/properties`),
+          fetch(`${API_URL}/properties/deleted`),
+        ]);
+
+        if (!response.ok) {
+          throw new Error(
+            'Could not load properties',
+          );
+        }
+
+        const data =
+          await response.json();
+
+        setProperties(data);
+
+        if (deletedResponse.ok) {
+          setDeletedProperties(await deletedResponse.json());
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProperties();
+  }, []);
+
+  useEffect(() => {
+    async function loadEstimateOpportunities() {
+      try {
+        const response = await fetch('/opportunities.csv');
+        if (!response.ok) throw new Error('Could not load estimate opportunities');
+        const [, ...rows] = parseCsvRows(await response.text());
+        setEstimateOpportunities(rows.map((columns) => ({
+          title: columns[0]?.trim() ?? '',
+          propertyLink: columns[1]?.trim() ?? '',
+          estimateNumber: columns[2]?.trim() ?? '',
+          value: parseMoney(columns[3] ?? ''),
+          status: columns[4]?.trim() || 'Unspecified',
+          category: columns[5]?.trim() || 'Uncategorized',
+          contractor: columns[6]?.trim() ?? '',
+          opportunityName: (columns[7] ?? '').replace(/<br\s*\/?>(\s*)/gi, ' ').trim(),
+          createdAt: columns[8]?.trim() ?? '',
+          requestedBy: columns[9]?.trim() || 'Not specified',
+          approvalDate: columns[10]?.trim() ?? '',
+          approvedBy: columns[11]?.trim() ?? '',
+          estimatedRepairDate: columns[12]?.trim() ?? '',
+          technician: columns[14]?.trim() ?? '',
+          actualRepairDate: columns[15]?.trim() ?? '',
+          invoiceNumber: columns[16]?.trim() ?? '',
+          invoiceValue: parseMoney(columns[17] ?? ''),
+          invoiceDate: columns[18]?.trim() ?? '',
+        })));
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setEstimatesLoading(false);
+      }
+    }
+
+    void loadEstimateOpportunities();
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setReminderReferenceTime(Date.now()),
+      60 * 60 * 1000,
+    );
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const filteredProperties =
+    useMemo(() => {
+      const term =
+        search.trim().toLowerCase();
+
+      if (!term) {
+        return properties;
+      }
+
+      return properties.filter(
+        (property) => {
+          const values = [
+            property.name,
+            property.city,
+            property.state,
+            property.segment,
+            property.propertyType,
+            property.lifecycleStatus,
+            property.managementCompany
+              ?.name,
+          ];
+
+          return values.some(
+            (value) =>
+              value
+                ?.toLowerCase()
+                .includes(term),
+          );
+        },
+      );
+    }, [properties, search]);
+
+  const displayedProperties = useMemo(() => {
+    if (!proposalStatusFilter) {
+      return filteredProperties;
+    }
+
+    return filteredProperties.filter((property) =>
+      property.salesActivities.some(
+        (activity) =>
+          activity.type === 'PROPOSAL' &&
+          (activity.status ?? 'CREATED') === proposalStatusFilter,
+      ),
+    );
+  }, [filteredProperties, proposalStatusFilter]);
+
+  const dashboardStats = useMemo(() => {
+    const typeCounts = filteredProperties.reduce<Record<string, number>>((counts, property) => {
+      const type = property.propertyType ?? 'UNSPECIFIED';
+      counts[type] = (counts[type] ?? 0) + 1;
+      return counts;
+    }, {});
+    const managementCounts = filteredProperties.reduce<Record<string, number>>((counts, property) => {
+      const company = property.managementCompany?.name ?? 'Unassigned';
+      counts[company] = (counts[company] ?? 0) + 1;
+      return counts;
+    }, {});
+    const proposalCounts: Record<string, number> = {};
+    const proposalValues: Record<string, number> = {};
+    filteredProperties.forEach((property) => {
+      property.salesActivities
+        .filter((activity) => activity.type === 'PROPOSAL')
+        .forEach((activity) => {
+          const status = activity.status ?? 'CREATED';
+          const monthlyValue = Math.max(
+            0,
+            Number(activity.proposalData?.totalMonthlyInvestment) || 0,
+          );
+          proposalCounts[status] = (proposalCounts[status] ?? 0) + 1;
+          proposalValues[status] = (proposalValues[status] ?? 0) + monthlyValue;
+        });
+    });
+    const totalProposalValue = Object.values(proposalValues)
+      .reduce((sum, value) => sum + value, 0);
+    return {
+      typeCounts,
+      managementCounts,
+      proposalCounts,
+      proposalValues,
+      totalProposals: Object.values(proposalCounts).reduce((sum, count) => sum + count, 0),
+      totalProposalValue,
+      propertyCount: filteredProperties.length,
+      clientCount: filteredProperties.filter(
+        (property) => property.lifecycleStatus === 'CLIENT',
+      ).length,
+    };
+  }, [filteredProperties]);
+
+  const createdProposalCount = dashboardStats.proposalCounts.CREATED ?? 0;
+  const approvedProposalCount = dashboardStats.proposalCounts.APPROVED ?? 0;
+  const createdProposalValue = dashboardStats.proposalValues.CREATED ?? 0;
+  const approvedProposalValue = dashboardStats.proposalValues.APPROVED ?? 0;
+  const proposalPoolFill = createdProposalCount > 0
+    ? Math.min(100, (approvedProposalCount / createdProposalCount) * 100)
+    : 0;
+
+  const filteredEstimates = useMemo(() => {
+    const term = estimateSearch.trim().toLowerCase();
+    return estimateOpportunities.filter((estimate) =>
+      (estimateStatus === 'ALL' || estimate.status === estimateStatus) &&
+      (!term || [
+        estimate.title,
+        estimate.estimateNumber,
+        estimate.opportunityName,
+        estimate.category,
+        estimate.requestedBy,
+      ].some((value) => value.toLowerCase().includes(term))),
+    );
+  }, [estimateOpportunities, estimateSearch, estimateStatus]);
+
+  const estimateStats = useMemo(() => ({
+    total: estimateOpportunities.length,
+    pending: estimateOpportunities.filter((estimate) => estimate.status === 'Pending').length,
+    accepted: estimateOpportunities.filter((estimate) => estimate.status === 'Accepted').length,
+    converted: estimateOpportunities.filter((estimate) => estimate.status === 'Converted').length,
+    pipelineValue: estimateOpportunities
+      .filter((estimate) => estimate.status === 'Pending' || estimate.status === 'Accepted')
+      .reduce((sum, estimate) => sum + estimate.value, 0),
+  }), [estimateOpportunities]);
+
+  const proposalReminders = useMemo(() => {
+    const followUpThreshold = reminderReferenceTime - 30 * 24 * 60 * 60 * 1000;
+
+    return properties.flatMap((property) =>
+      property.salesActivities
+        .filter((activity) => {
+          if (activity.type !== 'PROPOSAL') return false;
+          if (activity.status === 'EXPIRED') return true;
+          return activity.status === 'SENT' &&
+            Boolean(activity.sentAt) &&
+            new Date(activity.sentAt as string).getTime() <= followUpThreshold;
+        })
+        .map((activity) => ({
+          activity,
+          property,
+          contact: property.contacts.find((contact) => contact.isPrimary) ?? property.contacts[0],
+        })),
+    ).sort(
+      (first, second) =>
+        new Date(first.activity.sentAt ?? first.activity.occurredAt).getTime() -
+        new Date(second.activity.sentAt ?? second.activity.occurredAt).getTime(),
+    );
+  }, [properties, reminderReferenceTime]);
+
+  async function openProperty(
+    id: string,
+    reminderActivityId?: string,
+  ) {
+    try {
+      setDetailLoading(true);
+
+      const response = await fetch(
+        `${API_URL}/properties/${id}`,
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          'Could not load property details',
+        );
+      }
+
+      const data =
+        await response.json();
+
+      setSelectedProperty(data);
+      const previewActivity = reminderActivityId
+        ? data.salesActivities.find((activity: SalesActivity) => activity.id === reminderActivityId)
+        : data.salesActivities[0];
+      setPreviewActivityId(previewActivity?.id ?? data.salesActivities[0]?.id ?? null);
+      setProposalDraftNotes(previewActivity?.notes ?? data.salesActivities[0]?.notes ?? '');
+      setFocusedReminderActivityId(reminderActivityId ?? null);
+      setPropertyTab(reminderActivityId ? 'commercial' : 'overview');
+      setIsEditing(false);
+      setEditForm(null);
+      setEditContacts([]);
+      setEditWaterBodies([]);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  function startEditing() {
+    if (!selectedProperty) return;
+
+    setEditForm(
+      propertyToForm(
+        selectedProperty,
+      ),
+    );
+
+    setEditContacts(
+      selectedProperty.contacts.length
+        ? selectedProperty.contacts.map((relation) => ({
+            contactId: relation.contact.id,
+            firstName: relation.contact.firstName ?? '',
+            lastName: relation.contact.lastName ?? '',
+            role: relation.role ?? '',
+            email: relation.contact.email ?? '',
+            phone: relation.contact.phone ?? '',
+            isPrimary: relation.isPrimary,
+          }))
+        : [{ ...emptyContactForm }],
+    );
+    setEditWaterBodies(
+      selectedProperty.waterBodies.map((waterBody) => ({
+        id: waterBody.id,
+        name: waterBody.name,
+        type: waterBody.type,
+        size: waterBody.type === 'SPA' ? '' : waterBody.size ?? 'MEDIUM',
+        gallons: waterBody.gallons?.toString() ?? '',
+        photoFiles: [],
+      })),
+    );
+
+    setIsEditing(true);
+  }
+
+  function cancelEditing() {
+    setIsEditing(false);
+    setEditForm(null);
+    setEditContacts([]);
+    setEditWaterBodies([]);
+  }
+
+  function updateField(
+    field: keyof EditPropertyForm,
+    value: string,
+  ) {
+    if (!editForm) return;
+
+    setEditForm({
+      ...editForm,
+      [field]: value,
+    });
+  }
+
+  function updateEditContact(
+    index: number,
+    field: keyof ContactForm,
+    value: string | boolean,
+  ) {
+    setEditContacts((current) =>
+      current.map((contact, contactIndex) => ({
+        ...contact,
+        ...(contactIndex === index ? { [field]: value } : {}),
+        ...(field === 'isPrimary' && value === true
+          ? { isPrimary: contactIndex === index }
+          : {}),
+      })),
+    );
+  }
+
+  function addEditContact() {
+    setEditContacts((current) => [
+      ...current,
+      { ...emptyContactForm, role: '', isPrimary: false },
+    ]);
+  }
+
+  function removeEditContact(index: number) {
+    setEditContacts((current) => {
+      const remaining = current.filter(
+        (_, contactIndex) => contactIndex !== index,
+      );
+      if (remaining.length && !remaining.some((contact) => contact.isPrimary)) {
+        remaining[0] = { ...remaining[0], isPrimary: true };
+      }
+      return remaining;
+    });
+  }
+
+  function updateWaterBody(
+    mode: 'create' | 'edit',
+    index: number,
+    field: keyof WaterBodyForm,
+    value: string,
+  ) {
+    const setter = mode === 'create' ? setCreateWaterBodies : setEditWaterBodies;
+    setter((current) =>
+      current.map((waterBody, waterBodyIndex) =>
+        waterBodyIndex === index
+          ? {
+              ...waterBody,
+              [field]: value,
+              ...(field === 'type'
+                ? {
+                    size: value === 'SPA' ? '' : waterBody.size || 'MEDIUM',
+                  }
+                : {}),
+            }
+          : waterBody,
+      ),
+    );
+  }
+
+  function selectWaterBodyPhotos(
+    mode: 'create' | 'edit',
+    index: number,
+    files: File[],
+  ) {
+    const setter = mode === 'create' ? setCreateWaterBodies : setEditWaterBodies;
+    setter((current) =>
+      current.map((waterBody, waterBodyIndex) =>
+        waterBodyIndex === index
+          ? { ...waterBody, photoFiles: files }
+          : waterBody,
+      ),
+    );
+    if (mode === 'create') setCreateError('');
+  }
+
+  function addWaterBody(mode: 'create' | 'edit') {
+    const setter = mode === 'create' ? setCreateWaterBodies : setEditWaterBodies;
+    setter((current) => [...current, { ...emptyWaterBodyForm }]);
+  }
+
+  function removeWaterBody(mode: 'create' | 'edit', index: number) {
+    const setter = mode === 'create' ? setCreateWaterBodies : setEditWaterBodies;
+    setter((current) =>
+      current.filter((_, waterBodyIndex) => waterBodyIndex !== index),
+    );
+  }
+
+  function updateCreateField(
+    field: keyof PropertyForm,
+    value: string,
+  ) {
+    setCreateForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+    setCreateError('');
+  }
+
+  function updateContactField(
+    index: number,
+    field: keyof ContactForm,
+    value: string | boolean,
+  ) {
+    setCreateContacts((current) =>
+      current.map((contact, contactIndex) => ({
+        ...contact,
+        ...(contactIndex === index ? { [field]: value } : {}),
+        ...(field === 'isPrimary' && value === true
+          ? { isPrimary: contactIndex === index }
+          : {}),
+      })),
+    );
+    setCreateError('');
+  }
+
+  function addContact() {
+    setCreateContacts((current) => [
+      ...current,
+      {
+        ...emptyContactForm,
+        role: '',
+        isPrimary: false,
+      },
+    ]);
+  }
+
+  function removeContact(index: number) {
+    setCreateContacts((current) => {
+      const remaining = current.filter(
+        (_, contactIndex) => contactIndex !== index,
+      );
+
+      if (remaining.length > 0 && !remaining.some((item) => item.isPrimary)) {
+        const managerIndex = remaining.findIndex(
+          (item) => item.role === 'PROPERTY_MANAGER',
+        );
+        remaining[managerIndex >= 0 ? managerIndex : 0] = {
+          ...remaining[managerIndex >= 0 ? managerIndex : 0],
+          isPrimary: true,
+        };
+      }
+
+      return remaining;
+    });
+  }
+
+  function closeCreateForm() {
+    if (creating) return;
+
+    setIsCreating(false);
+    setCreateForm(emptyPropertyForm);
+    setCreateContacts([{ ...emptyContactForm }]);
+    setCreateWaterBodies([]);
+    setCreateError('');
+  }
+
+  async function createProperty(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (!createFormIsValid || creating) return;
+
+    try {
+      setCreating(true);
+      setCreateError('');
+
+      const response = await fetch(
+        `${API_URL}/properties`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...createForm,
+            name: createForm.name.trim(),
+            addressLine1:
+              createForm.addressLine1.trim(),
+            city: createForm.city.trim(),
+            county: createForm.county.trim(),
+            state: createForm.state.trim(),
+            zipCode: createForm.zipCode.trim(),
+            managementCompanyName:
+              createForm.managementCompanyName.trim() ||
+              undefined,
+            maintenanceChiefInfo:
+              createForm.maintenanceChiefInfo.trim() ||
+              undefined,
+            contacts: createContacts.map((contact) => ({
+              firstName: contact.firstName.trim() || undefined,
+              lastName: contact.lastName.trim() || undefined,
+              role: contact.role,
+              email: contact.email.trim(),
+              phone: contact.phone.trim() || undefined,
+              isPrimary: contact.isPrimary,
+            })),
+            waterBodies: createWaterBodies.map((waterBody) => ({
+              name: waterBody.name.trim(),
+              type: waterBody.type,
+              size: waterBody.size || undefined,
+              gallons: waterBody.gallons ? Number(waterBody.gallons) : undefined,
+              active: true,
+            })),
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error('Could not create property');
+      }
+
+      const createdProperty: Property =
+        await response.json();
+
+      let photoUploadFailures = 0;
+      const usedWaterBodyIds = new Set<string>();
+      for (let index = 0; index < createWaterBodies.length; index += 1) {
+        const formWaterBody = createWaterBodies[index];
+        const createdWaterBody = createdProperty.waterBodies.find(
+          (candidate) =>
+            candidate.name === formWaterBody.name.trim() &&
+            !usedWaterBodyIds.has(candidate.id),
+        );
+        const files = formWaterBody.photoFiles ?? [];
+
+        if (!createdWaterBody) {
+          photoUploadFailures += files.length;
+          continue;
+        }
+        usedWaterBodyIds.add(createdWaterBody.id);
+        photoUploadFailures += await uploadWaterBodyPhotoFiles(
+          createdProperty.id,
+          createdWaterBody.id,
+          files,
+        );
+      }
+
+      setProperties((current) =>
+        [...current, createdProperty].sort((a, b) =>
+          a.name.localeCompare(b.name),
+        ),
+      );
+      setIsCreating(false);
+      setCreateForm(emptyPropertyForm);
+      setCreateContacts([{ ...emptyContactForm }]);
+      setCreateWaterBodies([]);
+      setCreateError('');
+
+      if (photoUploadFailures > 0) {
+        window.alert(
+          `Property created, but ${photoUploadFailures} photo${photoUploadFailures === 1 ? '' : 's'} could not be uploaded. You can try again later.`,
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      setCreateError(
+        'The property could not be created. Check the information and try again.',
+      );
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function moveSelectedPropertyToTrash() {
+    if (!selectedProperty) return;
+
+    const confirmed = window.confirm(
+      `Move "${selectedProperty.name}" to Deleted Properties? You can restore it later.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      setSaving(true);
+      const response = await fetch(
+        `${API_URL}/properties/${selectedProperty.id}`,
+        { method: 'DELETE' },
+      );
+      if (!response.ok) throw new Error('Could not delete property');
+
+      const deletedProperty = await response.json();
+      setProperties((current) =>
+        current.filter((property) => property.id !== deletedProperty.id),
+      );
+      setDeletedProperties((current) => [deletedProperty, ...current]);
+      setSelectedProperty(null);
+      setIsEditing(false);
+    } catch (error) {
+      console.error(error);
+      window.alert('The property could not be moved to Deleted Properties.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function restoreProperty(property: Property) {
+    try {
+      setTrashActionId(property.id);
+      const response = await fetch(
+        `${API_URL}/properties/${property.id}/restore`,
+        { method: 'PATCH' },
+      );
+      if (!response.ok) throw new Error('Could not restore property');
+
+      const restored = await response.json();
+      setDeletedProperties((current) =>
+        current.filter((item) => item.id !== property.id),
+      );
+      setProperties((current) =>
+        [...current, restored].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+    } catch (error) {
+      console.error(error);
+      window.alert('The property could not be restored.');
+    } finally {
+      setTrashActionId(null);
+    }
+  }
+
+  async function permanentlyDeleteProperty(property: Property) {
+    const confirmed = window.confirm(
+      `Permanently delete "${property.name}"? This action cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      setTrashActionId(property.id);
+      const response = await fetch(
+        `${API_URL}/properties/${property.id}/permanent`,
+        { method: 'DELETE' },
+      );
+      if (!response.ok) throw new Error('Could not permanently delete property');
+
+      setDeletedProperties((current) =>
+        current.filter((item) => item.id !== property.id),
+      );
+    } catch (error) {
+      console.error(error);
+      window.alert('The property could not be permanently deleted.');
+    } finally {
+      setTrashActionId(null);
+    }
+  }
+
+  async function retrySharePointFolder() {
+    if (!selectedProperty || creatingSharePointFolder) return;
+
+    try {
+      setCreatingSharePointFolder(true);
+      const response = await fetch(
+        `${API_URL}/properties/${selectedProperty.id}/sharepoint-folder`,
+        { method: 'POST' },
+      );
+      if (!response.ok) throw new Error('Could not create SharePoint folder');
+
+      const updatedProperty = await response.json();
+      setSelectedProperty(updatedProperty);
+      setProperties((current) =>
+        current.map((property) =>
+          property.id === updatedProperty.id ? updatedProperty : property,
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+      window.alert(
+        'The SharePoint folder could not be created. Check the connection and try again.',
+      );
+    } finally {
+      setCreatingSharePointFolder(false);
+    }
+  }
+
+  function openProposal() {
+    if (!selectedProperty) return;
+    setRouteDistanceMiles(null);
+    setProposalServices([...proposalServiceOptions]);
+    setProposalWaterBodies(
+      selectedProperty.waterBodies.map((body) => {
+        const type = body.type === 'POOL'
+          ? 'SWIMMING_POOL'
+          : body.type === 'FOUNTAIN'
+            ? 'DECORATIVE_WATER_FEATURE'
+            : body.type;
+        return {
+          name: body.name,
+          type,
+          include: body.active,
+          category: body.size ?? (type === 'SWIMMING_POOL' ? 'MEDIUM' : 'MEDIUM'),
+          monthlyPrice: type === 'SWIMMING_POOL'
+            ? poolPrices[body.size ?? 'MEDIUM']?.[0] ?? 700
+            : automaticWaterBodyPrices[type] ?? 150,
+          frequency: '3x Weekly',
+          disinfectionSystem: true,
+          accessDifficulty: 'SIMPLE',
+          priceManuallyAdjusted: false,
+          priceMode: 'SUGGESTED',
+        };
+      }),
+    );
+    setShowProposal(true);
+  }
+
+  function updateProposalWaterBody(
+    index: number,
+    changes: Partial<ProposalWaterBody>,
+  ) {
+    setProposalWaterBodies((current) =>
+      current.map((body, bodyIndex) => {
+        if (bodyIndex !== index) return body;
+        const updated = { ...body, ...changes };
+        if (changes.type) {
+          updated.category = changes.type === 'SWIMMING_POOL' ? 'SMALL' : '';
+        }
+        const pricingVariableChanged = [
+          'type',
+          'category',
+          'frequency',
+          'disinfectionSystem',
+          'accessDifficulty',
+        ].some((field) => field in changes);
+        if (pricingVariableChanged) {
+          return {
+            ...updated,
+            monthlyPrice: calculateWaterBodyPrice(updated),
+            priceManuallyAdjusted: false,
+            priceMode: 'SUGGESTED',
+          };
+        }
+        return updated;
+      }),
+    );
+  }
+
+  function buildProposalEmailBody() {
+    if (!selectedProperty) return '';
+    const includedBodies = proposalWaterBodies.filter((body) => body.include);
+    const primaryContact =
+      selectedProperty.contacts.find((relation) => relation.isPrimary) ??
+      selectedProperty.contacts[0];
+    const formattedInvestment = monthlyInvestment.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+    const serviceSubject =
+      includedBodies.length === 1
+        ? formatLabel(includedBodies[0].type).toLowerCase()
+        : 'pools and water bodies';
+    const propertyAddress = [
+      selectedProperty.addressLine1,
+      selectedProperty.city,
+      selectedProperty.state,
+      selectedProperty.zipCode,
+    ]
+      .filter(Boolean)
+      .join(', ');
+    return [
+      `Proposal BL-${new Date().getFullYear()}-${propertySku(selectedProperty.id).toUpperCase()}`,
+      `Prepared for: ${selectedProperty.name}`,
+      `Address: ${propertyAddress}`,
+      `Management company: ${selectedProperty.managementCompany?.name ?? '-'}`,
+      `Contact: ${primaryContact?.contact.firstName ?? '-'} | ${primaryContact?.contact.phone ?? '-'} | ${primaryContact?.contact.email ?? '-'}`,
+      '',
+      `We are pleased to present Blue Life Pools’ proposal for the monthly maintenance of the ${serviceSubject} at ${selectedProperty.name}. Our commitment is to provide professional, efficient, and high-quality service, ensuring that your facilities remain in optimal condition throughout the year.`,
+      '',
+      'Our proposal includes:',
+      ...proposalServices.map((service) => `✔ ${service}`),
+      '',
+      `The monthly service fee is ${formattedInvestment}. This fee reflects our commitment to quality, reliability, and the support of a specialized team.`,
+      '',
+      'Service details:',
+      ...includedBodies.map(
+        (body) =>
+          `• ${body.name} | ${body.frequency}`,
+      ),
+      managementStatus === 'VIP'
+        ? `• VIP pricing applied: fixed ${vipDiscountPercentage}% discount`
+        : managementStatus === 'NEGOTIATED' && adjustmentPercentage > 0
+          ? `• Negotiated pricing applied: fixed ${adjustmentPercentage}% discount`
+        : '',
+      proposalNotes.trim() ? `• Additional notes: ${proposalNotes.trim()}` : '',
+      '',
+      'Attached you will find the full details of our proposal for your review. Please do not hesitate to contact me with any questions or to discuss the next steps.',
+      '',
+      'We truly appreciate the opportunity to present this proposal and look forward to the possibility of working with you to maintain your facilities to the highest standards.',
+      '',
+      'Kind regards,',
+      'Blue Life Pools',
+    ].join('\n');
+  }
+
+  function buildProposalPdfData(): ProposalPdfData | null {
+    if (!selectedProperty) return null;
+    const includedBodies = proposalWaterBodies.filter((body) => body.include);
+    const primaryContact =
+      selectedProperty.contacts.find((relation) => relation.isPrimary) ??
+      selectedProperty.contacts[0];
+    const contactName = [
+      primaryContact?.contact.firstName,
+      primaryContact?.contact.lastName,
+    ]
+      .filter(Boolean)
+      .join(' ');
+    const propertyAddress = [
+      selectedProperty.addressLine1,
+      selectedProperty.city,
+      selectedProperty.state,
+      selectedProperty.zipCode,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    return {
+      proposalNumber: `BL-${new Date().getFullYear()}-${propertySku(selectedProperty.id).toUpperCase()}`,
+      proposalDate: new Date(),
+      clientName: selectedProperty.managementCompany?.name ?? '-',
+      propertyName: selectedProperty.name,
+      address: propertyAddress,
+      contactName: contactName || '-',
+      email: primaryContact?.contact.email ?? '-',
+      phone: primaryContact?.contact.phone ?? '-',
+      waterBodies: includedBodies.map((body) => ({
+        description: body.name,
+        type: [
+          formatLabel(body.type),
+          body.type === 'SWIMMING_POOL' && body.category
+            ? formatLabel(body.category)
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' - '),
+        frequency: body.frequency,
+        baseMonthlyCost: effectiveWaterBodyPrice(body),
+      })),
+      services: proposalServices,
+      monthlyTransportationCost,
+      discountPercentage: adjustmentPercentage,
+      totalMonthlyInvestment: monthlyInvestment,
+    };
+  }
+
+  async function createProposalEmailDraft(
+    propertyId: string,
+    activity: SalesActivity,
+    recipientEmail: string,
+    subject: string,
+    body: string,
+    pdfData?: ProposalPdfData,
+  ) {
+    const proposalData = pdfData ?? proposalPdfDataFromActivity(activity);
+    if (!proposalData) {
+      throw new Error('This proposal does not have enough saved data to generate its PDF.');
+    }
+
+    const pdfModule = await import('./proposalPdf');
+    const pdf = await pdfModule.createProposalPdf(proposalData);
+    const formData = new FormData();
+    formData.append('recipientEmail', recipientEmail);
+    formData.append('subject', subject);
+    formData.append('body', body);
+    formData.append('file', pdf.blob, pdf.fileName);
+
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/sales-activities/${activity.id}/email-draft`,
+      {
+        method: 'POST',
+        body: formData,
+      },
+    );
+    if (!response.ok) {
+      const result = await response.json().catch(() => null) as { message?: string } | null;
+      throw new Error(result?.message ?? 'The Outlook draft could not be created.');
+    }
+
+    const updated: SalesActivity = await response.json();
+    const replaceActivity = (property: Property) => ({
+      ...property,
+      salesActivities: property.salesActivities.map((item) =>
+        item.id === updated.id ? updated : item,
+      ),
+    });
+    setProperties((current) =>
+      current.map((property) =>
+        property.id === propertyId ? replaceActivity(property) : property,
+      ),
+    );
+    setSelectedProperty((current) =>
+      current?.id === propertyId ? replaceActivity(current) : current,
+    );
+    return updated;
+  }
+
+  async function storeProposalPdfInSharePoint(
+    propertyId: string,
+    activity: SalesActivity,
+    pdf: { blob: Blob; fileName: string },
+  ) {
+    const formData = new FormData();
+    formData.append('file', pdf.blob, pdf.fileName);
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/sales-activities/${activity.id}/pdf`,
+      {
+        method: 'POST',
+        body: formData,
+      },
+    );
+    if (!response.ok) {
+      const result = await response.json().catch(() => null) as { message?: string } | null;
+      throw new Error(
+        result?.message ?? 'The proposal PDF could not be saved to SharePoint.',
+      );
+    }
+
+    const updated: SalesActivity = await response.json();
+    const replaceActivity = (property: Property) => ({
+      ...property,
+      salesActivities: property.salesActivities.map((item) =>
+        item.id === updated.id ? updated : item,
+      ),
+    });
+    setProperties((current) =>
+      current.map((property) =>
+        property.id === propertyId ? replaceActivity(property) : property,
+      ),
+    );
+    setSelectedProperty((current) =>
+      current?.id === propertyId ? replaceActivity(current) : current,
+    );
+    return updated;
+  }
+
+  async function downloadProposalPdf(activity: SalesActivity) {
+    if (!selectedProperty) return;
+    const proposalData = proposalPdfDataFromActivity(activity);
+    if (!proposalData) {
+      window.alert('This proposal does not have enough saved data to create its PDF.');
+      return;
+    }
+
+    try {
+      setProposalFileAction({ activityId: activity.id, action: 'CREATE' });
+      const pdfModule = await import('./proposalPdf');
+      const pdf = await pdfModule.createProposalPdf(proposalData);
+      await storeProposalPdfInSharePoint(selectedProperty.id, activity, pdf);
+      const downloadUrl = URL.createObjectURL(pdf.blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = pdf.fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000);
+    } catch (error) {
+      console.error(error);
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : 'The proposal PDF could not be created and saved.',
+      );
+    } finally {
+      setProposalFileAction(null);
+    }
+  }
+
+  async function saveProposal() {
+    if (!selectedProperty || savingProposal) return;
+
+    const includedBodies = proposalWaterBodies.filter((body) => body.include);
+    if (includedBodies.length === 0) {
+      window.alert('Include at least one water body in the proposal.');
+      return;
+    }
+    if (proposalServices.length === 0) {
+      window.alert('Select at least one service for the proposal.');
+      return;
+    }
+
+    const notes = buildProposalEmailBody();
+    const pdfData = buildProposalPdfData();
+    if (!pdfData) return;
+
+    try {
+      setSavingProposal(true);
+      const pdfModule = await import('./proposalPdf');
+      const proposalData = {
+        ...pdfData,
+        proposalDate: pdfData.proposalDate.toISOString(),
+        allocations: pdfModule.allocateProposalCosts(
+          pdfData.waterBodies,
+          pdfData.monthlyTransportationCost,
+          pdfData.discountPercentage,
+          pdfData.totalMonthlyInvestment,
+        ),
+      };
+      const response = await fetch(
+        `${API_URL}/properties/${selectedProperty.id}/sales-activities`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'PROPOSAL',
+            notes,
+            proposalData,
+          }),
+        },
+      );
+      if (!response.ok) throw new Error('Could not save proposal');
+      const activity: SalesActivity = await response.json();
+      setSelectedProperty((current) =>
+        current?.id === selectedProperty.id
+          ? {
+              ...current,
+              salesActivities: [activity, ...current.salesActivities],
+            }
+          : current,
+      );
+      setProperties((current) =>
+        current.map((property) =>
+          property.id === selectedProperty.id
+            ? {
+                ...property,
+                salesActivities: [activity, ...property.salesActivities],
+              }
+            : property,
+        ),
+      );
+      setPreviewActivityId(activity.id);
+      setProposalDraftNotes(activity.notes ?? '');
+      setShowProposal(false);
+    } catch (error) {
+      console.error(error);
+      window.alert('The proposal could not be saved.');
+    } finally {
+      setSavingProposal(false);
+    }
+  }
+
+  async function updateProposalStatusForProperty(
+    propertyId: string,
+    activityId: string,
+    status: Exclude<SalesActivityStatus, 'CREATED'>,
+  ) {
+    try {
+      const response = await fetch(
+        `${API_URL}/properties/${propertyId}/sales-activities/${activityId}/status`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        },
+      );
+      if (!response.ok) throw new Error('Could not update proposal status');
+
+      const updated: SalesActivity = await response.json();
+      if (activityId === focusedReminderActivityId && updated.status !== 'EXPIRED') {
+        setFocusedReminderActivityId(null);
+      }
+      const replaceActivity = (property: Property) => ({
+        ...property,
+        salesActivities: property.salesActivities.map((activity) =>
+          activity.id === updated.id ? updated : activity,
+        ),
+      });
+      setSelectedProperty((current) =>
+        current?.id === propertyId ? replaceActivity(current) : current,
+      );
+      setProperties((current) =>
+        current.map((property) =>
+          property.id === propertyId ? replaceActivity(property) : property,
+        ),
+      );
+      return updated;
+    } catch (error) {
+      console.error(error);
+      window.alert('The proposal status could not be updated.');
+      return null;
+    }
+  }
+
+  async function updateProposalStatus(
+    activityId: string,
+    status: Exclude<SalesActivityStatus, 'CREATED'>,
+  ) {
+    if (!selectedProperty) return null;
+    return updateProposalStatusForProperty(selectedProperty.id, activityId, status);
+  }
+
+  async function recordProposalFollowUpForProperty(
+    propertyId: string,
+    activityId: string,
+    notes: string,
+    channel: 'EMAIL' | 'PHONE' | 'IN_PERSON' | 'OTHER',
+  ) {
+    try {
+      const response = await fetch(
+        `${API_URL}/properties/${propertyId}/sales-activities/${activityId}/follow-ups`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes, channel }),
+        },
+      );
+      if (!response.ok) throw new Error('Could not record proposal follow-up');
+
+      const updated: SalesActivity = await response.json();
+      if (activityId === focusedReminderActivityId) {
+        setFocusedReminderActivityId(null);
+      }
+      const replaceActivity = (property: Property) => ({
+        ...property,
+        salesActivities: property.salesActivities.map((activity) =>
+          activity.id === updated.id ? updated : activity,
+        ),
+      });
+      setSelectedProperty((current) =>
+        current?.id === propertyId ? replaceActivity(current) : current,
+      );
+      setProperties((current) =>
+        current.map((property) =>
+          property.id === propertyId ? replaceActivity(property) : property,
+        ),
+      );
+      return updated;
+    } catch (error) {
+      console.error(error);
+      window.alert('The proposal follow-up could not be recorded.');
+      return null;
+    }
+  }
+
+  async function saveProposalText(activityId: string, notes: string) {
+    if (!selectedProperty) return null;
+    setSavingProposalText(true);
+    try {
+      const response = await fetch(
+        `${API_URL}/properties/${selectedProperty.id}/sales-activities/${activityId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes }),
+        },
+      );
+      if (!response.ok) throw new Error('Could not save proposal text');
+      const updated: SalesActivity = await response.json();
+      const replaceActivity = (property: Property) => ({
+        ...property,
+        salesActivities: property.salesActivities.map((item) =>
+          item.id === updated.id ? updated : item,
+        ),
+      });
+      setSelectedProperty((current) => (current ? replaceActivity(current) : current));
+      setProperties((current) =>
+        current.map((property) =>
+          property.id === selectedProperty.id ? replaceActivity(property) : property,
+        ),
+      );
+      setProposalDraftNotes(updated.notes ?? '');
+      return updated;
+    } catch (error) {
+      console.error(error);
+      window.alert('The proposal text could not be saved.');
+      return null;
+    } finally {
+      setSavingProposalText(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!selectedProperty || !focusedReminderActivityId) return;
+
+    window.requestAnimationFrame(() => {
+      document.getElementById('sales-activity')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+  }, [selectedProperty, focusedReminderActivityId]);
+
+  async function deleteProposal(activityId: string) {
+    if (!selectedProperty) return;
+    if (!window.confirm('Delete this proposal from Sales Activity?')) return;
+    try {
+      const response = await fetch(
+        `${API_URL}/properties/${selectedProperty.id}/sales-activities/${activityId}`,
+        { method: 'DELETE' },
+      );
+      if (!response.ok) throw new Error('Could not delete proposal');
+      const remaining = selectedProperty.salesActivities.filter(
+        (activity) => activity.id !== activityId,
+      );
+      setSelectedProperty({ ...selectedProperty, salesActivities: remaining });
+      setProperties((current) =>
+        current.map((property) =>
+          property.id === selectedProperty.id
+            ? { ...property, salesActivities: remaining }
+            : property,
+        ),
+      );
+      const nextActivity = remaining[0];
+      setPreviewActivityId(nextActivity?.id ?? null);
+      setProposalDraftNotes(nextActivity?.notes ?? '');
+    } catch (error) {
+      console.error(error);
+      window.alert('The proposal could not be deleted.');
+    }
+  }
+
+  async function saveProperty() {
+    if (
+      !selectedProperty ||
+      !editForm
+    ) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const response = await fetch(
+        `${API_URL}/properties/${selectedProperty.id}`,
+        {
+          method: 'PATCH',
+
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+
+          body: JSON.stringify({
+            name:
+              editForm.name.trim(),
+
+            leadSource:
+              editForm.leadSource ||
+              undefined,
+
+            propertyType:
+              editForm.propertyType ||
+              undefined,
+
+            segment:
+              editForm.segment ||
+              undefined,
+
+            managementCompanyName:
+              editForm.managementCompanyName.trim(),
+
+            addressLine1:
+              editForm.addressLine1 ||
+              undefined,
+
+            city:
+              editForm.city ||
+              undefined,
+
+            county:
+              editForm.county ||
+              undefined,
+
+            state:
+              editForm.state ||
+              undefined,
+
+            zipCode:
+              editForm.zipCode ||
+              undefined,
+
+            sharepointFolderUrl:
+              editForm
+                .sharepointFolderUrl ||
+              undefined,
+
+            maintenanceChiefInfo:
+              editForm
+                .maintenanceChiefInfo ||
+              undefined,
+
+            contacts: editContacts.map((contact) => ({
+              contactId: contact.contactId,
+              firstName: contact.firstName.trim() || undefined,
+              lastName: contact.lastName.trim() || undefined,
+              role: contact.role,
+              email: contact.email.trim(),
+              phone: contact.phone.trim() || undefined,
+              isPrimary: contact.isPrimary,
+            })),
+            waterBodies: editWaterBodies.map((waterBody) => ({
+              name: waterBody.name.trim(),
+              type: waterBody.type,
+              size: waterBody.size || undefined,
+              gallons: waterBody.gallons ? Number(waterBody.gallons) : undefined,
+              active: true,
+            })),
+
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const error =
+          await response.json();
+
+        console.error(error);
+
+        window.alert(
+          'Could not save property changes.',
+        );
+
+        return;
+      }
+
+      const updatedProperty =
+        await response.json();
+
+      const refreshedResponse =
+        await fetch(
+          `${API_URL}/properties/${selectedProperty.id}`,
+        );
+
+      let completeProperty: Property =
+        updatedProperty as Property;
+      if (
+        refreshedResponse.ok
+      ) {
+        completeProperty =
+          await refreshedResponse.json();
+      }
+
+      let photoUploadFailures = 0;
+      const usedWaterBodyIds = new Set<string>();
+      for (const formWaterBody of editWaterBodies) {
+        const files = formWaterBody.photoFiles ?? [];
+        if (files.length === 0) continue;
+
+        const updatedWaterBody = completeProperty.waterBodies.find(
+          (candidate) =>
+            candidate.name === formWaterBody.name.trim() &&
+            !usedWaterBodyIds.has(candidate.id),
+        );
+
+        if (!updatedWaterBody) {
+          photoUploadFailures += files.length;
+          continue;
+        }
+
+        usedWaterBodyIds.add(updatedWaterBody.id);
+        photoUploadFailures += await uploadWaterBodyPhotoFiles(
+          completeProperty.id,
+          updatedWaterBody.id,
+          files,
+        );
+      }
+
+      setSelectedProperty(
+        completeProperty,
+      );
+
+      setProperties(
+        properties.map(
+          (property) =>
+            property.id ===
+            completeProperty.id
+              ? completeProperty
+              : property,
+        ),
+      );
+
+      setIsEditing(false);
+      setEditForm(null);
+      setEditContacts([]);
+      setEditWaterBodies([]);
+
+      if (photoUploadFailures > 0) {
+        window.alert(
+          `Property saved, but ${photoUploadFailures} photo${photoUploadFailures === 1 ? '' : 's'} could not be uploaded. You can try again later.`,
+        );
+      }
+    } catch (error) {
+      console.error(error);
+
+      window.alert(
+        'Could not save property changes.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function navigateToArea(area: AppArea, options?: { healthUnassignedOnly?: boolean }) {
+    setActiveArea(area);
+    setHealthUnassignedOnly(area === 'health' && Boolean(options?.healthUnassignedOnly));
+    setSelectedProperty(null);
+    setShowDeleted(false);
+  }
+
+  function renderAppSidebar() {
+    const areas: Array<{ id: AppArea; label: string; icon: string }> = [
+      { id: 'home', label: 'Home', icon: '⌂' },
+      { id: 'commercial', label: 'Commercial', icon: '◎' },
+      { id: 'chemicals', label: 'Químicos', icon: '⚗' },
+      { id: 'health', label: 'Health Dept.', icon: '♥' },
+      { id: 'reports', label: 'Reports', icon: '!' },
+      { id: 'estimates', label: 'Estimates', icon: '$' },
+      { id: 'operations', label: 'Operations', icon: '◇' },
+      { id: 'finance', label: 'Finance', icon: '▤' },
+    ];
+
+    return (<>
+      <aside className={`app-sidebar${sidebarCollapsed ? ' app-sidebar-collapsed' : ''}`} aria-label="BlueLife areas">
+        <button className="sidebar-collapse-button" type="button" onClick={() => setSidebarCollapsed(true)} aria-label="Hide navigation and use full screen" title="Hide navigation">‹</button>
+        <div className="sidebar-brand">
+          <span>BL</span>
+          <div><strong>BlueLife</strong><small>Internal App</small></div>
+        </div>
+        <nav>
+          {areas.map((area) => (
+            <button
+              type="button"
+              className={activeArea === area.id ? 'sidebar-active' : ''}
+              key={area.id}
+              onClick={() => navigateToArea(area.id)}
+            >
+              <span aria-hidden="true">{area.icon}</span>
+              {area.label}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <span>BL</span>
+          <div><strong>Blue Life Pools</strong><small>Team workspace</small></div>
+        </div>
+      </aside>
+      {sidebarCollapsed && <button className="sidebar-expand-button" type="button" onClick={() => setSidebarCollapsed(false)} aria-label="Show navigation" title="Show navigation">›</button>}
+    </>);
+  }
+
+  function renderEstimatesPage() {
+    const statuses = Array.from(new Set(estimateOpportunities.map((estimate) => estimate.status)))
+      .filter(Boolean)
+      .sort();
+
+    return (
+      <div className="page app-page">
+        {renderAppSidebar()}
+        <header className="area-page-header">
+          <div>
+            <span className="area-eyebrow">REPAIRS & REVENUE</span>
+            <h1>Estimates</h1>
+            <p>Track repair requests from QuickBooks estimate through approval, completion and invoice.</p>
+          </div>
+          <div className="area-header-actions">
+            <span className="integration-pill"><i /> QuickBooks sync planned</span>
+            <button className="primary-button" type="button" onClick={() => setShowRepairRequest(true)}>+ New repair request</button>
+          </div>
+        </header>
+
+        {showRepairRequest && (
+          <div className="modal-backdrop" role="presentation">
+            <section className="property-modal repair-request-modal" role="dialog" aria-modal="true" aria-labelledby="repair-request-title">
+              <div className="edit-panel-header">
+                <div><h2 id="repair-request-title">New repair request</h2><p>Commercial and Operations can send work into the same estimate pipeline.</p></div>
+                <button className="modal-close" type="button" aria-label="Close repair request" onClick={() => setShowRepairRequest(false)}>&times;</button>
+              </div>
+              <form onSubmit={(event) => {
+                event.preventDefault();
+                setEstimateOpportunities((current) => [{
+                  title: repairRequest.property.trim(), propertyLink: repairRequest.property.trim(), estimateNumber: '', value: 0,
+                  status: 'Requested', category: repairRequest.category.trim() || 'Uncategorized', contractor: '',
+                  opportunityName: repairRequest.description.trim(), createdAt: new Date().toLocaleDateString('en-US'),
+                  requestedBy: repairRequest.requestedBy, approvalDate: '', approvedBy: '', estimatedRepairDate: '',
+                  technician: '', actualRepairDate: '', invoiceNumber: '', invoiceValue: 0, invoiceDate: '',
+                }, ...current]);
+                setRepairRequest({ property: '', description: '', category: '', requestedBy: 'Commercial' });
+                setEstimateStatus('ALL');
+                setShowRepairRequest(false);
+              }}>
+                <div className="form-grid">
+                  <div className="form-field form-field-wide"><label>Property *</label><input required value={repairRequest.property} onChange={(event) => setRepairRequest((current) => ({ ...current, property: event.target.value }))} /></div>
+                  <div className="form-field"><label>Requested by *</label><select value={repairRequest.requestedBy} onChange={(event) => setRepairRequest((current) => ({ ...current, requestedBy: event.target.value }))}><option>Commercial</option><option>Technician</option></select></div>
+                  <div className="form-field"><label>Category</label><input placeholder="Pump, Filter, Leak..." value={repairRequest.category} onChange={(event) => setRepairRequest((current) => ({ ...current, category: event.target.value }))} /></div>
+                  <div className="form-field form-field-wide"><label>Repair needed *</label><textarea required rows={5} value={repairRequest.description} onChange={(event) => setRepairRequest((current) => ({ ...current, description: event.target.value }))} /></div>
+                </div>
+                <div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setShowRepairRequest(false)}>Cancel</button><button className="primary-button" type="submit" disabled={!repairRequest.property.trim() || !repairRequest.description.trim()}>Send to Estimates</button></div>
+              </form>
+            </section>
+          </div>
+        )}
+
+        <section className="estimate-kpis">
+          <article><span>Total opportunities</span><strong>{estimateStats.total.toLocaleString()}</strong><small>Imported from Teams</small></article>
+          <article><span>Pending estimates</span><strong>{estimateStats.pending.toLocaleString()}</strong><small>Require customer decision</small></article>
+          <article><span>Accepted</span><strong>{estimateStats.accepted.toLocaleString()}</strong><small>Ready for operations</small></article>
+          <article><span>Open pipeline</span><strong>${estimateStats.pipelineValue.toLocaleString('en-US')}</strong><small>Pending + accepted value</small></article>
+        </section>
+
+        <section className="estimate-workflow">
+          {[
+            ['1', 'Request', 'Commercial or Operations'],
+            ['2', 'Estimate', 'Created in QuickBooks'],
+            ['3', 'Approval', 'Customer decision'],
+            ['4', 'Repair', 'Technician & schedule'],
+            ['5', 'Invoice', 'Finance closes cycle'],
+          ].map(([number, title, subtitle]) => (
+            <div key={number}><span>{number}</span><div><strong>{title}</strong><small>{subtitle}</small></div></div>
+          ))}
+        </section>
+
+        <section className="estimates-table-card">
+          <div className="section-header estimate-table-header">
+            <div><h2>Repair opportunities</h2><p>{filteredEstimates.length.toLocaleString()} records in the current view.</p></div>
+            <div className="estimate-filters">
+              <input
+                className="search"
+                placeholder="Search property, estimate, category..."
+                value={estimateSearch}
+                onChange={(event) => setEstimateSearch(event.target.value)}
+              />
+              <select value={estimateStatus} onChange={(event) => setEstimateStatus(event.target.value)}>
+                <option value="ALL">All statuses</option>
+                {statuses.map((status) => <option value={status} key={status}>{status}</option>)}
+              </select>
+            </div>
+          </div>
+          {estimatesLoading ? (
+            <p className="estimate-loading">Loading estimate history...</p>
+          ) : (
+            <div className="table-container estimates-table-wrap">
+              <table className="estimates-table">
+                <thead><tr><th>Property / Repair</th><th>Estimate</th><th>Category</th><th>Requested by</th><th>Status</th><th>Value</th><th>Next step</th></tr></thead>
+                <tbody>
+                  {filteredEstimates.slice(0, 250).map((estimate, index) => (
+                    <tr key={`${estimate.estimateNumber}-${estimate.title}-${index}`}>
+                      <td><strong>{estimate.title || 'Unnamed property'}</strong><small>{estimate.opportunityName || 'Repair details pending'}</small></td>
+                      <td><strong>{estimate.estimateNumber ? `#${estimate.estimateNumber}` : 'Not created'}</strong><small>{estimate.createdAt || 'No date'}</small></td>
+                      <td><span className="estimate-category">{estimate.category}</span></td>
+                      <td>{estimate.requestedBy}</td>
+                      <td><span className={`estimate-status estimate-${estimate.status.toLowerCase().replaceAll(' ', '-')}`}>{estimate.status}</span></td>
+                      <td><strong>{estimate.value ? `$${estimate.value.toLocaleString('en-US')}` : '—'}</strong></td>
+                      <td>{estimate.status === 'Requested' ? 'Create in QuickBooks' : estimate.status === 'Pending' ? 'Follow up approval' : estimate.status === 'Accepted' ? 'Schedule repair' : estimate.invoiceNumber ? `Invoice #${estimate.invoiceNumber}` : 'Review record'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filteredEstimates.length > 250 && <p className="table-limit-note">Showing the first 250 results. Use search or status filters to narrow the view.</p>}
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
+
+  function renderAreaLanding(area: Exclude<AppArea, 'commercial' | 'chemicals' | 'health' | 'reports' | 'estimates'>) {
+    const content = {
+      home: ['BlueLife Workspace', 'One internal system for commercial, chemicals, health compliance, reports, repairs, operations and finance.', ['Commercial CRM', 'Químicos', 'Health Department', 'Reports', 'Estimates', 'Operations', 'Finance']],
+      operations: ['Operations', 'Coordinate approved repairs, technicians, scheduled dates and completion.', ['Repair schedule', 'Technician workload', 'Completed work', 'Service alerts']],
+      finance: ['Finance', 'Follow converted estimates through invoicing and payment reconciliation.', ['Ready to invoice', 'Invoices issued', 'Revenue', 'QuickBooks status']],
+    }[area];
+
+    return (
+      <div className="page app-page area-landing-page">
+        {renderAppSidebar()}
+        <header className="area-page-header"><div><span className="area-eyebrow">BLUE LIFE INTERNAL APP</span><h1>{content[0]}</h1><p>{content[1]}</p></div></header>
+        <section className="area-landing-grid">
+          {(content[2] as string[]).map((item, index) => (
+            <button type="button" key={item} onClick={() => area === 'home' && navigateToArea((['commercial', 'chemicals', 'health', 'reports', 'estimates', 'operations', 'finance'] as AppArea[])[index])}>
+              <span>{String(index + 1).padStart(2, '0')}</span><strong>{item}</strong><small>{area === 'home' ? 'Open area →' : 'Module foundation ready'}</small>
+            </button>
+          ))}
+        </section>
+      </div>
+    );
+  }
+
+  function renderProposalReminderCenter() {
+    const totalReminderCount = proposalReminders.length;
+
+    return (
+      <div className="proposal-reminder-center">
+        <button
+          className="proposal-reminder-button"
+          type="button"
+          aria-label={`${totalReminderCount} proposal follow-up reminders`}
+          aria-expanded={showProposalReminders}
+          onClick={() => setShowProposalReminders((current) => !current)}
+        >
+          <span aria-hidden="true">&#128276;</span>
+          {totalReminderCount > 0 && (
+            <strong>{totalReminderCount > 99 ? '99+' : totalReminderCount}</strong>
+          )}
+        </button>
+
+        {showProposalReminders && (
+          <aside className="proposal-reminder-panel" aria-label="Proposal follow-up reminders">
+            <div className="proposal-reminder-header">
+              <div>
+                <h2>Proposal follow-ups</h2>
+                <p>Overdue proposals and proposals marked expired.</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close reminders"
+                onClick={() => setShowProposalReminders(false)}
+              >
+                &times;
+              </button>
+            </div>
+
+            {totalReminderCount === 0 ? (
+              <div className="proposal-reminder-empty">
+                <span aria-hidden="true">&#10003;</span>
+                <strong>You're up to date</strong>
+                <p>There are no overdue proposal follow-ups.</p>
+              </div>
+            ) : (
+              <div className="proposal-reminder-list">
+                {proposalReminders.map(({ activity, property, contact }) => {
+                  const sentDate = new Date(activity.sentAt ?? activity.occurredAt);
+                  const daysWaiting = Math.floor((reminderReferenceTime - sentDate.getTime()) / (24 * 60 * 60 * 1000));
+                  const email = contact?.contact.email;
+                  const contactName = [contact?.contact.firstName, contact?.contact.lastName]
+                    .filter(Boolean)
+                    .join(' ');
+                  const isExpired = activity.status === 'EXPIRED';
+                  const reminderLabel = isExpired
+                    ? 'Expired - awaiting action'
+                    : `${daysWaiting} days without response`;
+
+                  return (
+                    <article className="proposal-reminder-item" key={activity.id}>
+                      <button
+                        className="proposal-reminder-property"
+                        type="button"
+                        onClick={() => {
+                          setShowProposalReminders(false);
+                          void openProperty(property.id, activity.id);
+                        }}
+                      >
+                        <span>{reminderLabel}</span>
+                        <strong>{property.name}</strong>
+                        <small>
+                          {contactName || 'Primary contact'} · {isExpired ? 'Expired' : 'Sent'} {sentDate.toLocaleDateString('en-US')}
+                        </small>
+                        <small>
+                          {activity.followUps?.length ?? 0} follow-up{(activity.followUps?.length ?? 0) === 1 ? '' : 's'} recorded
+                        </small>
+                      </button>
+                      <div className="proposal-reminder-actions">
+                        {email ? (
+                          <button
+                            className="proposal-reminder-action proposal-reminder-action-primary"
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const body = activity.notes ?? '';
+                                const updated = await createProposalEmailDraft(
+                                  property.id,
+                                  activity,
+                                  email,
+                                  `Blue Life Pools Proposal - ${property.name}`,
+                                  body,
+                                );
+                                await recordProposalFollowUpForProperty(
+                                  property.id,
+                                  activity.id,
+                                  'Proposal follow-up email draft created.',
+                                  'EMAIL',
+                                );
+                                setShowProposalReminders(false);
+                                if (updated.emailDraftWebUrl) {
+                                  window.location.href = updated.emailDraftWebUrl;
+                                }
+                              } catch (error) {
+                                console.error(error);
+                                window.alert(
+                                  error instanceof Error
+                                    ? error.message
+                                    : 'The follow-up draft could not be created.',
+                                );
+                              }
+                            }}
+                          >
+                            Create follow-up draft
+                          </button>
+                        ) : (
+                          <span className="proposal-reminder-no-email">No email</span>
+                        )}
+                        {!isExpired && (
+                          <button
+                            className="proposal-reminder-action proposal-reminder-action-secondary"
+                            type="button"
+                            onClick={() => {
+                              void updateProposalStatusForProperty(property.id, activity.id, 'EXPIRED');
+                            }}
+                          >
+                            Mark expired
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            <p className="proposal-reminder-note">
+              A reminder disappears after resending, approval, or rejection. Expired proposals stay here until managed.
+            </p>
+          </aside>
+        )}
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="page">
+        <p>
+          Loading properties...
+        </p>
+      </div>
+    );
+  }
+
+  if (activeArea === 'estimates') return renderEstimatesPage();
+  if (activeArea === 'health') return <HealthDepartmentPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} unassignedOnly={healthUnassignedOnly} onClearUnassignedFilter={() => setHealthUnassignedOnly(false)} />;
+  if (activeArea === 'reports') return <ReportsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} />;
+  if (activeArea === 'chemicals') {
+    return <ChemicalsPage sidebar={renderAppSidebar()} />;
+  }
+  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} onOpenHealth={() => navigateToArea('health', { healthUnassignedOnly: true })} />;
+  if (activeArea === 'operations' || activeArea === 'finance') {
+    return renderAreaLanding(activeArea);
+  }
+
+  if (
+    selectedProperty
+  ) {
+    const normalizedPropertyName = selectedProperty.name.trim().toLowerCase();
+    const propertyEstimates = estimateOpportunities.filter((estimate) => {
+      const estimateProperty = estimate.title.trim().toLowerCase();
+      if (!estimateProperty) return false;
+      return estimateProperty === normalizedPropertyName ||
+        estimateProperty.includes(normalizedPropertyName) ||
+        normalizedPropertyName.includes(estimateProperty);
+    });
+    const approvedProposals = selectedProperty.salesActivities.filter((activity) => activity.status === 'APPROVED').length;
+    const isClient = selectedProperty.lifecycleStatus === 'CLIENT';
+    return (
+      <div className="page app-page">
+        {renderAppSidebar()}
+        <div className="property-detail-nav">
+        <button
+          className="back-button"
+          onClick={() => {
+            setSelectedProperty(
+              null,
+            );
+
+            setIsEditing(false);
+            setEditForm(null);
+          }}
+        >
+          ← Back to Properties
+        </button>
+          {renderProposalReminderCenter()}
+        </div>
+
+        <header className="property-header">
+          <div>
+            <h1>
+              {selectedProperty.name}
+            </h1>
+
+            <p>
+              {selectedProperty.city ??
+                '-'}
+
+              {selectedProperty.state
+                ? `, ${selectedProperty.state}`
+                : ''}
+            </p>
+          </div>
+
+          <div className="property-header-actions">
+            <div className="property-lifecycle-summary">
+              <span className={`lifecycle-badge lifecycle-${isClient ? 'client' : 'lead'}`}>
+                {isClient ? 'Client' : 'Lead'}
+              </span>
+              {selectedProperty.serviceStartDate && (
+                <small>
+                  Service since{' '}
+                  {new Date(selectedProperty.serviceStartDate).toLocaleDateString('en-US')}
+                </small>
+              )}
+            </div>
+            {!isEditing && (
+              <button
+                className="danger-button"
+                onClick={moveSelectedPropertyToTrash}
+                disabled={saving}
+              >
+                Delete Property
+              </button>
+            )}
+
+          </div>
+        </header>
+
+        <nav className="property-tabs" aria-label="Property workspace">
+          {([
+            ['overview', 'Overview'],
+            ['commercial', 'Commercial'],
+            ['estimates', `Estimates (${propertyEstimates.length})`],
+            ['contracts', 'Contracts'],
+          ] as Array<[PropertyTab, string]>).map(([tab, label]) => (
+            <button type="button" className={propertyTab === tab ? 'property-tab-active' : ''} key={tab} onClick={() => setPropertyTab(tab)}>
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        {propertyTab === 'overview' && (
+          <section className="property-command-center">
+            <div className="property-command-heading">
+              <h2>Property Journey</h2>
+            </div>
+            <div className="property-processes">
+              <div>
+                <div className="process-title"><strong>Proposal journey</strong><span>{isClient ? 'Active client' : approvedProposals ? 'Contract stage' : 'Commercial stage'}</span></div>
+                <div className="process-track">
+                  <span className="process-complete">Property created</span>
+                  <span className={isClient || selectedProperty.salesActivities.length ? 'process-complete' : ''}>Proposal</span>
+                  <span className={isClient || approvedProposals ? 'process-complete' : ''}>Contract</span>
+                  <span className={isClient ? 'process-complete' : ''}>Service start</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {(propertyTab === 'overview' || propertyTab === 'commercial') && (propertyTab === 'overview' && isEditing &&
+        editForm ? (
+          <section className="edit-panel property-overview-card">
+            <div className="edit-panel-header">
+              <div>
+                <h2>
+                  Property information
+                </h2>
+
+                <p>
+                  Edit the general details in one place.
+                </p>
+              </div>
+
+              <div className="edit-actions">
+                <button
+                  className="secondary-button"
+                  onClick={
+                    cancelEditing
+                  }
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  className="primary-button"
+                  onClick={
+                    saveProperty
+                  }
+                  disabled={
+                    saving ||
+                    !editContactsAreValid ||
+                    !editWaterBodiesAreValid
+                  }
+                >
+                  {saving
+                    ? 'Saving...'
+                    : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-grid">
+              <div className="form-field form-field-wide">
+                <label>
+                  Property Name
+                </label>
+
+                <input
+                  value={
+                    editForm.name
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    updateField(
+                      'name',
+                      event.target
+                        .value,
+                    )
+                  }
+                />
+              </div>
+
+              <div className="form-field">
+                <label>
+                  Property Type
+                </label>
+
+                <select
+                  value={
+                    editForm.propertyType
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    updateField(
+                      'propertyType',
+                      event.target
+                        .value,
+                    )
+                  }
+                >
+                  <option value="">
+                    Select type
+                  </option>
+
+                  <option value="COMMERCIAL">
+                    Commercial
+                  </option>
+
+                  <option value="RESIDENTIAL">
+                    Residential
+                  </option>
+                </select>
+              </div>
+
+              <div className="form-field">
+                <label>
+                  Segment
+                </label>
+
+                <select
+                  value={
+                    editForm.segment
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    updateField(
+                      'segment',
+                      event.target
+                        .value,
+                    )
+                  }
+                >
+                  <option value="">
+                    Select segment
+                  </option>
+
+                  <option value="MULTIFAMILY">
+                    Multifamily
+                  </option>
+
+                  <option value="HOA">
+                    HOA
+                  </option>
+
+                  <option value="HOTEL">
+                    Hotel
+                  </option>
+
+                  <option value="SINGLE_FAMILY">
+                    Single Family
+                  </option>
+                </select>
+              </div>
+
+              <div className="form-field">
+                <label>
+                  Management Company
+                </label>
+
+                <input
+                  value={editForm.managementCompanyName}
+                  onChange={(event) =>
+                    updateField(
+                      'managementCompanyName',
+                      event.target.value,
+                    )
+                  }
+                  placeholder="Example: ABC Property Management"
+                />
+              </div>
+
+              <div className="form-field">
+                <label>
+                  Lead Source
+                </label>
+
+                <select
+                  value={
+                    editForm.leadSource
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    updateField(
+                      'leadSource',
+                      event.target
+                        .value,
+                    )
+                  }
+                >
+                  <option value="">
+                    Select source
+                  </option>
+
+                  <option value="ROUTE">
+                    Route
+                  </option>
+
+                  <option value="REFERRAL">
+                    Referral
+                  </option>
+                </select>
+              </div>
+
+              <div className="form-field form-field-wide">
+                <label>
+                  Address
+                </label>
+
+                <input
+                  value={
+                    editForm.addressLine1
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    updateField(
+                      'addressLine1',
+                      event.target
+                        .value,
+                    )
+                  }
+                />
+              </div>
+
+              <div className="form-field">
+                <label>
+                  City
+                </label>
+
+                <input
+                  value={
+                    editForm.city
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    updateField(
+                      'city',
+                      event.target
+                        .value,
+                    )
+                  }
+                />
+              </div>
+
+              <div className="form-field">
+                <label>
+                  County
+                </label>
+
+                <input
+                  value={
+                    editForm.county
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    updateField(
+                      'county',
+                      event.target
+                        .value,
+                    )
+                  }
+                />
+              </div>
+
+              <div className="form-field">
+                <label>
+                  State
+                </label>
+
+                <input
+                  value={
+                    editForm.state
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    updateField(
+                      'state',
+                      event.target
+                        .value,
+                    )
+                  }
+                />
+              </div>
+
+              <div className="form-field">
+                <label>
+                  ZIP Code
+                </label>
+
+                <input
+                  value={
+                    editForm.zipCode
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    updateField(
+                      'zipCode',
+                      event.target
+                        .value,
+                    )
+                  }
+                />
+              </div>
+
+              <div className="form-field form-field-wide">
+                <label>
+                  SharePoint Folder URL
+                </label>
+
+                <input
+                  value={
+                    editForm.sharepointFolderUrl
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    updateField(
+                      'sharepointFolderUrl',
+                      event.target
+                        .value,
+                    )
+                  }
+                />
+              </div>
+
+              <div className="form-section-title form-field-wide">
+                <div>
+                  <h3>Contacts</h3>
+                  <p>Edit existing contacts or add a new one.</p>
+                </div>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={addEditContact}
+                >
+                  + Add contact
+                </button>
+              </div>
+
+              <div className="contacts-editor form-field-wide">
+                {editContacts.map((contact, index) => (
+                  <div
+                    className="contact-editor"
+                    key={contact.contactId ?? `new-${index}`}
+                  >
+                    <div className="contact-editor-header">
+                      <strong>Contact {index + 1}</strong>
+                      {editContacts.length > 1 && (
+                        <button
+                          className="delete-button"
+                          type="button"
+                          onClick={() => removeEditContact(index)}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="form-grid contact-fields">
+                      <div className="form-field">
+                        <label>Role *</label>
+                        <select
+                          value={contact.role}
+                          onChange={(event) =>
+                            updateEditContact(index, 'role', event.target.value)
+                          }
+                        >
+                          <option value="">Select role</option>
+                          <option value="PROPERTY_MANAGER">Property Manager</option>
+                          <option value="REGIONAL_MANAGER">Regional Manager</option>
+                          <option value="MAINTENANCE_CHIEF">Maintenance Chief</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </div>
+
+                      <div className="form-field">
+                        <label>Email *</label>
+                        <input
+                          type="email"
+                          value={contact.email}
+                          onChange={(event) =>
+                            updateEditContact(index, 'email', event.target.value)
+                          }
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label>First Name (optional)</label>
+                        <input
+                          value={contact.firstName}
+                          onChange={(event) =>
+                            updateEditContact(index, 'firstName', event.target.value)
+                          }
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label>Last Name (optional)</label>
+                        <input
+                          value={contact.lastName}
+                          onChange={(event) =>
+                            updateEditContact(index, 'lastName', event.target.value)
+                          }
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label>Phone (optional)</label>
+                        <input
+                          type="tel"
+                          value={contact.phone}
+                          onChange={(event) =>
+                            updateEditContact(index, 'phone', event.target.value)
+                          }
+                        />
+                      </div>
+
+                      <label className="primary-contact-check">
+                        <input
+                          type="checkbox"
+                          checked={contact.isPrimary}
+                          onChange={() =>
+                            updateEditContact(index, 'isPrimary', true)
+                          }
+                        />
+                        Primary contact
+                      </label>
+                    </div>
+                  </div>
+                ))}
+
+                {!editContacts.some(
+                  (contact) => contact.role === 'PROPERTY_MANAGER',
+                ) && (
+                  <span className="field-error">
+                    Add at least one Property Manager.
+                  </span>
+                )}
+                {new Set(editContactEmails).size !==
+                  editContactEmails.length && (
+                  <span className="field-error">
+                    Contact email addresses cannot be repeated.
+                  </span>
+                )}
+              </div>
+
+              <WaterBodiesEditor
+                bodies={editWaterBodies}
+                idPrefix="edit-water-body"
+                onAdd={() => addWaterBody('edit')}
+                onUpdate={(index, field, value) =>
+                  updateWaterBody('edit', index, field, value)
+                }
+                onRemove={(index) => removeWaterBody('edit', index)}
+                onFilesSelected={(index, files) =>
+                  selectWaterBodyPhotos('edit', index, files)
+                }
+              />
+
+            </div>
+          </section>
+        ) : (
+          <div className="property-grid">
+            <section className={`detail-card detail-card-wide property-overview-card ${propertyTab !== 'overview' ? 'tab-panel-hidden' : ''}`}>
+              <div className="overview-header">
+                <div>
+                  <h2>Property information</h2>
+                  <p>General details, location and key contacts.</p>
+                </div>
+
+                <button
+                  className="primary-button"
+                  onClick={startEditing}
+                >
+                  Edit information
+                </button>
+              </div>
+
+              <div className="overview-grid">
+            <div className="detail-section">
+              <h2>
+                General Information
+              </h2>
+
+              <div className="detail-list">
+                <div>
+                  <span>
+                    Property Type
+                  </span>
+
+                  <strong>
+                    {formatLabel(
+                      selectedProperty
+                        .propertyType,
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Segment
+                  </span>
+
+                  <strong>
+                    {formatLabel(
+                      selectedProperty
+                        .segment,
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Lead Source
+                  </span>
+
+                  <strong>
+                    {formatLabel(
+                      selectedProperty
+                        .leadSource,
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Commercial Status</span>
+                  <strong>{selectedProperty.lifecycleStatus === 'CLIENT' ? 'Client' : 'Lead'}</strong>
+                </div>
+
+                <div>
+                  <span>Service Start</span>
+                  <strong>
+                    {selectedProperty.serviceStartDate
+                      ? new Date(selectedProperty.serviceStartDate).toLocaleDateString('en-US')
+                      : '-'}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Management Company
+                  </span>
+
+                  <strong>
+                    {selectedProperty
+                      .managementCompany
+                      ?.name ?? '-'}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="detail-section">
+              <h2>
+                Address
+              </h2>
+
+              <div className="detail-list">
+                <div>
+                  <span>
+                    Address
+                  </span>
+
+                  <strong>
+                    {selectedProperty
+                      .addressLine1 ??
+                      '-'}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    City
+                  </span>
+
+                  <strong>
+                    {selectedProperty
+                      .city ?? '-'}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    County
+                  </span>
+
+                  <strong>
+                    {selectedProperty
+                      .county ?? '-'}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    State / ZIP
+                  </span>
+
+                  <strong>
+                    {selectedProperty
+                      .state ?? '-'}{' '}
+                    {selectedProperty
+                      .zipCode ?? ''}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="detail-section detail-section-wide">
+              <h2>
+                Contacts
+              </h2>
+
+              {selectedProperty
+                .contacts.length ===
+              0 ? (
+                <p className="empty-text">
+                  No contacts
+                  registered.
+                </p>
+              ) : (
+                <div className="contact-grid">
+                  {selectedProperty
+                    .contacts.map(
+                      (relation) => (
+                        <div
+                          className="contact-item"
+                          key={
+                            relation.id
+                          }
+                        >
+                          <div>
+                            <strong>
+                              {relation
+                                .contact
+                                .firstName ??
+                                'Unnamed Contact'}
+                            </strong>
+
+                            <span>
+                              {formatLabel(
+                                relation.role,
+                              )}
+                            </span>
+                          </div>
+
+                          <p>
+                            {relation
+                              .contact
+                              .email ??
+                              '-'}
+                          </p>
+
+                          <p>
+                            {relation
+                              .contact
+                              .phone ??
+                              '-'}
+                          </p>
+                        </div>
+                      ),
+                    )}
+                </div>
+              )}
+            </div>
+
+            <div className="detail-section">
+              <h2>
+                Water Bodies
+              </h2>
+
+              {selectedProperty
+                .waterBodies.length ===
+              0 ? (
+                <p className="empty-text">
+                  No water bodies
+                  registered.
+                </p>
+              ) : (
+                <div className="water-body-details">
+                  <strong className="water-body-total">
+                    {selectedProperty.waterBodies.length} total
+                  </strong>
+                  <div className="tag-list">
+                    {selectedProperty
+                      .waterBodies.map(
+                      (
+                        waterBody,
+                      ) => (
+                        <span
+                          className="tag"
+                          key={
+                            waterBody.id
+                          }
+                        >
+                          {formatLabel(waterBody.type)}: {waterBody.name}
+                          {waterBody.size
+                            && waterBody.type !== 'SPA'
+                            ? ` · ${formatLabel(waterBody.size)}`
+                            : ''}
+                          {waterBody.gallons
+                            ? ` · ${waterBody.gallons.toLocaleString('en-US')} gal`
+                            : ''}
+                        </span>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="detail-section">
+              <h2>
+                SharePoint
+              </h2>
+
+              {selectedProperty
+                .sharepointFolderUrl ? (
+                <a
+                  className="sharepoint-link"
+                  href={
+                    selectedProperty
+                      .sharepointFolderUrl
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open Property Folder
+                </a>
+              ) : (
+                <div className="sharepoint-pending">
+                  <p className="empty-text">
+                    The SharePoint folder is not available yet.
+                  </p>
+                  <button
+                    className="secondary-button"
+                    onClick={retrySharePointFolder}
+                    disabled={creatingSharePointFolder}
+                  >
+                    {creatingSharePointFolder
+                      ? 'Creating folder...'
+                      : 'Retry SharePoint'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+              </div>
+            </section>
+
+            <section
+              id="sales-activity"
+              className={`detail-card detail-card-wide ${propertyTab !== 'commercial' ? 'tab-panel-hidden' : ''} ${focusedReminderActivityId ? 'sales-activity-follow-up' : ''}`}
+            >
+              <div className="card-header">
+                <h2>Sales Activity</h2>
+                <button
+                  className="primary-button"
+                  onClick={openProposal}
+                >
+                  Generate Proposal
+                </button>
+              </div>
+
+              {focusedReminderActivityId && (() => {
+                const reminderActivity = selectedProperty.salesActivities.find(
+                  (activity) => activity.id === focusedReminderActivityId,
+                );
+                if (!reminderActivity) return null;
+                const isExpiredFollowUp = reminderActivity.status === 'EXPIRED';
+                const followUpSentAt = reminderActivity.sentAt
+                  ? new Date(reminderActivity.sentAt)
+                  : new Date(reminderActivity.occurredAt);
+                const daysWaiting = Math.floor(
+                  (reminderReferenceTime - followUpSentAt.getTime()) /
+                  (24 * 60 * 60 * 1000),
+                );
+
+                return (
+                  <div className="sales-follow-up-banner">
+                    <div>
+                      <strong>{isExpiredFollowUp ? 'This proposal is marked expired' : 'This proposal needs follow-up'}</strong>
+                      <span>
+                        {isExpiredFollowUp
+                          ? `Marked expired ${followUpSentAt.toLocaleDateString('en-US')} · ${daysWaiting} days since sent`
+                          : `Sent ${followUpSentAt.toLocaleDateString('en-US')} · ${daysWaiting} days without a recorded response`}
+                      </span>
+                    </div>
+                    <button type="button" onClick={() => setFocusedReminderActivityId(null)}>
+                      Dismiss
+                    </button>
+                  </div>
+                );
+              })()}
+
+              {selectedProperty
+                .salesActivities
+                .length === 0 ? (
+                <p className="empty-text">
+                  No sales activity
+                  registered.
+                </p>
+              ) : (
+                <div className="sales-activity-workspace">
+                  <div className="proposal-board" aria-label="Proposal status board">
+                    {proposalBoardStatuses.map((status) => {
+                      const activities = selectedProperty.salesActivities.filter(
+                        (activity) => (activity.status ?? 'CREATED') === status,
+                      );
+
+                      return (
+                        <section className="proposal-board-column" key={status}>
+                          <div className="proposal-board-heading">
+                            <span className={`proposal-board-dot status-${status.toLowerCase()}`} />
+                            <h3>{proposalStatusLabel(status)}</h3>
+                            <strong>{activities.length}</strong>
+                          </div>
+                          <div className="proposal-board-cards">
+                            {activities.length === 0 && (
+                              <p className="proposal-board-empty">No proposals</p>
+                            )}
+                    {activities.map(
+                      (activity) => (
+                        <button
+                          type="button"
+                          className={`proposal-board-card ${
+                            (previewActivityId ?? selectedProperty.salesActivities[0]?.id) === activity.id
+                              ? 'activity-selected'
+                              : ''
+                          } ${focusedReminderActivityId === activity.id ? 'proposal-follow-up-card' : ''}`}
+                          key={
+                            activity.id
+                          }
+                          onClick={() => {
+                            setPreviewActivityId(activity.id);
+                            setProposalDraftNotes(activity.notes ?? '');
+                            if (focusedReminderActivityId !== activity.id) {
+                              setFocusedReminderActivityId(null);
+                            }
+                          }}
+                        >
+                          <span>{formatLabel(activity.type)}</span>
+                          <strong>{selectedProperty.name}</strong>
+
+                          <small>
+                            Created {new Date(activity.occurredAt).toLocaleDateString('en-US')}
+                            {activity.sentAt
+                              ? ` · Sent ${new Date(activity.sentAt).toLocaleDateString('en-US')}`
+                              : ''}
+                            {activity.approvedAt
+                              ? ` · Approved ${new Date(activity.approvedAt).toLocaleDateString('en-US')}`
+                              : ''}
+                            {activity.rejectedAt
+                              ? ` · Rejected ${new Date(activity.rejectedAt).toLocaleDateString('en-US')}`
+                              : ''}
+                            {activity.followUps?.length
+                              ? ` · ${activity.followUps.length} follow-up${activity.followUps.length === 1 ? '' : 's'}`
+                              : ''}
+                          </small>
+                        </button>
+                      ),
+                    )}
+                          </div>
+                        </section>
+                      );
+                    })}
+                  </div>
+
+                  {(() => {
+                    const activity =
+                      selectedProperty.salesActivities.find(
+                        (item) => item.id === previewActivityId,
+                      ) ?? selectedProperty.salesActivities[0];
+                    const primaryContact =
+                      selectedProperty.contacts.find((contact) => contact.isPrimary) ??
+                      selectedProperty.contacts[0];
+                    if (!activity) return null;
+                    const activeFileAction =
+                      proposalFileAction?.activityId === activity.id
+                        ? proposalFileAction.action
+                        : null;
+                    return (
+                      <aside className="sales-email-preview" aria-label="Proposal email preview">
+                        <div className="email-preview-header">
+                          <span>Email preview</span>
+                          <strong>Blue Life Pools</strong>
+                        </div>
+                        <div className="email-preview-meta">
+                          <span><b>To:</b> {primaryContact?.contact.email ?? 'No primary contact email'}</span>
+                          <span><b>Subject:</b> Blue Life Pools Proposal - {selectedProperty.name}</span>
+                          <span><b>Created:</b> {new Date(activity.occurredAt).toLocaleString('en-US')}</span>
+                          <span><b>Sent:</b> {activity.sentAt ? new Date(activity.sentAt).toLocaleString('en-US') : 'Not sent yet'}</span>
+                          <span><b>Approved:</b> {activity.approvedAt ? new Date(activity.approvedAt).toLocaleString('en-US') : 'Not approved yet'}</span>
+                          <span><b>Rejected:</b> {activity.rejectedAt ? new Date(activity.rejectedAt).toLocaleString('en-US') : 'Not rejected yet'}</span>
+                          <span className={`proposal-status status-${(activity.status ?? 'CREATED').toLowerCase()}`}>
+                            {proposalStatusLabel(activity.status ?? 'CREATED')}
+                          </span>
+                          <span>
+                            <b>PDF:</b>{' '}
+                            {activity.proposalPdfSharepointUrl ? (
+                              <a
+                                href={activity.proposalPdfSharepointUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Open in SharePoint
+                              </a>
+                            ) : (
+                              'Not created yet'
+                            )}
+                          </span>
+                          <span><b>Follow-ups:</b> {activity.followUps?.length ?? 0}</span>
+                        </div>
+                        <div className="email-preview-body-layout">
+                          <textarea
+                            className="email-preview-editor"
+                            aria-label="Editable proposal email text"
+                            disabled={activity.status === 'APPROVED' || activity.status === 'REJECTED'}
+                            value={
+                              (previewActivityId === activity.id
+                                ? proposalDraftNotes
+                                : activity.notes) ?? ''
+                            }
+                            onChange={(event) => setProposalDraftNotes(event.target.value)}
+                            onBlur={() => {
+                              const notes = previewActivityId === activity.id
+                                ? proposalDraftNotes
+                                : activity.notes ?? '';
+                              if (notes !== (activity.notes ?? '')) {
+                                void saveProposalText(activity.id, notes);
+                              }
+                            }}
+                          />
+                            <aside
+                              className="proposal-follow-up-drawer"
+                              id={`proposal-follow-ups-${activity.id}`}
+                              aria-label="Proposal follow-up history"
+                            >
+                              <div className="proposal-follow-up-drawer-header">
+                                <div>
+                                  <span>Follow-ups</span>
+                                  <strong>{activity.followUps?.length ?? 0}</strong>
+                                </div>
+                              </div>
+                              <button
+                              className="proposal-follow-up-log-button"
+                              type="button"
+                              onClick={async () => {
+                                const note = window.prompt(
+                                  'What happened during this follow-up?',
+                                  '',
+                                );
+                                if (note === null) return;
+                                await recordProposalFollowUpForProperty(
+                                  selectedProperty.id,
+                                  activity.id,
+                                  note,
+                                  'OTHER',
+                                );
+                              }}
+                            >
+                              + Log follow-up
+                            </button>
+                          {(activity.followUps?.length ?? 0) > 0 ? (
+                            <ul className="proposal-follow-up-drawer-list">
+                              {activity.followUps?.map((followUp) => (
+                                <li key={followUp.id}>
+                                  <span>
+                                    {new Date(followUp.occurredAt).toLocaleDateString('en-US')}
+                                    {' · '}
+                                    {formatLabel(followUp.channel)}
+                                  </span>
+                                  {followUp.notes && <small>{followUp.notes}</small>}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="proposal-follow-up-drawer-empty">
+                              No follow-ups recorded yet.
+                            </p>
+                          )}
+                            </aside>
+                        </div>
+                        <div className="email-preview-actions">
+                          <button
+                            className="secondary-button"
+                            type="button"
+                            disabled={Boolean(proposalFileAction)}
+                            onClick={() => void downloadProposalPdf(activity)}
+                          >
+                            {activeFileAction === 'CREATE' ? 'Creating PDF...' : 'Create PDF'}
+                          </button>
+                          <button
+                            className="primary-button"
+                            type="button"
+                            disabled={
+                              Boolean(proposalFileAction) ||
+                              !primaryContact?.contact.email ||
+                              !(previewActivityId === activity.id ? proposalDraftNotes : activity.notes) ||
+                              activity.status === 'APPROVED' ||
+                              activity.status === 'REJECTED'
+                            }
+                            onClick={async () => {
+                              const email = primaryContact?.contact.email?.trim();
+                              const notes = previewActivityId === activity.id
+                                ? proposalDraftNotes
+                                : activity.notes ?? '';
+                              if (!email || !notes) return;
+                              if (activity.emailDraftWebUrl && activity.status === 'CREATED') {
+                                window.open(
+                                  activity.emailDraftWebUrl,
+                                  '_blank',
+                                  'noopener,noreferrer',
+                                );
+                                return;
+                              }
+
+                              const emailWindow = window.open('about:blank', '_blank');
+                              if (emailWindow) {
+                                emailWindow.opener = null;
+                                emailWindow.document.title = 'Preparing proposal email';
+                                emailWindow.document.body.textContent =
+                                  'Preparing your Outlook email with the PDF attached...';
+                              }
+
+                              try {
+                                setProposalFileAction({
+                                  activityId: activity.id,
+                                  action: 'EMAIL',
+                                });
+                                const saved = notes === (activity.notes ?? '')
+                                  ? activity
+                                  : await saveProposalText(activity.id, notes);
+                                if (!saved) {
+                                  emailWindow?.close();
+                                  return;
+                                }
+                                const updated = await createProposalEmailDraft(
+                                  selectedProperty.id,
+                                  saved,
+                                  email,
+                                  `Blue Life Pools Proposal - ${selectedProperty.name}`,
+                                  notes,
+                                );
+                                if (activity.sentAt) {
+                                  await recordProposalFollowUpForProperty(
+                                    selectedProperty.id,
+                                    activity.id,
+                                    'Proposal follow-up email draft created with the PDF attached.',
+                                    'EMAIL',
+                                  );
+                                }
+                                if (updated.emailDraftWebUrl) {
+                                  if (emailWindow) {
+                                    emailWindow.location.href = updated.emailDraftWebUrl;
+                                  } else {
+                                    window.location.href = updated.emailDraftWebUrl;
+                                  }
+                                } else {
+                                  emailWindow?.close();
+                                  window.alert('The Outlook email draft could not be opened.');
+                                }
+                              } catch (error) {
+                                emailWindow?.close();
+                                console.error(error);
+                                window.alert(
+                                  error instanceof Error
+                                    ? error.message
+                                    : 'The Outlook email draft could not be created.',
+                                );
+                              } finally {
+                                setProposalFileAction(null);
+                              }
+                            }}
+                          >
+                            {activeFileAction === 'EMAIL' ? 'Preparing Email...' : 'Send Email'}
+                          </button>
+                          <label className="status-control">
+                            <select
+                              value={activity.status === 'SENT' || activity.status === 'APPROVED' || activity.status === 'REJECTED' || activity.status === 'EXPIRED' ? activity.status : ''}
+                              onChange={(event) =>
+                                event.target.value && updateProposalStatus(
+                                  activity.id,
+                                  event.target.value as Exclude<SalesActivityStatus, 'CREATED'>,
+                                )
+                              }
+                            >
+                              <option value="">Set status...</option>
+                              <option value="SENT">Sent - No Response</option>
+                              <option value="APPROVED">Approved</option>
+                              <option value="REJECTED">Rejected</option>
+                              <option value="EXPIRED">Expired</option>
+                            </select>
+                          </label>
+                          <button
+                            className="delete-proposal-icon delete-proposal-bottom"
+                            type="button"
+                            aria-label="Delete proposal"
+                            title="Delete proposal"
+                            onClick={() => deleteProposal(activity.id)}
+                          >
+                            🗑
+                          </button>
+                        </div>
+                      </aside>
+                    );
+                  })()}
+                </div>
+              )}
+            </section>
+          </div>
+        ))}
+
+        {propertyTab === 'estimates' && (
+          <section className="detail-card property-tab-panel">
+            <div className="card-header"><div><h2>Estimates & repairs</h2><p>QuickBooks estimates associated with this property.</p></div><button className="primary-button" type="button" onClick={() => { setRepairRequest((current) => ({ ...current, property: selectedProperty.name, requestedBy: 'Commercial' })); setShowRepairRequest(true); }}>+ Request repair</button></div>
+            {propertyEstimates.length === 0 ? <div className="property-tab-empty"><strong>No estimates found</strong><p>Create a repair request to start the QuickBooks estimate workflow.</p></div> : (
+              <div className="estimate-journey-list">
+                {propertyEstimates.map((estimate, index) => {
+                  const estimateCreated = Boolean(estimate.estimateNumber);
+                  const customerApproved = Boolean(estimate.approvalDate) || ['Accepted', 'Converted', 'Repair Done'].includes(estimate.status);
+                  const repairStarted = Boolean(estimate.estimatedRepairDate || estimate.actualRepairDate) || ['Converted', 'Repair Done'].includes(estimate.status);
+                  const invoiced = Boolean(estimate.invoiceNumber || estimate.invoiceDate);
+                  const nextAction = !estimateCreated
+                    ? 'Create estimate in QuickBooks'
+                    : !customerApproved
+                      ? 'Send or follow up with customer'
+                      : !repairStarted
+                        ? 'Assign technician and schedule repair'
+                        : !invoiced
+                          ? 'Complete repair and create invoice'
+                          : 'Workflow complete';
+
+                  return (
+                    <article className="estimate-journey-card" key={`${estimate.estimateNumber}-${index}`}>
+                      <div className="estimate-journey-header">
+                        <div><span>{estimate.estimateNumber ? `ESTIMATE #${estimate.estimateNumber}` : 'NEW REQUEST'}</span><h3>{estimate.opportunityName || estimate.category}</h3><small>{estimate.category} · Requested by {estimate.requestedBy}</small></div>
+                        <div><span className={`estimate-status estimate-${estimate.status.toLowerCase().replaceAll(' ', '-')}`}>{estimate.status}</span><strong>{estimate.value ? `$${estimate.value.toLocaleString('en-US')}` : 'Value pending'}</strong></div>
+                      </div>
+                      <div className="estimate-process-track">
+                        <span className="process-complete">Requested</span>
+                        <span className={estimateCreated ? 'process-complete' : ''}>QuickBooks estimate</span>
+                        <span className={customerApproved ? 'process-complete' : ''}>Customer approval</span>
+                        <span className={repairStarted ? 'process-complete' : ''}>Repair</span>
+                        <span className={invoiced ? 'process-complete' : ''}>Invoice</span>
+                      </div>
+                      <div className="estimate-next-action"><span>Next action</span><strong>{nextAction}</strong></div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {propertyTab === 'contracts' && (
+          <section className="detail-card property-tab-panel">
+            <div className="card-header"><div><h2>Contracts</h2><p>Maintenance agreements created after an approved commercial proposal.</p></div><button className="secondary-button" type="button">+ Add contract</button></div>
+            {approvedProposals === 0 ? <div className="property-tab-empty"><strong>No active maintenance contract</strong><p>When a maintenance proposal is approved, its contract stage will appear here.</p></div> : <div className="contract-summary"><div><span>Status</span><strong>Ready for contract</strong></div><div><span>Approved proposals</span><strong>{approvedProposals}</strong></div><div><span>SharePoint</span><strong>{selectedProperty.sharepointFolderUrl ? 'Folder ready' : 'Folder pending'}</strong></div></div>}
+          </section>
+        )}
+
+        {showRepairRequest && (
+          <div className="modal-backdrop" role="presentation">
+            <section className="property-modal repair-request-modal" role="dialog" aria-modal="true" aria-labelledby="property-repair-request-title">
+              <div className="edit-panel-header"><div><h2 id="property-repair-request-title">New repair request</h2><p>This request will enter the estimate workflow for {selectedProperty.name}.</p></div><button className="modal-close" type="button" onClick={() => setShowRepairRequest(false)}>&times;</button></div>
+              <form onSubmit={(event) => { event.preventDefault(); setEstimateOpportunities((current) => [{ title: selectedProperty.name, propertyLink: selectedProperty.name, estimateNumber: '', value: 0, status: 'Requested', category: repairRequest.category.trim() || 'Uncategorized', contractor: '', opportunityName: repairRequest.description.trim(), createdAt: new Date().toLocaleDateString('en-US'), requestedBy: repairRequest.requestedBy, approvalDate: '', approvedBy: '', estimatedRepairDate: '', technician: '', actualRepairDate: '', invoiceNumber: '', invoiceValue: 0, invoiceDate: '' }, ...current]); setRepairRequest({ property: '', description: '', category: '', requestedBy: 'Commercial' }); setShowRepairRequest(false); }}><div className="form-grid"><div className="form-field"><label>Requested by</label><select value={repairRequest.requestedBy} onChange={(event) => setRepairRequest((current) => ({ ...current, requestedBy: event.target.value }))}><option>Commercial</option><option>Technician</option></select></div><div className="form-field"><label>Category</label><input value={repairRequest.category} onChange={(event) => setRepairRequest((current) => ({ ...current, category: event.target.value }))} /></div><div className="form-field form-field-wide"><label>Repair needed *</label><textarea required rows={5} value={repairRequest.description} onChange={(event) => setRepairRequest((current) => ({ ...current, description: event.target.value }))} /></div></div><div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setShowRepairRequest(false)}>Cancel</button><button className="primary-button" type="submit" disabled={!repairRequest.description.trim()}>Send to Estimates</button></div></form>
+            </section>
+          </div>
+        )}
+
+        {showProposal && (
+          <div className="modal-backdrop" role="presentation">
+            <section
+              className="property-modal proposal-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="proposal-title"
+            >
+              <div className="edit-panel-header">
+                <div>
+                  <h2 id="proposal-title">Generate Proposal</h2>
+                  <p>Pricing Calculator and monthly service proposal.</p>
+                </div>
+                <button
+                  className="modal-close"
+                  onClick={() => setShowProposal(false)}
+                  disabled={savingProposal}
+                  aria-label="Close proposal"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="proposal-property-summary">
+                <div>
+                  <span>Property</span>
+                  <strong>{selectedProperty.name}</strong>
+                </div>
+                <div>
+                  <span>Address</span>
+                  <strong>
+                    {[selectedProperty.addressLine1, selectedProperty.city,
+                      selectedProperty.state, selectedProperty.zipCode]
+                      .filter(Boolean)
+                      .join(', ')}
+                  </strong>
+                </div>
+                <div>
+                  <span>Water bodies</span>
+                  <strong>{selectedProperty.waterBodies.length}</strong>
+                </div>
+                <div>
+                  <span>Management Company</span>
+                  <strong>
+                    {selectedProperty.managementCompany?.name ?? 'Not assigned'}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="proposal-map-wrap">
+                <iframe
+                  className="property-map"
+                  title={`Google route map for ${selectedProperty.name}`}
+                  loading="lazy"
+                  src={`https://www.google.com/maps?q=${encodeURIComponent(
+                    `${serviceBaseAddress} to ${[selectedProperty.addressLine1, selectedProperty.city,
+                      selectedProperty.state, selectedProperty.zipCode]
+                      .filter(Boolean)
+                      .join(', ')}`,
+                  )}&output=embed`}
+                />
+                <div className="map-price-pin">
+                  <span>Monthly Proposal</span>
+                  <strong>${monthlyInvestment.toLocaleString('en-US')}</strong>
+                </div>
+              </div>
+
+              <div className="transport-cost-card">
+                <div className="proposal-section-heading">
+                  <div>
+                    <h3>Transportation Cost</h3>
+                    <p>Estimated one-way fuel cost is included in the monthly proposal.</p>
+                  </div>
+                </div>
+                <div className="transport-inputs">
+                  <div className="form-field">
+                    <label htmlFor="google-distance-miles">
+                      Google Maps distance (miles, one way)
+                    </label>
+                    <input
+                      id="google-distance-miles"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="Example: 0.9"
+                      value={routeDistanceMiles ?? ''}
+                      onChange={(event) => {
+                        const value = event.target.value.trim();
+                        setRouteDistanceMiles(
+                          value === '' ? null : Math.max(0, Number(value) || 0),
+                        );
+                      }}
+                    />
+                    <small className="transport-distance-help">
+                      Enter the one-way value shown in Google Maps.
+                    </small>
+                  </div>
+                  <div className="form-field">
+                    <label htmlFor="fuel-price">Gas price ($ / gallon)</label>
+                    <input
+                      id="fuel-price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={fuelPricePerGallon}
+                      onChange={(event) => setFuelPricePerGallon(event.target.value)}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label htmlFor="vehicle-mpg">Vehicle efficiency (miles / gallon)</label>
+                    <input
+                      id="vehicle-mpg"
+                      type="number"
+                      min="1"
+                      step="0.1"
+                      value={vehicleMpg}
+                      onChange={(event) => setVehicleMpg(event.target.value)}
+                    />
+                  </div>
+                  <div className="transport-formula">
+                    {routeDistanceMiles !== null
+                      ? `${routeDistanceMiles} mi one way × ${serviceVisitsPerWeek} visits/week`
+                      : 'Waiting for route distance'}
+                  </div>
+                </div>
+                <div className="transport-subtotal investment-result">
+                  <span>Monthly transportation</span>
+                  <strong>${monthlyTransportationCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}</strong>
+                </div>
+              </div>
+
+              <div className="proposal-inputs">
+                <div className="form-field">
+                  <label>Management Status</label>
+                  <select
+                    value={managementStatus}
+                    onChange={(event) => {
+                      const status = event.target.value;
+                      setManagementStatus(status);
+                      setAdjustments(
+                        status === 'VIP'
+                          ? String(vipDiscountPercentage)
+                          : status === 'CURRENT'
+                            ? '0'
+                            : '',
+                      );
+                    }}
+                  >
+                    <option value="CURRENT">Current</option>
+                    <option value="VIP">VIP ({vipDiscountPercentage}% discount)</option>
+                    <option value="NEGOTIATED">Negotiated</option>
+                  </select>
+                </div>
+                {managementStatus === 'VIP' && (
+                  <div className="form-field">
+                    <label>Adjustment Discount (%)</label>
+                    <input
+                      type="number"
+                      value={vipDiscountPercentage}
+                      readOnly
+                    />
+                  </div>
+                )}
+                {managementStatus === 'NEGOTIATED' && (
+                  <div className="form-field">
+                    <label>Adjustment Discount (%)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={adjustments}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setAdjustments(
+                          value === ''
+                            ? ''
+                            : String(
+                                Math.min(100, Math.max(0, Number(value))),
+                              ),
+                        );
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="chemical-calculator proposal-water-bodies-card">
+                <div className="proposal-section-heading">
+                  <div>
+                    <h3>Water Bodies Pricing</h3>
+                    <p>Only included items are added to the proposal.</p>
+                  </div>
+                </div>
+
+                <div className="table-container">
+                  <table className="calculator-table">
+                    <thead>
+                      <tr>
+                        <th aria-label="Include" />
+                        <th>Water Body</th>
+                        <th>Type</th>
+                        <th>Size</th>
+                        <th>Frequency<br /><span className="table-heading-subtitle">Weekly</span></th>
+                        <th>Disinfection</th>
+                        <th>Access</th>
+                        <th><strong>Price</strong><br /><span className="table-heading-subtitle">Monthly</span></th>
+                        <th><strong>Profit</strong><br /><span className="table-heading-subtitle">Monthly</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {proposalWaterBodies.map((body, index) => (
+                        <tr key={`${body.name}-${index}`}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={body.include}
+                              onChange={(event) =>
+                                updateProposalWaterBody(index, {
+                                  include: event.target.checked,
+                                })
+                              }
+                            />
+                          </td>
+                          <td><strong>{body.name}</strong></td>
+                          <td>
+                            <select
+                              value={body.type}
+                              onChange={(event) =>
+                                updateProposalWaterBody(index, {
+                                  type: event.target.value,
+                                })
+                              }
+                            >
+                              <option value="SWIMMING_POOL">Pool</option>
+                              <option value="SPA">Spa</option>
+                              <option value="KIDDIE_POOL">Kiddie Pool</option>
+                              <option value="SPLASH_PAD">Splash Pad</option>
+                              <option value="DECORATIVE_WATER_FEATURE">Decorative Water Feature</option>
+                            </select>
+                          </td>
+                          <td className={body.type === 'SPA' ? 'water-body-category-cell is-hidden' : 'water-body-category-cell'}>
+                            {body.type !== 'SPA' && (
+                              <select
+                                value={body.category}
+                                onChange={(event) =>
+                                  updateProposalWaterBody(index, {
+                                    category: event.target.value,
+                                  })
+                                }
+                              >
+                                <option value="">Select size</option>
+                                <option value="SMALL">Small</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="LARGE">Large</option>
+                                <option value="EXTRA_LARGE">Extra Large</option>
+                              </select>
+                            )}
+                          </td>
+                          <td>
+                            <select
+                              value={body.frequency}
+                              onChange={(event) =>
+                                updateProposalWaterBody(index, {
+                                  frequency: event.target.value,
+                                })
+                              }
+                            >
+                              <option value="1x Weekly">1x</option>
+                              <option value="2x Weekly">2x</option>
+                              <option value="3x Weekly">3x</option>
+                              <option value="5x Weekly">5x</option>
+                              <option value="7x Weekly">7x</option>
+                            </select>
+                          </td>
+                          <td>
+                            <select
+                              value={body.disinfectionSystem ? 'YES' : 'NO'}
+                              onChange={(event) =>
+                                updateProposalWaterBody(index, {
+                                  disinfectionSystem: event.target.value === 'YES',
+                                })
+                              }
+                            >
+                              <option value="NO">No</option>
+                              <option value="YES">Yes</option>
+                            </select>
+                          </td>
+                          <td>
+                            <select
+                              value={body.accessDifficulty}
+                              onChange={(event) =>
+                                updateProposalWaterBody(index, {
+                                  accessDifficulty: event.target.value as ProposalWaterBody['accessDifficulty'],
+                                })
+                              }
+                            >
+                              <option value="SIMPLE">Simple</option>
+                              <option value="COMPLEX">Complex</option>
+                            </select>
+                          </td>
+                          <td>
+                            <select
+                              className="water-body-price-select"
+                              aria-label={`Suggested monthly price for ${body.name}`}
+                              value={body.priceMode === 'CUSTOM' ? 'CUSTOM' : String(body.monthlyPrice)}
+                              onChange={(event) => {
+                                if (event.target.value === 'CUSTOM') {
+                                  updateProposalWaterBody(index, {
+                                    priceMode: 'CUSTOM',
+                                    priceManuallyAdjusted: true,
+                                  });
+                                  return;
+                                }
+                                updateProposalWaterBody(index, {
+                                  monthlyPrice: Number(event.target.value),
+                                  priceMode: 'SUGGESTED',
+                                  priceManuallyAdjusted: true,
+                                });
+                              }}
+                            >
+                              <option value={effectiveWaterBodyPrice(body)}>
+                                Calculated ${effectiveWaterBodyPrice(body).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                              </option>
+                              {suggestedPricesForWaterBody(body).map((price) => (
+                                <option value={price} key={price}>
+                                  ${price.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                </option>
+                              ))}
+                              <option value="CUSTOM">Custom amount...</option>
+                            </select>
+                            {body.priceMode === 'CUSTOM' && (
+                              <input
+                                className="water-body-price-input"
+                                type="number"
+                                min="0"
+                                step="1"
+                                aria-label={`Custom monthly price for ${body.name}`}
+                                value={Math.ceil(body.monthlyPrice)}
+                                onChange={(event) =>
+                                  updateProposalWaterBody(index, {
+                                    monthlyPrice: Math.max(0, Number(event.target.value) || 0),
+                                    priceManuallyAdjusted: true,
+                                  })
+                                }
+                              />
+                            )}
+                            {body.priceManuallyAdjusted && (
+                              <small className="manual-price-label">Commercial price</small>
+                            )}
+                          </td>
+                          <td className={`water-body-profit-cell ${(estimatedWaterBodyProfits[index] ?? 0) < 0 ? 'is-negative' : ''}`}>
+                            {body.include && estimatedWaterBodyProfits[index] !== null ? (
+                              <>
+                                <strong>
+                                  {(estimatedWaterBodyProfits[index] ?? 0).toLocaleString('en-US', {
+                                    style: 'currency',
+                                    currency: 'USD',
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 0,
+                                  })}
+                                </strong>
+                                <small>estimated net / month</small>
+                              </>
+                            ) : (
+                              <span className="water-body-profit-muted">Not included</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="water-bodies-subtotal investment-result">
+                  <span>Water Bodies Monthly Subtotal</span>
+                  <strong>${waterBodiesMonthlyInvestment.toLocaleString('en-US')} / month</strong>
+                  {managementStatus === 'VIP' && (
+                    <small>VIP pricing applied: fixed {vipDiscountPercentage}% discount</small>
+                  )}
+                  {managementStatus === 'NEGOTIATED' && adjustmentPercentage > 0 && (
+                    <small>Negotiated pricing applied: fixed {adjustmentPercentage}% discount</small>
+                  )}
+                </div>
+              </div>
+
+              <div className="chemical-calculator proposal-services-card">
+                <div className="proposal-section-heading">
+                  <div>
+                    <h3>Included Services</h3>
+                    <p>Uncheck any service that is not included in this proposal.</p>
+                  </div>
+                  <div className="proposal-service-actions">
+                    <button
+                      type="button"
+                      onClick={() => setProposalServices([...proposalServiceOptions])}
+                      disabled={proposalServices.length === proposalServiceOptions.length}
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProposalServices([])}
+                      disabled={proposalServices.length === 0}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div className="proposal-services-grid">
+                  {proposalServiceOptions.map((service) => (
+                    <label className="proposal-service-option" key={service}>
+                      <input
+                        type="checkbox"
+                        checked={proposalServices.includes(service)}
+                        onChange={(event) => {
+                          const checked = event.target.checked;
+                          setProposalServices((current) =>
+                            proposalServiceOptions.filter((option) =>
+                              option === service ? checked : current.includes(option),
+                            ),
+                          );
+                        }}
+                      />
+                      <span>{service}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-field proposal-recommendation">
+                <label>Internal Notes (optional)</label>
+                <textarea
+                  rows={4}
+                  value={proposalNotes}
+                  onChange={(event) => setProposalNotes(event.target.value)}
+                />
+              </div>
+
+              <div className="final-proposal-total">
+                <span>Final Monthly Proposal</span>
+                <strong>${monthlyInvestment.toLocaleString('en-US')} / month</strong>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  className="secondary-button"
+                  onClick={() => setShowProposal(false)}
+                  disabled={savingProposal}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="secondary-button"
+                  onClick={() => saveProposal()}
+                  disabled={savingProposal}
+                >
+                  {savingProposal
+                    ? 'Saving...'
+                    : 'Save Proposal'}
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (showDeleted) {
+    return (
+      <div className="page">
+        <button
+          className="back-button"
+          onClick={() => setShowDeleted(false)}
+        >
+          ← Back to Properties
+        </button>
+
+        <header className="header">
+          <div>
+            <h1>Deleted Properties</h1>
+            <p>Restore a property or remove it permanently.</p>
+          </div>
+        </header>
+
+        <section className="properties-section">
+          {deletedProperties.length === 0 ? (
+            <div className="trash-empty">
+              <h2>No deleted properties</h2>
+              <p>Properties moved to the trash will appear here.</p>
+            </div>
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Property</th>
+                    <th>City</th>
+                    <th>Deleted</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deletedProperties.map((property) => (
+                    <tr key={property.id}>
+                      <td><strong>{property.name}</strong></td>
+                      <td>
+                        {property.city ?? '-'}
+                        {property.state ? `, ${property.state}` : ''}
+                      </td>
+                      <td>
+                        {property.deletedAt
+                          ? new Date(property.deletedAt).toLocaleDateString('en-US')
+                          : '-'}
+                      </td>
+                      <td>
+                        <div className="trash-actions">
+                          <button
+                            className="secondary-button"
+                            onClick={() => restoreProperty(property)}
+                            disabled={trashActionId === property.id}
+                          >
+                            Restore
+                          </button>
+                          <button
+                            className="danger-link-button"
+                            onClick={() => permanentlyDeleteProperty(property)}
+                            disabled={trashActionId === property.id}
+                          >
+                            Delete permanently
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page app-page">
+      {renderAppSidebar()}
+      <header className="header">
+        <div>
+          <h1>
+            Commercial
+          </h1>
+
+          <p>
+            BlueLife CRM · Property Management
+          </p>
+        </div>
+
+        <div className="header-actions">
+          {renderProposalReminderCenter()}
+          <button
+            className="secondary-button"
+            onClick={() => setShowDeleted(true)}
+          >
+            Deleted Properties ({deletedProperties.length})
+          </button>
+          <button
+            className="primary-button"
+            onClick={() => setIsCreating(true)}
+          >
+            + New Property
+          </button>
+        </div>
+      </header>
+
+      {isCreating && (
+        <div className="modal-backdrop" role="presentation">
+          <section
+            className="property-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="new-property-title"
+          >
+            <div className="edit-panel-header">
+              <div>
+                <h2 id="new-property-title">New Property</h2>
+                <p>
+                  Complete all required fields marked with *.
+                </p>
+              </div>
+
+              <button
+                className="modal-close"
+                type="button"
+                onClick={closeCreateForm}
+                disabled={creating}
+                aria-label="Close new property form"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={createProperty} noValidate>
+              <div className="form-grid">
+                <div className="form-field form-field-wide">
+                  <label htmlFor="new-name">Property Name *</label>
+                  <input
+                    id="new-name"
+                    autoFocus
+                    required
+                    value={createForm.name}
+                    onChange={(event) =>
+                      updateCreateField('name', event.target.value)
+                    }
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="new-type">Property Type *</label>
+                  <select
+                    id="new-type"
+                    required
+                    value={createForm.propertyType}
+                    onChange={(event) =>
+                      updateCreateField('propertyType', event.target.value)
+                    }
+                  >
+                    <option value="">Select type</option>
+                    <option value="COMMERCIAL">Commercial</option>
+                    <option value="RESIDENTIAL">Residential</option>
+                  </select>
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="new-segment">Segment *</label>
+                  <select
+                    id="new-segment"
+                    required
+                    value={createForm.segment}
+                    onChange={(event) =>
+                      updateCreateField('segment', event.target.value)
+                    }
+                  >
+                    <option value="">Select segment</option>
+                    <option value="MULTIFAMILY">Multifamily</option>
+                    <option value="HOA">HOA</option>
+                    <option value="HOTEL">Hotel</option>
+                    <option value="SINGLE_FAMILY">Single Family</option>
+                  </select>
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="new-management">Management Company</label>
+                  <input
+                    id="new-management"
+                    value={createForm.managementCompanyName}
+                    onChange={(event) =>
+                      updateCreateField(
+                        'managementCompanyName',
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Example: ABC Property Management"
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="new-source">Lead Source *</label>
+                  <select
+                    id="new-source"
+                    required
+                    value={createForm.leadSource}
+                    onChange={(event) =>
+                      updateCreateField('leadSource', event.target.value)
+                    }
+                  >
+                    <option value="">Select source</option>
+                    <option value="ROUTE">Route</option>
+                    <option value="REFERRAL">Referral</option>
+                  </select>
+                </div>
+
+                <div className="form-field form-field-wide">
+                  <label htmlFor="new-address">Address *</label>
+                  <input
+                    id="new-address"
+                    required
+                    value={createForm.addressLine1}
+                    onChange={(event) =>
+                      updateCreateField('addressLine1', event.target.value)
+                    }
+                  />
+                </div>
+
+                {([
+                  ['city', 'City'],
+                  ['county', 'County'],
+                  ['state', 'State'],
+                  ['zipCode', 'ZIP Code'],
+                ] as Array<[keyof PropertyForm, string]>).map(
+                  ([field, label]) => (
+                    <div className="form-field" key={field}>
+                      <label htmlFor={`new-${field}`}>{label} *</label>
+                      <input
+                        id={`new-${field}`}
+                        required
+                        value={createForm[field]}
+                        onChange={(event) =>
+                          updateCreateField(field, event.target.value)
+                        }
+                      />
+                      {field === 'state' &&
+                        createForm.state &&
+                        !/^[A-Za-z]{2}$/.test(
+                          createForm.state.trim(),
+                        ) && (
+                          <span className="field-error">
+                            Use the 2-letter state code, for example FL.
+                          </span>
+                        )}
+                      {field === 'zipCode' &&
+                        createForm.zipCode &&
+                        !/^\d{5}(-\d{4})?$/.test(
+                          createForm.zipCode.trim(),
+                        ) && (
+                          <span className="field-error">
+                            Enter a valid ZIP code (12345 or 12345-6789).
+                          </span>
+                        )}
+                    </div>
+                  ),
+                )}
+
+                <WaterBodiesEditor
+                  bodies={createWaterBodies}
+                  idPrefix="new-water-body"
+                  onAdd={() => addWaterBody('create')}
+                  onUpdate={(index, field, value) =>
+                    updateWaterBody('create', index, field, value)
+                  }
+                  onRemove={(index) => removeWaterBody('create', index)}
+                  onFilesSelected={(index, files) =>
+                    selectWaterBodyPhotos('create', index, files)
+                  }
+                />
+
+                <div className="form-section-title form-field-wide">
+                  <div>
+                    <h3>Contacts</h3>
+                    <p>
+                      A Property Manager with a valid email is required.
+                    </p>
+                  </div>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={addContact}
+                  >
+                    + Add contact
+                  </button>
+                </div>
+
+                <div className="contacts-editor form-field-wide">
+                  {createContacts.map((contact, index) => (
+                    <div className="contact-editor" key={index}>
+                      <div className="contact-editor-header">
+                        <strong>Contact {index + 1}</strong>
+                        {createContacts.length > 1 && (
+                          <button
+                            className="delete-button"
+                            type="button"
+                            onClick={() => removeContact(index)}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="form-grid contact-fields">
+                        <div className="form-field">
+                          <label htmlFor={`contact-role-${index}`}>Role *</label>
+                          <select
+                            id={`contact-role-${index}`}
+                            required
+                            value={contact.role}
+                            onChange={(event) =>
+                              updateContactField(index, 'role', event.target.value)
+                            }
+                          >
+                            <option value="">Select role</option>
+                            <option value="PROPERTY_MANAGER">Property Manager</option>
+                            <option value="REGIONAL_MANAGER">Regional Manager</option>
+                            <option value="MAINTENANCE_CHIEF">Maintenance Chief</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                        </div>
+
+                        <div className="form-field">
+                          <label htmlFor={`contact-email-${index}`}>Email *</label>
+                          <input
+                            id={`contact-email-${index}`}
+                            type="email"
+                            required
+                            value={contact.email}
+                            onChange={(event) =>
+                              updateContactField(index, 'email', event.target.value)
+                            }
+                          />
+                        </div>
+
+                        <div className="form-field">
+                          <label htmlFor={`contact-first-name-${index}`}>
+                            First Name (optional)
+                          </label>
+                          <input
+                            id={`contact-first-name-${index}`}
+                            value={contact.firstName}
+                            onChange={(event) =>
+                              updateContactField(index, 'firstName', event.target.value)
+                            }
+                          />
+                        </div>
+
+                        <div className="form-field">
+                          <label htmlFor={`contact-last-name-${index}`}>
+                            Last Name (optional)
+                          </label>
+                          <input
+                            id={`contact-last-name-${index}`}
+                            value={contact.lastName}
+                            onChange={(event) =>
+                              updateContactField(index, 'lastName', event.target.value)
+                            }
+                          />
+                        </div>
+
+                        <div className="form-field">
+                          <label htmlFor={`contact-phone-${index}`}>
+                            Phone (optional)
+                          </label>
+                          <input
+                            id={`contact-phone-${index}`}
+                            type="tel"
+                            value={contact.phone}
+                            onChange={(event) =>
+                              updateContactField(index, 'phone', event.target.value)
+                            }
+                          />
+                        </div>
+
+                        <label className="primary-contact-check">
+                          <input
+                            type="checkbox"
+                            checked={contact.isPrimary}
+                            onChange={() =>
+                              updateContactField(index, 'isPrimary', true)
+                            }
+                          />
+                          Primary contact
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+
+                  {!createContacts.some(
+                    (contact) => contact.role === 'PROPERTY_MANAGER',
+                  ) && (
+                    <span className="field-error">
+                      Add at least one Property Manager.
+                    </span>
+                  )}
+                  {!contactEmailsAreUnique && (
+                    <span className="field-error">
+                      Contact email addresses cannot be repeated.
+                    </span>
+                  )}
+                </div>
+
+              </div>
+
+              {createError && (
+                <p className="form-error" role="alert">
+                  {createError}
+                </p>
+              )}
+
+              <div className="modal-actions">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={closeCreateForm}
+                  disabled={creating}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={!createFormIsValid || creating}
+                >
+                  {creating ? 'Creating...' : 'Create Property'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      <section className="dashboard-section">
+        <div className="section-header dashboard-header">
+          <div>
+            <h2>Property Insights</h2>
+            <p>Portfolio and proposal activity for the current search.</p>
+          </div>
+        </div>
+        <div className="dashboard-kpis">
+          <div className="dashboard-kpi">
+            <span>Active properties</span>
+            <strong>{dashboardStats.propertyCount}</strong>
+          </div>
+          <div className="dashboard-kpi">
+            <span>Management companies</span>
+            <strong>{Object.keys(dashboardStats.managementCounts).filter((name) => name !== 'Unassigned').length}</strong>
+          </div>
+          <div className="dashboard-kpi dashboard-kpi-proposals">
+            <span>Total proposals</span>
+            <strong>{dashboardStats.totalProposals}</strong>
+            <small>{formatDashboardCurrency(dashboardStats.totalProposalValue)} monthly value</small>
+          </div>
+          <div className="dashboard-kpi">
+            <span>Clients</span>
+            <strong>{dashboardStats.clientCount}</strong>
+          </div>
+        </div>
+
+        <div className="dashboard-charts">
+          <div className="dashboard-chart-card">
+            <h3>Properties by type</h3>
+            <div className="donut-chart-wrap">
+              <div
+                className="donut-chart"
+                style={{
+                  background: (() => {
+                    const entries = Object.entries(dashboardStats.typeCounts);
+                    if (!entries.length) return '#cfe5f0';
+                    let cursor = 0;
+                    const colors = ['#0c71c3', '#2ea3f2', '#34e2e4', '#82c0c7'];
+                    return `conic-gradient(${entries.map(([, count], index) => {
+                      const start = cursor;
+                      cursor += (count / dashboardStats.propertyCount) * 100;
+                      return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+                    }).join(', ')})`;
+                  })(),
+                }}
+              />
+              <div className="chart-legend">
+                {Object.entries(dashboardStats.typeCounts).map(([type, count], index) => (
+                  <div key={type}>
+                    <span className="legend-dot" style={{ background: ['#0c71c3', '#2ea3f2', '#34e2e4', '#82c0c7'][index % 4] }} />
+                    <span>{formatLabel(type)}</span>
+                    <strong>{count}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="dashboard-chart-card">
+            <h3>Properties by management</h3>
+            <div className="bar-chart">
+              {Object.entries(dashboardStats.managementCounts)
+                .sort(([, first], [, second]) => second - first)
+                .slice(0, 6)
+                .map(([company, count]) => {
+                  const maximum = Math.max(...Object.values(dashboardStats.managementCounts), 1);
+                  return (
+                    <div className="bar-row" key={company}>
+                      <span title={company}>{company}</span>
+                      <div className="bar-track"><i style={{ width: `${(count / maximum) * 100}%` }} /></div>
+                      <strong>{count}</strong>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+          <div className="dashboard-chart-card proposal-pool-chart">
+            <div className="proposal-pool-heading">
+              <div>
+                <span>COMMERCIAL POOL</span>
+                <h3>Monthly proposal value</h3>
+                <p>The pool capacity is Created proposals; Approved proposals fill the water.</p>
+              </div>
+              <div className="proposal-pool-capacity">
+                <span>Created capacity</span>
+                <strong>{formatDashboardCurrency(createdProposalValue)}</strong>
+                <small>{createdProposalCount} {createdProposalCount === 1 ? 'proposal' : 'proposals'}</small>
+              </div>
+            </div>
+
+            <div className="proposal-pool-layout">
+              <div className="proposal-pool-visual-wrap">
+                <div className="proposal-pool-shell">
+                  <div
+                    className="proposal-pool-water"
+                    style={{ height: `${proposalPoolFill}%` }}
+                    aria-hidden="true"
+                  >
+                    <i className="proposal-pool-wave proposal-pool-wave-one" />
+                    <i className="proposal-pool-wave proposal-pool-wave-two" />
+                    <i className="proposal-pool-bubble proposal-pool-bubble-one" />
+                    <i className="proposal-pool-bubble proposal-pool-bubble-two" />
+                  </div>
+                  <div className="proposal-pool-lanes" aria-hidden="true"><i /><i /><i /></div>
+                  <div className="proposal-pool-readout">
+                    <span>Approved</span>
+                    <strong>{formatDashboardCurrency(approvedProposalValue)}</strong>
+                    <small>
+                      {approvedProposalCount} {approvedProposalCount === 1 ? 'proposal' : 'proposals'}
+                    </small>
+                  </div>
+                </div>
+              </div>
+
+              <div className="proposal-pool-controls" aria-label="Proposal value stage">
+                {proposalBoardStatuses
+                  .map((status) => {
+                    const count = dashboardStats.proposalCounts[status] ?? 0;
+                    const value = dashboardStats.proposalValues[status] ?? 0;
+                    return (
+                      <button
+                        type="button"
+                        aria-pressed={proposalStatusFilter === status}
+                        className={`proposal-pool-option ${proposalStatusFilter === status ? 'proposal-pool-option-selected ' : ''}${status === 'CREATED' ? 'proposal-pool-option-capacity ' : ''}${status === 'APPROVED' ? 'proposal-pool-option-water ' : ''}status-${status.toLowerCase()}`}
+                        key={status}
+                        onClick={() =>
+                          setProposalStatusFilter((currentStatus) =>
+                            currentStatus === status ? null : status,
+                          )
+                        }
+                      >
+                        <i />
+                        <span>
+                          <strong>{proposalStatusLabel(status)}</strong>
+                          <small>{count} {count === 1 ? 'proposal' : 'proposals'}</small>
+                        </span>
+                        <b>{formatDashboardCurrency(value)}</b>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="properties-section">
+        <div className="section-header">
+          <div>
+            <h2>
+              Properties
+            </h2>
+
+            <p>
+              Prospects and properties
+              registered in BlueLife.
+            </p>
+
+            {proposalStatusFilter && (
+              <div className="property-proposal-filter">
+                <span className={`proposal-status status-${proposalStatusFilter.toLowerCase()}`}>
+                  {proposalStatusLabel(proposalStatusFilter)}
+                </span>
+                <span>
+                  {displayedProperties.length}{' '}
+                  {displayedProperties.length === 1 ? 'property' : 'properties'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setProposalStatusFilter(null)}
+                >
+                  Show all
+                </button>
+              </div>
+            )}
+          </div>
+
+          <input
+            className="search"
+            placeholder="Search by property, city, management..."
+            value={search}
+            onChange={(event) =>
+              setSearch(
+                event.target.value,
+              )
+            }
+          />
+        </div>
+
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>
+                  Property
+                </th>
+                <th>
+                  SKU
+                </th>
+                <th>
+                  City
+                </th>
+                <th>
+                  Type
+                </th>
+                <th>
+                  Segment
+                </th>
+                <th>
+                  Management
+                </th>
+                <th>
+                  Status
+                </th>
+                <th>
+                  Proposals
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {displayedProperties.length === 0 ? (
+                <tr>
+                  <td className="properties-filter-empty" colSpan={8}>
+                    {proposalStatusFilter
+                      ? 'No properties have proposals in this status.'
+                      : search.trim()
+                        ? 'No properties match this search.'
+                        : 'No properties registered yet.'}
+                  </td>
+                </tr>
+              ) : displayedProperties.map(
+                (property) => (
+                  <tr
+                    key={
+                      property.id
+                    }
+                    className="clickable-row"
+                    onClick={() =>
+                      openProperty(
+                        property.id,
+                      )
+                    }
+                  >
+                    <td>
+                      <strong>
+                        {
+                          property.name
+                        }
+                      </strong>
+                    </td>
+
+                    <td>
+                      <span className="sku-code">
+                        {propertySku(property.id)}
+                      </span>
+                    </td>
+
+                    <td>
+                      {property.city ??
+                        '-'}
+
+                      {property.state
+                        ? `, ${property.state}`
+                        : ''}
+                    </td>
+
+                    <td>
+                      {formatLabel(
+                        property.propertyType,
+                      )}
+                    </td>
+
+                    <td>
+                      {formatLabel(
+                        property.segment,
+                      )}
+                    </td>
+
+                    <td>
+                      {property
+                        .managementCompany
+                        ?.name ?? '-'}
+                    </td>
+
+                    <td>
+                      <span className={`lifecycle-badge lifecycle-${property.lifecycleStatus === 'CLIENT' ? 'client' : 'lead'}`}>
+                        {property.lifecycleStatus === 'CLIENT' ? 'Client' : 'Lead'}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="proposal-count">
+                        {property.salesActivities.filter(
+                          (activity) => activity.type === 'PROPOSAL',
+                        ).length}
+                      </span>
+                    </td>
+
+                  </tr>
+                ),
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {detailLoading && (
+        <div className="loading-overlay">
+          Loading property...
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;
