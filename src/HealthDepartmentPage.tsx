@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import { API_URL, apiFetch as fetch } from './api';
+import { API_URL, apiFetch as fetch, getAppToken } from './api';
 import { daysUntilInspection, englishChemical, englishHealthStatus, estimateStatusOptions, healthDate, inspectionAlertDate, inspectionSignal } from './healthDisplay';
 
 type Comment = { id: string; author: string; body: string; createdAt: string };
@@ -59,7 +59,7 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
   const [deleting, setDeleting] = useState<Ticket | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [token, setToken] = useState(() => sessionStorage.getItem('bluelife-health-admin-token') || localStorage.getItem('bluelife-chemicals-owner-token') || '');
+  const [token, setToken] = useState(() => getAppToken() || sessionStorage.getItem('bluelife-health-admin-token') || localStorage.getItem('bluelife-chemicals-owner-token') || '');
   const load = useCallback(async () => { const rows = await request('/health-department/tickets'); const commercialPropertyNames = new Set(properties.map((property) => property.name)); setTickets(rows.map((row: Record<string, any>) => mapTicket(row, commercialPropertyNames))); }, [properties]);
   useEffect(() => { void load().catch((error: Error) => setMessage(error.message)); }, [load]);
   useEffect(() => {

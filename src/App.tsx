@@ -951,7 +951,7 @@ function App() {
       try {
         const [response, deletedResponse] = await Promise.all([
           fetch(`${API_URL}/properties`),
-          userRole === 'COMMERCIAL'
+          ['COMMERCIAL', 'SUPER_ADMIN'].includes(userRole)
             ? fetch(`${API_URL}/properties/deleted`)
             : Promise.resolve(null),
         ]);
@@ -2317,8 +2317,9 @@ function App() {
 
   function navigateToArea(area: AppArea, options?: { healthUnassignedOnly?: boolean }) {
     if (!sharedChemicalAccess && area !== 'home') {
-      const assignedArea = appSession?.user.role.toLowerCase();
-      if (area !== assignedArea) area = 'home';
+      const role = appSession?.user.role;
+      const assignedArea = role?.toLowerCase();
+      if (role !== 'SUPER_ADMIN' && area !== assignedArea) area = 'home';
     }
     setActiveArea(area);
     setHealthUnassignedOnly(area === 'health' && Boolean(options?.healthUnassignedOnly));
@@ -2332,10 +2333,14 @@ function App() {
       { id: 'home', label: 'Home', icon: '⌂' },
       { id: 'commercial', label: 'Commercial', icon: '◎' },
       { id: 'chemicals', label: 'Químicos', icon: '⚗' },
+      { id: 'health', label: 'Health Dept.', icon: '♥' },
       { id: 'reports', label: 'Reports', icon: '!' },
     ];
-    const assignedArea = appSession?.user.role.toLowerCase();
-    const areas = allAreas.filter((area) => area.id === 'home' || area.id === assignedArea);
+    const role = appSession?.user.role;
+    const assignedArea = role?.toLowerCase();
+    const areas = role === 'SUPER_ADMIN'
+      ? allAreas
+      : allAreas.filter((area) => area.id === 'home' || area.id === assignedArea);
 
     return (<>
       <aside className={`app-sidebar${sidebarCollapsed ? ' app-sidebar-collapsed' : ''}`} aria-label="BlueLife areas">
@@ -2539,7 +2544,7 @@ function App() {
   if (activeArea === 'chemicals') {
     return <ChemicalsPage sidebar={renderAppSidebar()} />;
   }
-  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} canEdit={appSession?.user.role === 'COMMERCIAL'} onNewProperty={() => openCreateForm('home')} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
+  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} canEdit={appSession?.user.role === 'COMMERCIAL' || appSession?.user.role === 'SUPER_ADMIN'} onOpenHealth={appSession?.user.role === 'HEALTH' || appSession?.user.role === 'SUPER_ADMIN' ? () => navigateToArea('health', { healthUnassignedOnly: true }) : undefined} onNewProperty={() => openCreateForm('home')} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
   if (
     selectedProperty
   ) {
