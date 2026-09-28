@@ -54,7 +54,6 @@ export function LoginPage({ onLogin }: { onLogin: (session: AppSession) => void 
         <div className="app-login-heading">
           <span>BLUE LIFE INTERNAL APP</span>
           <h1 id="app-login-title">Iniciar sesión</h1>
-          <p>Ingresa con el usuario asignado a Commercial, Chemicals o Reports.</p>
         </div>
         <form onSubmit={submit}>
           <label>
@@ -68,7 +67,6 @@ export function LoginPage({ onLogin }: { onLogin: (session: AppSession) => void 
           {error && <p className="app-login-error" role="alert">{error}</p>}
           <button type="submit" disabled={submitting}>{submitting ? 'Ingresando…' : 'Ingresar'}</button>
         </form>
-        <small>El acceso muestra Home y únicamente la sección asignada.</small>
       </section>
     </main>
   );
