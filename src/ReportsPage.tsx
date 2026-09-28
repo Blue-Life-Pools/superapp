@@ -3,7 +3,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { API_URL } from './api';
+import { API_URL, apiFetch as fetch } from './api';
 import './ReportsPage.css';
 
 type Role = 'SUPERVISOR' | 'INSPECTOR' | 'TECHNICIAN';

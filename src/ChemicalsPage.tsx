@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 
-import { API_URL } from './api';
+import { API_URL, apiFetch as fetch, getAppToken } from './api';
 
 type QuantityKey =
   | 'tabsQuantity'
@@ -236,7 +236,7 @@ export function ChemicalsPage({
   const [error, setError] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
   const [ownerToken, setOwnerToken] = useState(
-    () => window.localStorage.getItem(chemicalOwnerTokenKey) ?? '',
+    () => getAppToken() || window.localStorage.getItem(chemicalOwnerTokenKey) || '',
   );
   const [owner, setOwner] = useState<ChemicalOwner | null>(null);
   const [showOwnerAccess, setShowOwnerAccess] = useState(false);
@@ -254,6 +254,7 @@ export function ChemicalsPage({
   const [technicianMessage, setTechnicianMessage] = useState('');
   const [editingTechnician, setEditingTechnician] = useState<TechnicianDirectoryEntry | null>(null);
   const isSharedForm = technicianAccessMode || Boolean(initialTechnicianToken);
+  const managedByApp = Boolean(getAppToken() && ownerToken === getAppToken());
 
   useEffect(() => {
     async function loadChemicalWorkspace() {
@@ -615,6 +616,21 @@ export function ChemicalsPage({
     if (whatsappWindow) whatsappWindow.opener = null;
   }
 
+  async function downloadReportsCsv() {
+    try {
+      const response = await fetch(`${API_URL}/chemicals/reports/export`);
+      if (!response.ok) throw new Error('No se pudo descargar el archivo.');
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `chemical-reports-${localDate()}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (downloadError) {
+      window.alert(downloadError instanceof Error ? downloadError.message : 'No se pudo descargar el archivo.');
+    }
+  }
+
   return (
     <div className={`page chemicals-page ${isSharedForm ? 'chemicals-shared-page' : 'app-page'}`}>
       {!isSharedForm && sidebar}
@@ -889,10 +905,10 @@ export function ChemicalsPage({
 
       {!isSharedForm && (
         <footer className="chemicals-page-tools">
-          <a href={`${API_URL}/chemicals/reports/export`}>
+          <button type="button" onClick={() => void downloadReportsCsv()}>
             Descargar registros para Excel
-          </a>
-          {owner && (
+          </button>
+          {owner && !managedByApp && (
             <button type="button" onClick={() => void logoutOwner()}>
               Cerrar sesión
             </button>

@@ -2593,6 +2593,46 @@ tbody tr:hover {
 
 body.sidebar-collapsed .app-page { padding-left: 32px; }
 
+.app-login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: radial-gradient(circle at top right, #dff7fb 0, transparent 38%), #f5fbfe;
+}
+
+.app-login-card {
+  width: min(100%, 430px);
+  display: grid;
+  gap: 24px;
+  padding: 38px;
+  border: 1px solid #cce4ef;
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(0, 73, 110, 0.14);
+}
+
+.app-login-card > img { width: 132px; height: auto; margin: 0 auto; }
+.app-login-heading { text-align: center; }
+.app-login-heading span { color: #0878aa; font-size: 11px; font-weight: 800; letter-spacing: .14em; }
+.app-login-heading h1 { margin: 8px 0; color: #004f77; font-size: 34px; }
+.app-login-heading p { margin: 0; color: #526c7c; line-height: 1.5; }
+.app-login-card form { display: grid; gap: 16px; }
+.app-login-card label { display: grid; gap: 7px; color: #173f5f; font-size: 12px; font-weight: 800; }
+.app-login-card input { min-height: 48px; padding: 0 14px; border: 1px solid #bfd8e4; border-radius: 12px; color: #101828; font: inherit; }
+.app-login-card input:focus { outline: 3px solid rgba(13, 145, 197, .15); border-color: #0d91c5; }
+.app-login-card form button { min-height: 50px; border: 0; border-radius: 12px; background: #00658e; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.app-login-card form button:disabled { opacity: .58; cursor: wait; }
+.app-login-error { margin: 0; padding: 11px 13px; border-radius: 10px; background: #fff0f2; color: #a02242; font-size: 13px; }
+.app-login-card > small { color: #718798; text-align: center; }
+
+.sidebar-account { display: grid; gap: 2px; min-width: 0; }
+.sidebar-account strong, .sidebar-account small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-logout { margin-left: auto; padding: 6px 8px; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; background: transparent; color: #fff; font-size: 10px; cursor: pointer; }
+.history-read-only .history-edit-information,
+.history-read-only .history-sharepoint-actions { display: none; }
+.history-no-health-navigation > .history-panel:last-child > .history-panel-heading > .secondary-button { display: none; }
+
 .app-sidebar {
   position: fixed;
   z-index: 40;

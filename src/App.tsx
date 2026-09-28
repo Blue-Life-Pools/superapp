@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { API_URL } from './api';
+import { API_URL, apiFetch as fetch, getAppToken, setAppToken } from './api';
 import type { ProposalPdfData } from './proposalPdf';
 import { allocateProposalCosts } from './proposalPricing';
 import { proposalServiceOptions, type ProposalService } from './proposalServices';
@@ -7,6 +7,7 @@ import { ChemicalsPage } from './ChemicalsPage';
 import { HealthDepartmentPage } from './HealthDepartmentPage';
 import { PropertyHistoryPage } from './PropertyHistoryPage';
 import { ReportsPage } from './ReportsPage';
+import { LoginPage, type AppSession } from './LoginPage';
 import './App.css';
 
 type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports';
@@ -16,6 +17,11 @@ function initialAppArea(): AppArea {
   const query = new URLSearchParams(window.location.search);
   const sharedChemicalAccess = query.get('technicianAccess') === '1' || Boolean(query.get('technicianToken')?.trim());
   return sharedChemicalAccess ? 'chemicals' : 'home';
+}
+
+function hasSharedChemicalAccess() {
+  const query = new URLSearchParams(window.location.search);
+  return query.get('technicianAccess') === '1' || Boolean(query.get('technicianToken')?.trim());
 }
 
 type ContactRelation = {
@@ -614,6 +620,9 @@ async function uploadWaterBodyPhotoFiles(
 }
 
 function App() {
+  const [sharedChemicalAccess] = useState(hasSharedChemicalAccess);
+  const [appSession, setAppSession] = useState<AppSession | null>(null);
+  const [authLoading, setAuthLoading] = useState(!sharedChemicalAccess);
   const [activeArea, setActiveArea] = useState<AppArea>(initialAppArea);
   const [healthUnassignedOnly, setHealthUnassignedOnly] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -623,6 +632,29 @@ function App() {
   const [propertyTab, setPropertyTab] = useState<PropertyTab>('overview');
   const [properties, setProperties] =
     useState<Property[]>([]);
+
+  useEffect(() => {
+    if (sharedChemicalAccess) return;
+    if (!getAppToken()) {
+      setAuthLoading(false);
+      return;
+    }
+
+    async function restoreSession() {
+      try {
+        const response = await fetch(`${API_URL}/auth/session`);
+        if (!response.ok) throw new Error('Session expired.');
+        setAppSession(await response.json() as AppSession);
+      } catch {
+        setAppToken('');
+        setAppSession(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    }
+
+    void restoreSession();
+  }, [sharedChemicalAccess]);
 
   useEffect(() => {
     document.body.classList.toggle('sidebar-collapsed', sidebarCollapsed);
@@ -908,11 +940,20 @@ function App() {
     (possiblePropertyMatches.length === 0 || possibleMatchesReviewed);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (sharedChemicalAccess || !appSession) {
+      setLoading(false);
+      return;
+    }
+    const userRole = appSession.user.role;
+
     async function loadProperties() {
       try {
         const [response, deletedResponse] = await Promise.all([
           fetch(`${API_URL}/properties`),
-          fetch(`${API_URL}/properties/deleted`),
+          userRole === 'COMMERCIAL'
+            ? fetch(`${API_URL}/properties/deleted`)
+            : Promise.resolve(null),
         ]);
 
         if (!response.ok) {
@@ -926,7 +967,7 @@ function App() {
 
         setProperties(data);
 
-        if (deletedResponse.ok) {
+        if (deletedResponse?.ok) {
           setDeletedProperties(await deletedResponse.json());
         }
       } catch (error) {
@@ -936,8 +977,8 @@ function App() {
       }
     }
 
-    loadProperties();
-  }, []);
+    void loadProperties();
+  }, [appSession, authLoading, sharedChemicalAccess]);
 
   useEffect(() => {
     const timer = window.setInterval(
@@ -2275,6 +2316,10 @@ function App() {
   }
 
   function navigateToArea(area: AppArea, options?: { healthUnassignedOnly?: boolean }) {
+    if (!sharedChemicalAccess && area !== 'home') {
+      const assignedArea = appSession?.user.role.toLowerCase();
+      if (area !== assignedArea) area = 'home';
+    }
     setActiveArea(area);
     setHealthUnassignedOnly(area === 'health' && Boolean(options?.healthUnassignedOnly));
     setSelectedProperty(null);
@@ -2282,13 +2327,15 @@ function App() {
   }
 
   function renderAppSidebar() {
-    const areas: Array<{ id: AppArea; label: string; icon: string }> = [
+    if (sharedChemicalAccess) return null;
+    const allAreas: Array<{ id: AppArea; label: string; icon: string }> = [
       { id: 'home', label: 'Home', icon: '⌂' },
       { id: 'commercial', label: 'Commercial', icon: '◎' },
       { id: 'chemicals', label: 'Químicos', icon: '⚗' },
-      { id: 'health', label: 'Health Dept.', icon: '♥' },
       { id: 'reports', label: 'Reports', icon: '!' },
     ];
+    const assignedArea = appSession?.user.role.toLowerCase();
+    const areas = allAreas.filter((area) => area.id === 'home' || area.id === assignedArea);
 
     return (<>
       <aside className={`app-sidebar${sidebarCollapsed ? ' app-sidebar-collapsed' : ''}`} aria-label="BlueLife areas">
@@ -2312,11 +2359,21 @@ function App() {
         </nav>
         <div className="sidebar-footer">
           <img className="sidebar-logo" src="/blue-life-logo.png" alt="" aria-hidden="true" decoding="async" />
-          <div><strong>Blue Life Pools</strong><small>Team workspace</small></div>
+          <div className="sidebar-account"><strong>{appSession?.user.name}</strong><small>{appSession?.user.role.toLowerCase()}</small></div>
+          <button className="sidebar-logout" type="button" onClick={() => void logoutApp()}>Salir</button>
         </div>
       </aside>
       {sidebarCollapsed && <button className="sidebar-expand-button" type="button" onClick={() => setSidebarCollapsed(false)} aria-label="Show navigation" title="Show navigation">›</button>}
     </>);
+  }
+
+  async function logoutApp() {
+    await fetch(`${API_URL}/auth/logout`, { method: 'POST' }).catch(() => undefined);
+    setAppToken('');
+    setAppSession(null);
+    setActiveArea('home');
+    setProperties([]);
+    setDeletedProperties([]);
   }
 
   function renderProposalReminderCenter() {
@@ -2459,6 +2516,14 @@ function App() {
     );
   }
 
+  if (!sharedChemicalAccess && authLoading) {
+    return <div className="page"><p>Checking session...</p></div>;
+  }
+
+  if (!sharedChemicalAccess && !appSession) {
+    return <LoginPage onLogin={(session) => { setAppSession(session); setActiveArea('home'); setLoading(true); }} />;
+  }
+
   if (loading) {
     return (
       <div className="page">
@@ -2474,7 +2539,7 @@ function App() {
   if (activeArea === 'chemicals') {
     return <ChemicalsPage sidebar={renderAppSidebar()} />;
   }
-  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} onOpenHealth={() => navigateToArea('health', { healthUnassignedOnly: true })} onNewProperty={() => openCreateForm('home')} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
+  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} canEdit={appSession?.user.role === 'COMMERCIAL'} onNewProperty={() => openCreateForm('home')} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
   if (
     selectedProperty
   ) {

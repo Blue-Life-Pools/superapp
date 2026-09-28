@@ -17,3 +17,32 @@ try {
 }
 
 export const API_URL = parsedApiUrl.toString().replace(/\/+$/, '');
+
+const appTokenKey = 'bluelife-app-token';
+
+export function getAppToken() {
+  try {
+    return window.localStorage.getItem(appTokenKey) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function setAppToken(token: string) {
+  try {
+    if (token) window.localStorage.setItem(appTokenKey, token);
+    else window.localStorage.removeItem(appTokenKey);
+  } catch {
+    // Authentication still works for the current request when storage is unavailable.
+  }
+}
+
+export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  const token = getAppToken();
+  const url = typeof input === 'string' ? input : input.toString();
+  if (token && url.startsWith(API_URL) && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return fetch(input, { ...init, headers });
+}

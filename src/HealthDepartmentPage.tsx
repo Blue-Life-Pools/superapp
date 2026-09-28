@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import { API_URL } from './api';
+import { API_URL, apiFetch as fetch } from './api';
 import { daysUntilInspection, englishChemical, englishHealthStatus, estimateStatusOptions, healthDate, inspectionAlertDate, inspectionSignal } from './healthDisplay';
 
 type Comment = { id: string; author: string; body: string; createdAt: string };
