@@ -298,7 +298,6 @@ function isWaterBodyFormValid(waterBody: WaterBodyForm) {
 
   return Boolean(
     waterBody.type &&
-    (waterBody.type === 'SPA' || waterBody.size) &&
     waterBody.name.trim() &&
     gallonsAreValid,
   );
@@ -492,7 +491,7 @@ function WaterBodiesEditor({
                 {body.type !== 'SPA' && (
                   <div className="form-field water-body-size-field">
                     <label htmlFor={`${idPrefix}-size-${index}`}>
-                      Size *
+                      Size (optional)
                     </label>
                     <select
                       id={`${idPrefix}-size-${index}`}

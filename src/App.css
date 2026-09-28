@@ -2626,7 +2626,7 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
 
 .sidebar-account { display: grid; gap: 2px; min-width: 0; }
 .sidebar-account strong, .sidebar-account small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sidebar-logout { margin-left: auto; padding: 6px 8px; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; background: transparent; color: #fff; font-size: 10px; cursor: pointer; }
+.sidebar-logout { margin-left: auto; padding: 6px 8px; border: 1px solid #b9dcea; border-radius: 8px; background: #f4fbfe; color: #00658e; font-size: 10px; font-weight: 750; cursor: pointer; }
 .history-read-only .history-edit-information,
 .history-read-only .history-sharepoint-actions { display: none; }
 .history-no-health-navigation > .history-panel:last-child > .history-panel-heading > .secondary-button { display: none; }
@@ -2641,9 +2641,10 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   width: 236px;
   flex-direction: column;
   padding: 24px 16px;
-  background: #004c73;
-  color: white;
-  box-shadow: 8px 0 30px rgba(0, 76, 115, 0.12);
+  border-right: 1px solid #d5e9f2;
+  background: #ffffff;
+  color: #005a87;
+  box-shadow: 8px 0 30px rgba(0, 76, 115, 0.1);
   transition: transform 0.22s ease, box-shadow 0.22s ease;
 }
 
@@ -2706,9 +2707,20 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   box-sizing: border-box;
   border-radius: 11px;
   padding: 4px;
-  background: white;
-  box-shadow: 0 3px 10px rgba(0, 55, 91, 0.18);
+  border: 1px solid #dcecf3;
+  background: #f8fcfe;
+  box-shadow: 0 3px 10px rgba(0, 80, 120, 0.08);
   object-fit: contain;
+}
+
+.sidebar-brand .sidebar-logo {
+  width: 60px;
+  height: 46px;
+  padding: 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .sidebar-brand div,
@@ -2718,9 +2730,9 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   flex-direction: column;
 }
 
-.sidebar-brand strong { font-size: 17px; }
+.sidebar-brand strong { color: #004f77; font-size: 17px; }
 .sidebar-brand small,
-.sidebar-footer small { color: #a9d7eb; font-size: 11px; }
+.sidebar-footer small { color: #688493; font-size: 11px; }
 
 .app-sidebar nav {
   display: flex;
@@ -2739,7 +2751,7 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   border-radius: 10px;
   padding: 11px 12px;
   background: transparent;
-  color: #cbe9f5;
+  color: #075f87;
   cursor: pointer;
   font-size: 13px;
   font-weight: 650;
@@ -2752,22 +2764,27 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   height: 25px;
   place-items: center;
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.08);
+  background: #e9f6fb;
+  color: #0877a4;
 }
 
 .app-sidebar nav button:hover,
 .app-sidebar nav button.sidebar-active {
-  background: rgba(255, 255, 255, 0.13);
-  color: white;
+  background: #e3f4fb;
+  color: #004f77;
+}
+
+.app-sidebar nav button.sidebar-active {
+  box-shadow: inset 4px 0 0 #2ea3f2;
 }
 
 .sidebar-footer {
   padding-top: 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 1px solid #dcebf2;
 }
 
 .sidebar-footer .sidebar-logo { width: 38px; height: 32px; border-radius: 8px; padding: 3px; }
-.sidebar-footer strong { font-size: 12px; }
+.sidebar-footer strong { color: #004f77; font-size: 12px; }
 
 .area-page-header {
   display: flex;
