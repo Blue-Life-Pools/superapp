@@ -2294,7 +2294,7 @@ function App() {
       <aside className={`app-sidebar${sidebarCollapsed ? ' app-sidebar-collapsed' : ''}`} aria-label="BlueLife areas">
         <button className="sidebar-collapse-button" type="button" onClick={() => setSidebarCollapsed(true)} aria-label="Hide navigation and use full screen" title="Hide navigation">‹</button>
         <div className="sidebar-brand">
-          <span>BL</span>
+          <img className="sidebar-logo" src="/blue-life-logo.png" alt="Blue Life Pool Service" />
           <div><strong>BlueLife</strong><small>Internal App</small></div>
         </div>
         <nav>
@@ -2311,7 +2311,7 @@ function App() {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <span>BL</span>
+          <img className="sidebar-logo" src="/blue-life-logo.png" alt="" aria-hidden="true" />
           <div><strong>Blue Life Pools</strong><small>Team workspace</small></div>
         </div>
       </aside>

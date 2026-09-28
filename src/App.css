@@ -2660,18 +2660,16 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   gap: 11px;
 }
 
-.sidebar-brand > span,
-.sidebar-footer > span {
-  display: grid;
-  width: 40px;
+.sidebar-logo {
+  display: block;
+  width: 48px;
   height: 40px;
   flex: 0 0 auto;
-  place-items: center;
+  box-sizing: border-box;
   border-radius: 11px;
-  background: linear-gradient(135deg, #34e2e4, #2ea3f2);
-  color: #003b59;
-  font-size: 13px;
-  font-weight: 900;
+  padding: 4px;
+  background: white;
+  object-fit: contain;
 }
 
 .sidebar-brand div,
@@ -2729,7 +2727,7 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-.sidebar-footer > span { width: 32px; height: 32px; border-radius: 50%; }
+.sidebar-footer .sidebar-logo { width: 38px; height: 32px; border-radius: 8px; padding: 3px; }
 .sidebar-footer strong { font-size: 12px; }
 
 .area-page-header {
