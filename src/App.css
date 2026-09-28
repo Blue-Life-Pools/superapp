@@ -2878,6 +2878,27 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
 .history-create-sharepoint { display: inline-flex; border: 0; border-radius: 8px; padding: 8px 11px; background: #e8f7fa; color: #075477; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
 .history-create-sharepoint:hover { background: #d8f0f5; }
 .history-side-panels { display: grid; gap: 16px; align-content: start; }
+.history-related-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.history-related-heading h2 { margin: 0; }
+.history-related-heading button { min-height: 31px; padding: 6px 10px; font-size: 9px; }
+.history-related-editor { display: grid; gap: 12px; }
+.history-add-related { justify-self: start; border: 1px solid var(--bluelife-border); border-radius: 8px; padding: 7px 10px; background: white; color: #075477; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
+.history-related-card { display: grid; gap: 10px; padding: 12px; border: 1px solid #dfeaf0; border-radius: 10px; background: #f9fcfd; }
+.history-related-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 9px; }
+.history-related-card-heading strong { color: #075477; font-size: 11px; }
+.history-related-card-heading button { border: 0; border-radius: 7px; padding: 5px 7px; background: #fff0f0; color: #b42318; font: inherit; font-size: 9px; font-weight: 800; cursor: pointer; }
+.history-related-card > label:not(.history-related-check) { display: grid; gap: 5px; }
+.history-related-card label > span { color: #344054; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.history-related-card input,
+.history-related-card select { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--bluelife-border); border-radius: 7px; padding: 8px 9px; background: white; color: #172b3a; font: inherit; font-size: 10px; }
+.history-related-card input:focus,
+.history-related-card select:focus { outline: 2px solid rgba(46, 163, 242, .18); border-color: #2ea3f2; }
+.history-related-check { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.history-related-check input { width: 15px; height: 15px; flex: 0 0 auto; }
+.history-related-check span { text-transform: none !important; }
+.history-related-error { display: block; color: #b42318; font-size: 9px; line-height: 1.45; }
+.history-related-actions { display: flex; gap: 8px; }
+.history-related-actions button { flex: 1; min-height: 34px; padding: 7px 9px; font-size: 9px; }
 .history-contact { display: grid; gap: 5px; border-bottom: 1px solid #edf2f5; padding: 12px 0; font-size: 11px; overflow-wrap: anywhere; }
 .history-contact:last-child { border-bottom: 0; }
 .history-contact strong { color: #075477; }
