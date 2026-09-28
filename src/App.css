@@ -2994,6 +2994,7 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
 .health-page .health-summary-chip.health-summary-estimate-status b { color: var(--health-rose-800); }
 .health-page .health-summary-estimate-number > span, .health-page .health-summary-estimate-status > span { font-size: 12px; font-weight: 800; }
 .health-form-grid > label:nth-child(n) { grid-column: auto; padding: 0; border: 0; background: transparent; min-height: 0; }
+.health-form-grid > label.health-ticket-name-field { grid-column: 1 / -1; }
 .health-form-grid > label.health-violations-field { grid-column: span 2; }
 .health-initial-column { display: grid; align-content: start; gap: 12px; }
 .health-form-grid > fieldset:nth-child(n) { display: flex; flex-direction: column; gap: 8px; }

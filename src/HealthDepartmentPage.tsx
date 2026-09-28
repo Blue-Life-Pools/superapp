@@ -4,7 +4,7 @@ import { API_URL } from './api';
 import { daysUntilInspection, englishChemical, englishHealthStatus, estimateStatusOptions, healthDate, inspectionAlertDate, inspectionSignal } from './healthDisplay';
 
 type Comment = { id: string; author: string; body: string; createdAt: string };
-type Ticket = { id: string; subject: string; property: string; sender: string; receivedAt: string; visitDate: string; status: string; estimate: string; estimateNumber: string; healthData: Record<string, string>; comments: Comment[] };
+type Ticket = { id: string; name: string; subject: string; property: string; sender: string; receivedAt: string; visitDate: string; status: string; estimate: string; estimateNumber: string; healthData: Record<string, string>; comments: Comment[] };
 const groups: Array<[string, string, string[]]> = [
   ['Quimico', 'Chemical', ['pH', 'Chlorine', 'Stabilizer']],
   ['Feeders', 'Feeders', ['Ph Feeder', 'Chlorine Feeder', 'Disinfection Feeder']],
@@ -27,14 +27,14 @@ function mapTicket(row: Record<string, any>, commercialPropertyNames?: Set<strin
   }
   if (typeof data.Quimico === 'string') data.Quimico = JSON.stringify(asList(data.Quimico).map(englishChemical));
   const assignedProperty = row.propertyName && (!commercialPropertyNames || commercialPropertyNames.has(row.propertyName)) ? row.propertyName : '';
-  return { id: row.ticketNumber, subject: row.subject || 'Health Department request', property: assignedProperty, sender: row.senderEmail || 'Historical / manual', receivedAt: row.receivedAt, visitDate: dateValue(data['Fecha de Inicio'] || row.visitDate || ''), status: row.status || 'NEW', estimate: row.estimateStatus || 'PENDING', estimateNumber: row.estimateNumber || data.Estimado || '', healthData: data, comments: row.comments || [] };
+  const subject = row.subject || 'Health Department request';
+  const name = data['Ticket name']?.trim() || data.Propiedad?.trim() || subject.replace(/^Health Department inspection\s*-\s*/i, '').trim() || 'Health Department inspection';
+  return { id: row.ticketNumber, name, subject, property: assignedProperty, sender: row.senderEmail || 'Historical / manual', receivedAt: row.receivedAt, visitDate: dateValue(data['Fecha de Inicio'] || row.visitDate || ''), status: row.status || 'NEW', estimate: row.estimateStatus || 'PENDING', estimateNumber: row.estimateNumber || data.Estimado || '', healthData: data, comments: row.comments || [] };
 }
 const statusLabel = (value: string) => value === 'CLOSED' ? 'Closed' : value === 'IN_PROGRESS' ? 'In progress' : 'New';
 const searchKey = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 function ticketTitle(ticket: Ticket) {
-  const importedName = ticket.healthData.Propiedad?.trim();
-  if (importedName) return importedName;
-  return ticket.subject.replace(/^Health Department inspection\s*-\s*/i, '').trim() || 'Health Department inspection';
+  return ticket.name;
 }
 async function request(path: string, options?: RequestInit) {
   const response = await fetch(API_URL + path, options);
@@ -67,13 +67,13 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
   }, []);
   const filtered = useMemo(() => {
     const query = searchKey(propertySearch);
-    return tickets.filter((ticket) => (filter === 'All' || ticket.status === filter) && (!unassignedOnly || !ticket.property) && (!query || searchKey(ticket.property).includes(query)));
+    return tickets.filter((ticket) => (filter === 'All' || ticket.status === filter) && (!unassignedOnly || !ticket.property) && (!query || searchKey(ticket.property).includes(query) || searchKey(ticket.name).includes(query)));
   }, [tickets, filter, propertySearch, unassignedOnly]);
   const upcoming = useMemo(() => tickets.map((ticket) => ({ ticket, ...inspectionAlertDate(ticket) })).filter(({ ticket, date }) => ticket.status !== 'CLOSED' && date && daysUntilInspection(date, clock) >= 0).sort((a, b) => a.date.localeCompare(b.date)), [tickets, clock]);
   const urgent = upcoming.filter(({ date }) => daysUntilInspection(date, clock) <= 10);
   function newTicket() {
     setMessage('');
-    setEditing({ id: '', subject: 'Health Department visit', property: '', sender: '', receivedAt: '', visitDate: '', status: 'NEW', estimate: 'NOT_REQUIRED', estimateNumber: '', healthData: {}, comments: [] });
+    setEditing({ id: '', name: '', subject: 'Health Department visit', property: '', sender: '', receivedAt: '', visitDate: '', status: 'NEW', estimate: 'NOT_REQUIRED', estimateNumber: '', healthData: {}, comments: [] });
   }
   function update(field: string, value: string) {
     setEditing((current) => current ? { ...current, healthData: { ...current.healthData, [field]: value } } : null);
@@ -82,10 +82,11 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
     event.preventDefault(); if (!editing || busy) return;
     setBusy(true); setMessage('');
     try {
-      const data = { ...editing.healthData, Propiedad: editing.healthData.Propiedad?.trim() || editing.property, 'Fecha de Inicio': editing.visitDate, Estimado: editing.estimate === 'REQUIRED' ? editing.estimateNumber : '' };
+      const ticketName = editing.name.trim();
+      const data = { ...editing.healthData, 'Ticket name': ticketName, Propiedad: editing.healthData.Propiedad?.trim() || editing.property, 'Fecha de Inicio': editing.visitDate, Estimado: editing.estimate === 'REQUIRED' ? editing.estimateNumber : '' };
       const row = await request('/health-department/tickets' + (editing.id ? '/' + encodeURIComponent(editing.id) : ''), {
         method: editing.id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ propertyName: editing.property, visitDate: editing.visitDate || null, status: editing.status, estimateStatus: editing.estimate, estimateNumber: editing.estimate === 'REQUIRED' ? editing.estimateNumber : '', healthData: data }),
+        body: JSON.stringify({ subject: ticketName, propertyName: editing.property, visitDate: editing.visitDate || null, status: editing.status, estimateStatus: editing.estimate, estimateNumber: editing.estimate === 'REQUIRED' ? editing.estimateNumber : '', healthData: data }),
       });
       const saved = mapTicket({ ...row, comments: editing.comments });
       setTickets((current) => editing.id ? current.map((ticket) => ticket.id === editing.id ? saved : ticket) : [saved, ...current]);
@@ -178,6 +179,7 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
       </aside>
     </div>
     {editing && <div className="modal-backdrop"><section role="dialog" aria-modal="true" aria-label={editing.id ? 'Edit ticket' : 'New ticket'} className="property-modal repair-request-modal health-editor-modal"><div className="edit-panel-header"><h2>{editing.id ? 'Edit ' + editing.id : 'New ticket'}</h2><button className="modal-close" aria-label="Close editor" onClick={() => setEditing(null)}>&times;</button></div><form onSubmit={(event) => void save(event)}><div className="health-detail-grid health-form-grid">
+      <label className="health-ticket-name-field">Ticket name<input required maxLength={200} placeholder="Example: Sole on Central" value={editing.name} onChange={(event) => setEditing({ ...editing, name: event.target.value })} /></label>
       <label>Property<select required value={editing.property} onChange={(event) => setEditing({ ...editing, property: event.target.value })}><option value="">Select property</option>{editing.property && !properties.some((property) => property.name === editing.property) && <option>{editing.property}</option>}{properties.map((property) => <option key={property.id} value={property.name}>{property.name}</option>)}</select></label>
       <label>Inspection date<input type="date" value={editing.visitDate} onChange={(event) => setEditing({ ...editing, visitDate: event.target.value })} /></label>
       <label>Ticket status<select value={editing.status} onChange={(event) => setEditing({ ...editing, status: event.target.value })}><option value="NEW">New</option><option value="IN_PROGRESS">In progress</option><option value="CLOSED">Closed</option></select></label>
