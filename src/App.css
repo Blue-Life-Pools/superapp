@@ -2752,113 +2752,6 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   gap: 12px;
 }
 
-.integration-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid #b9e6fe;
-  border-radius: 999px;
-  padding: 8px 11px;
-  background: #f0f9ff;
-  color: #026aa2;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.integration-pill i { width: 7px; height: 7px; border-radius: 50%; background: #0ba5ec; }
-
-.estimate-kpis {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 16px;
-}
-
-.estimate-kpis article {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 18px;
-  border: 1px solid var(--bluelife-border);
-  border-radius: 14px;
-  background: white;
-  box-shadow: 0 8px 24px rgba(0, 90, 135, 0.05);
-}
-
-.estimate-kpis span { color: var(--bluelife-muted); font-size: 12px; }
-.estimate-kpis strong { margin: 7px 0 3px; color: var(--bluelife-navy); font-size: 25px; }
-.estimate-kpis small { color: #7b909b; font-size: 10px; }
-
-.estimate-workflow {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1px;
-  margin-bottom: 18px;
-  overflow: hidden;
-  border: 1px solid var(--bluelife-border);
-  border-radius: 14px;
-  background: var(--bluelife-border);
-}
-
-.estimate-workflow > div {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px;
-  background: white;
-}
-
-.estimate-workflow > div > span {
-  display: grid;
-  width: 27px;
-  height: 27px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--bluelife-surface-soft);
-  color: var(--bluelife-blue-dark);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.estimate-workflow div div { display: flex; min-width: 0; flex-direction: column; }
-.estimate-workflow strong { color: var(--bluelife-ink); font-size: 12px; }
-.estimate-workflow small { overflow: hidden; color: var(--bluelife-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-
-.estimates-table-card {
-  overflow: hidden;
-  border: 1px solid var(--bluelife-border);
-  border-radius: 16px;
-  background: white;
-}
-
-.estimate-table-header h2,
-.estimate-table-header p { margin: 0; }
-.estimate-table-header p { margin-top: 4px; color: var(--bluelife-muted); font-size: 12px; }
-.estimate-filters { display: flex; gap: 10px; }
-.estimate-filters select { border: 1px solid #d0d5dd; border-radius: 10px; padding: 10px 12px; background: white; color: var(--bluelife-ink); }
-.estimate-loading { padding: 40px 24px; color: var(--bluelife-muted); text-align: center; }
-.estimates-table th,
-.estimates-table td { padding: 13px 16px; }
-.estimates-table td:first-child { min-width: 250px; }
-.estimates-table td { vertical-align: top; }
-.estimates-table td strong,
-.estimates-table td small { display: block; }
-.estimates-table td small { max-width: 330px; margin-top: 4px; overflow: hidden; color: var(--bluelife-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.estimate-category { display: inline-flex; border-radius: 6px; padding: 5px 7px; background: #f2f4f7; color: #475467; font-size: 10px; font-weight: 650; }
-.estimate-status { display: inline-flex; border-radius: 999px; padding: 5px 8px; background: #eef2f6; color: #475467; font-size: 10px; font-weight: 750; }
-.estimate-pending { background: #fff4e5; color: #b54708; }
-.estimate-requested { background: #f4ebff; color: #6941c6; }
-.estimate-accepted { background: #e0f2fe; color: #026aa2; }
-.estimate-converted,
-.estimate-repair-done { background: #dcfce7; color: #166534; }
-.estimate-declined { background: #fee4e2; color: #b42318; }
-.table-limit-note { margin: 0; padding: 12px 16px; background: var(--bluelife-surface-soft); color: var(--bluelife-muted); font-size: 11px; text-align: center; }
-
-.area-landing-page { min-height: 100vh; }
-.repair-request-modal { width: min(680px, 100%); }
-
 /* Health Department workspace */
 .health-property-link { border: 0; padding: 0; background: transparent; color: #026aa2; cursor: pointer; font: inherit; font-weight: 800; text-align: left; }
 .health-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-height: 65vh; overflow: auto; padding: 4px 2px; }
@@ -3218,38 +3111,10 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
 .property-tab-empty { display: flex; min-height: 200px; align-items: center; justify-content: center; flex-direction: column; color: var(--bluelife-muted); text-align: center; }
 .property-tab-empty strong { color: var(--bluelife-navy); }
 .property-tab-empty p { margin: 7px 0 0; font-size: 12px; }
-.operations-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-.operations-grid article { padding: 16px; border: 1px solid var(--bluelife-border); border-radius: 12px; background: var(--bluelife-surface-soft); }
-.operations-grid h3 { margin: 12px 0; color: var(--bluelife-navy); font-size: 14px; }
-.operations-grid dl { display: grid; gap: 8px; margin: 0; }
-.operations-grid dl div { display: flex; justify-content: space-between; gap: 12px; }
-.operations-grid dt { color: var(--bluelife-muted); font-size: 10px; }
-.operations-grid dd { margin: 0; font-size: 11px; font-weight: 700; text-align: right; }
 .contract-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .contract-summary > div { display: flex; flex-direction: column; gap: 6px; padding: 18px; border: 1px solid var(--bluelife-border); border-radius: 12px; background: var(--bluelife-surface-soft); }
 .contract-summary span { color: var(--bluelife-muted); font-size: 10px; }
 .contract-summary strong { color: var(--bluelife-navy); font-size: 14px; }
-
-.estimate-journey-list { display: grid; gap: 14px; }
-.estimate-journey-card { overflow: hidden; border: 1px solid var(--bluelife-border); border-radius: 13px; background: white; }
-.estimate-journey-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 16px 18px; }
-.estimate-journey-header > div { display: flex; min-width: 0; flex-direction: column; }
-.estimate-journey-header > div:first-child > span { color: var(--bluelife-blue-dark); font-size: 9px; font-weight: 850; letter-spacing: .08em; }
-.estimate-journey-header h3 { margin: 5px 0 3px; overflow: hidden; color: var(--bluelife-navy); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.estimate-journey-header small { color: var(--bluelife-muted); font-size: 10px; }
-.estimate-journey-header > div:last-child { align-items: flex-end; flex: 0 0 auto; gap: 7px; }
-.estimate-journey-header > div:last-child > strong { color: var(--bluelife-ink); font-size: 13px; }
-.estimate-process-track { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 15px 18px 17px; border-top: 1px solid #e8eef2; border-bottom: 1px solid #e8eef2; background: var(--bluelife-surface-soft); }
-.estimate-process-track span { position: relative; padding-top: 18px; color: #98a2b3; font-size: 9px; text-align: center; }
-.estimate-process-track span::before { position: absolute; z-index: 2; top: 0; left: 50%; width: 10px; height: 10px; border: 3px solid white; border-radius: 50%; background: #d0d5dd; box-shadow: 0 0 0 1px #d0d5dd; content: ''; transform: translateX(-50%); }
-.estimate-process-track span::after { position: absolute; top: 5px; right: 50%; left: -50%; height: 2px; background: #dce4e8; content: ''; }
-.estimate-process-track span:first-child::after { display: none; }
-.estimate-process-track span.process-complete { color: var(--bluelife-navy); font-weight: 700; }
-.estimate-process-track span.process-complete::before,
-.estimate-process-track span.process-complete::after { background: var(--bluelife-blue); }
-.estimate-next-action { display: flex; align-items: center; gap: 9px; padding: 10px 18px; }
-.estimate-next-action span { color: var(--bluelife-muted); font-size: 9px; font-weight: 750; text-transform: uppercase; }
-.estimate-next-action strong { color: var(--bluelife-blue-dark); font-size: 11px; }
 
 @media (max-width: 800px) {
   .property-tabs { margin-right: -16px; margin-left: -16px; padding: 0 10px; }
@@ -3261,17 +3126,7 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   .property-tab-panel { padding: 18px 14px; }
   .property-tab-panel .card-header { align-items: stretch; flex-direction: column; }
   .contract-summary { grid-template-columns: 1fr; }
-  .estimate-journey-header { flex-direction: column; }
-  .estimate-journey-header > div:last-child { width: 100%; align-items: center; flex-direction: row; justify-content: space-between; }
-  .estimate-process-track { overflow-x: auto; grid-template-columns: repeat(5, 110px); }
-  .estimate-next-action { align-items: flex-start; flex-direction: column; }
 }
-.area-landing-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.area-landing-grid button { display: flex; min-height: 150px; flex-direction: column; align-items: flex-start; border: 1px solid var(--bluelife-border); border-radius: 16px; padding: 22px; background: white; color: var(--bluelife-ink); cursor: pointer; text-align: left; box-shadow: 0 8px 24px rgba(0, 90, 135, 0.05); }
-.area-landing-grid button:hover { border-color: var(--bluelife-blue); transform: translateY(-2px); }
-.area-landing-grid button > span { color: var(--bluelife-blue); font-size: 11px; font-weight: 800; }
-.area-landing-grid button strong { margin-top: auto; color: var(--bluelife-navy); font-size: 20px; }
-.area-landing-grid button small { margin-top: 5px; color: var(--bluelife-muted); }
 
 .chemicals-page {
   min-height: 100vh;
@@ -4056,8 +3911,6 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
 }
 
 @media (max-width: 1100px) {
-  .estimate-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .estimate-workflow { grid-template-columns: repeat(5, 180px); overflow-x: auto; }
   .area-page-header { flex-direction: column; }
   .chemicals-workspace { grid-template-columns: 1fr; }
   .chemicals-history-card { position: static; }
@@ -4072,29 +3925,18 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   .sidebar-expand-button { display: none; }
   .sidebar-brand,
   .sidebar-footer { display: none; }
-  .app-sidebar nav { display: grid; width: 100%; margin: 0; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+  .app-sidebar nav { display: grid; width: 100%; margin: 0; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; }
   .app-sidebar nav button { min-width: 0; min-height: 62px; justify-content: center; flex-direction: column; gap: 2px; padding: 3px 1px; font-size: 7px; line-height: 1.1; text-align: center; }
   .app-sidebar nav button > span { width: 27px; height: 27px; }
   .area-page-header { margin-bottom: 20px; }
   .area-page-header h1 { font-size: 27px; }
   .area-header-actions { width: 100%; align-items: stretch; flex-direction: column; }
-  .integration-pill { justify-content: center; }
-  .estimate-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .estimate-kpis article { padding: 14px; }
-  .estimate-kpis strong { font-size: 21px; }
-  .estimate-workflow { grid-template-columns: repeat(5, 165px); }
-  .estimate-table-header { align-items: stretch; flex-direction: column; }
-  .estimate-filters { flex-direction: column; }
-  .estimate-filters .search,
-  .estimate-filters select { width: 100%; }
-  .area-landing-grid { grid-template-columns: 1fr; }
   .proposal-services-card .proposal-section-heading { align-items: flex-start; flex-direction: column; }
   .proposal-services-grid { grid-template-columns: 1fr; }
   .chemicals-page-header { gap: 13px; margin-bottom: 15px; }
   .chemicals-page-header h1 { font-size: 29px; }
   .chemicals-page-header p { margin-top: 5px; font-size: 13px; line-height: 1.45; }
   .chemicals-page-header .area-header-actions { gap: 8px; }
-  .chemicals-page-header .integration-pill { min-height: 42px; box-sizing: border-box; }
   .chemicals-tabs { width: 100%; margin: -2px 0 13px; }
   .chemicals-tabs button { min-width: 0; flex: 1 1 25%; padding: 10px 4px 9px; font-size: 10px; }
   .chemicals-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
@@ -4495,6 +4337,8 @@ button:disabled {
   background: white;
   box-shadow: 0 24px 48px rgba(16, 24, 40, 0.2);
 }
+
+.repair-request-modal { width: min(680px, 100%); }
 
 .property-modal .edit-panel-header {
   margin-bottom: 24px;

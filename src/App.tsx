@@ -9,75 +9,13 @@ import { PropertyHistoryPage } from './PropertyHistoryPage';
 import { ReportsPage } from './ReportsPage';
 import './App.css';
 
-type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports' | 'estimates' | 'operations' | 'finance';
-type PropertyTab = 'overview' | 'commercial' | 'estimates' | 'contracts';
+type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports';
+type PropertyTab = 'overview' | 'commercial' | 'contracts';
 
 function initialAppArea(): AppArea {
   const query = new URLSearchParams(window.location.search);
   const sharedChemicalAccess = query.get('technicianAccess') === '1' || Boolean(query.get('technicianToken')?.trim());
   return sharedChemicalAccess ? 'chemicals' : 'home';
-}
-
-type EstimateOpportunity = {
-  title: string;
-  propertyLink: string;
-  estimateNumber: string;
-  value: number;
-  status: string;
-  category: string;
-  contractor: string;
-  opportunityName: string;
-  createdAt: string;
-  requestedBy: string;
-  approvalDate: string;
-  approvedBy: string;
-  estimatedRepairDate: string;
-  technician: string;
-  actualRepairDate: string;
-  invoiceNumber: string;
-  invoiceValue: number;
-  invoiceDate: string;
-};
-
-function parseCsvRows(csv: string) {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = '';
-  let quoted = false;
-
-  for (let index = 0; index < csv.length; index += 1) {
-    const character = csv[index];
-    if (character === '"') {
-      if (quoted && csv[index + 1] === '"') {
-        field += '"';
-        index += 1;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (character === ',' && !quoted) {
-      row.push(field);
-      field = '';
-    } else if ((character === '\n' || character === '\r') && !quoted) {
-      if (character === '\r' && csv[index + 1] === '\n') index += 1;
-      row.push(field);
-      if (row.some((value) => value.length > 0)) rows.push(row);
-      row = [];
-      field = '';
-    } else {
-      field += character;
-    }
-  }
-
-  if (field || row.length) {
-    row.push(field);
-    rows.push(row);
-  }
-
-  return rows;
-}
-
-function parseMoney(value: string) {
-  return Number(value.replaceAll(',', '').replace(/[^0-9.-]/g, '')) || 0;
 }
 
 type ContactRelation = {
@@ -672,12 +610,6 @@ function App() {
     try { return window.localStorage.getItem('bluelife-sidebar-collapsed') === 'true'; }
     catch { return false; }
   });
-  const [estimateOpportunities, setEstimateOpportunities] = useState<EstimateOpportunity[]>([]);
-  const [estimateSearch, setEstimateSearch] = useState('');
-  const [estimateStatus, setEstimateStatus] = useState('ALL');
-  const [estimatesLoading, setEstimatesLoading] = useState(true);
-  const [showRepairRequest, setShowRepairRequest] = useState(false);
-  const [repairRequest, setRepairRequest] = useState({ property: '', description: '', category: '', requestedBy: 'Commercial' });
   const [propertyTab, setPropertyTab] = useState<PropertyTab>('overview');
   const [properties, setProperties] =
     useState<Property[]>([]);
@@ -937,42 +869,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    async function loadEstimateOpportunities() {
-      try {
-        const response = await fetch('/opportunities.csv');
-        if (!response.ok) throw new Error('Could not load estimate opportunities');
-        const [, ...rows] = parseCsvRows(await response.text());
-        setEstimateOpportunities(rows.map((columns) => ({
-          title: columns[0]?.trim() ?? '',
-          propertyLink: columns[1]?.trim() ?? '',
-          estimateNumber: columns[2]?.trim() ?? '',
-          value: parseMoney(columns[3] ?? ''),
-          status: columns[4]?.trim() || 'Unspecified',
-          category: columns[5]?.trim() || 'Uncategorized',
-          contractor: columns[6]?.trim() ?? '',
-          opportunityName: (columns[7] ?? '').replace(/<br\s*\/?>(\s*)/gi, ' ').trim(),
-          createdAt: columns[8]?.trim() ?? '',
-          requestedBy: columns[9]?.trim() || 'Not specified',
-          approvalDate: columns[10]?.trim() ?? '',
-          approvedBy: columns[11]?.trim() ?? '',
-          estimatedRepairDate: columns[12]?.trim() ?? '',
-          technician: columns[14]?.trim() ?? '',
-          actualRepairDate: columns[15]?.trim() ?? '',
-          invoiceNumber: columns[16]?.trim() ?? '',
-          invoiceValue: parseMoney(columns[17] ?? ''),
-          invoiceDate: columns[18]?.trim() ?? '',
-        })));
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setEstimatesLoading(false);
-      }
-    }
-
-    void loadEstimateOpportunities();
-  }, []);
-
-  useEffect(() => {
     const timer = window.setInterval(
       () => setReminderReferenceTime(Date.now()),
       60 * 60 * 1000,
@@ -1076,30 +972,6 @@ function App() {
   const proposalPoolFill = createdProposalCount > 0
     ? Math.min(100, (approvedProposalCount / createdProposalCount) * 100)
     : 0;
-
-  const filteredEstimates = useMemo(() => {
-    const term = estimateSearch.trim().toLowerCase();
-    return estimateOpportunities.filter((estimate) =>
-      (estimateStatus === 'ALL' || estimate.status === estimateStatus) &&
-      (!term || [
-        estimate.title,
-        estimate.estimateNumber,
-        estimate.opportunityName,
-        estimate.category,
-        estimate.requestedBy,
-      ].some((value) => value.toLowerCase().includes(term))),
-    );
-  }, [estimateOpportunities, estimateSearch, estimateStatus]);
-
-  const estimateStats = useMemo(() => ({
-    total: estimateOpportunities.length,
-    pending: estimateOpportunities.filter((estimate) => estimate.status === 'Pending').length,
-    accepted: estimateOpportunities.filter((estimate) => estimate.status === 'Accepted').length,
-    converted: estimateOpportunities.filter((estimate) => estimate.status === 'Converted').length,
-    pipelineValue: estimateOpportunities
-      .filter((estimate) => estimate.status === 'Pending' || estimate.status === 'Accepted')
-      .reduce((sum, estimate) => sum + estimate.value, 0),
-  }), [estimateOpportunities]);
 
   const proposalReminders = useMemo(() => {
     const followUpThreshold = reminderReferenceTime - 30 * 24 * 60 * 60 * 1000;
@@ -2322,9 +2194,6 @@ function App() {
       { id: 'chemicals', label: 'Químicos', icon: '⚗' },
       { id: 'health', label: 'Health Dept.', icon: '♥' },
       { id: 'reports', label: 'Reports', icon: '!' },
-      { id: 'estimates', label: 'Estimates', icon: '$' },
-      { id: 'operations', label: 'Operations', icon: '◇' },
-      { id: 'finance', label: 'Finance', icon: '▤' },
     ];
 
     return (<>
@@ -2354,143 +2223,6 @@ function App() {
       </aside>
       {sidebarCollapsed && <button className="sidebar-expand-button" type="button" onClick={() => setSidebarCollapsed(false)} aria-label="Show navigation" title="Show navigation">›</button>}
     </>);
-  }
-
-  function renderEstimatesPage() {
-    const statuses = Array.from(new Set(estimateOpportunities.map((estimate) => estimate.status)))
-      .filter(Boolean)
-      .sort();
-
-    return (
-      <div className="page app-page">
-        {renderAppSidebar()}
-        <header className="area-page-header">
-          <div>
-            <span className="area-eyebrow">REPAIRS & REVENUE</span>
-            <h1>Estimates</h1>
-            <p>Track repair requests from QuickBooks estimate through approval, completion and invoice.</p>
-          </div>
-          <div className="area-header-actions">
-            <span className="integration-pill"><i /> QuickBooks sync planned</span>
-            <button className="primary-button" type="button" onClick={() => setShowRepairRequest(true)}>+ New repair request</button>
-          </div>
-        </header>
-
-        {showRepairRequest && (
-          <div className="modal-backdrop" role="presentation">
-            <section className="property-modal repair-request-modal" role="dialog" aria-modal="true" aria-labelledby="repair-request-title">
-              <div className="edit-panel-header">
-                <div><h2 id="repair-request-title">New repair request</h2><p>Commercial and Operations can send work into the same estimate pipeline.</p></div>
-                <button className="modal-close" type="button" aria-label="Close repair request" onClick={() => setShowRepairRequest(false)}>&times;</button>
-              </div>
-              <form onSubmit={(event) => {
-                event.preventDefault();
-                setEstimateOpportunities((current) => [{
-                  title: repairRequest.property.trim(), propertyLink: repairRequest.property.trim(), estimateNumber: '', value: 0,
-                  status: 'Requested', category: repairRequest.category.trim() || 'Uncategorized', contractor: '',
-                  opportunityName: repairRequest.description.trim(), createdAt: new Date().toLocaleDateString('en-US'),
-                  requestedBy: repairRequest.requestedBy, approvalDate: '', approvedBy: '', estimatedRepairDate: '',
-                  technician: '', actualRepairDate: '', invoiceNumber: '', invoiceValue: 0, invoiceDate: '',
-                }, ...current]);
-                setRepairRequest({ property: '', description: '', category: '', requestedBy: 'Commercial' });
-                setEstimateStatus('ALL');
-                setShowRepairRequest(false);
-              }}>
-                <div className="form-grid">
-                  <div className="form-field form-field-wide"><label>Property *</label><input required value={repairRequest.property} onChange={(event) => setRepairRequest((current) => ({ ...current, property: event.target.value }))} /></div>
-                  <div className="form-field"><label>Requested by *</label><select value={repairRequest.requestedBy} onChange={(event) => setRepairRequest((current) => ({ ...current, requestedBy: event.target.value }))}><option>Commercial</option><option>Technician</option></select></div>
-                  <div className="form-field"><label>Category</label><input placeholder="Pump, Filter, Leak..." value={repairRequest.category} onChange={(event) => setRepairRequest((current) => ({ ...current, category: event.target.value }))} /></div>
-                  <div className="form-field form-field-wide"><label>Repair needed *</label><textarea required rows={5} value={repairRequest.description} onChange={(event) => setRepairRequest((current) => ({ ...current, description: event.target.value }))} /></div>
-                </div>
-                <div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setShowRepairRequest(false)}>Cancel</button><button className="primary-button" type="submit" disabled={!repairRequest.property.trim() || !repairRequest.description.trim()}>Send to Estimates</button></div>
-              </form>
-            </section>
-          </div>
-        )}
-
-        <section className="estimate-kpis">
-          <article><span>Total opportunities</span><strong>{estimateStats.total.toLocaleString()}</strong><small>Imported from Teams</small></article>
-          <article><span>Pending estimates</span><strong>{estimateStats.pending.toLocaleString()}</strong><small>Require customer decision</small></article>
-          <article><span>Accepted</span><strong>{estimateStats.accepted.toLocaleString()}</strong><small>Ready for operations</small></article>
-          <article><span>Open pipeline</span><strong>${estimateStats.pipelineValue.toLocaleString('en-US')}</strong><small>Pending + accepted value</small></article>
-        </section>
-
-        <section className="estimate-workflow">
-          {[
-            ['1', 'Request', 'Commercial or Operations'],
-            ['2', 'Estimate', 'Created in QuickBooks'],
-            ['3', 'Approval', 'Customer decision'],
-            ['4', 'Repair', 'Technician & schedule'],
-            ['5', 'Invoice', 'Finance closes cycle'],
-          ].map(([number, title, subtitle]) => (
-            <div key={number}><span>{number}</span><div><strong>{title}</strong><small>{subtitle}</small></div></div>
-          ))}
-        </section>
-
-        <section className="estimates-table-card">
-          <div className="section-header estimate-table-header">
-            <div><h2>Repair opportunities</h2><p>{filteredEstimates.length.toLocaleString()} records in the current view.</p></div>
-            <div className="estimate-filters">
-              <input
-                className="search"
-                placeholder="Search property, estimate, category..."
-                value={estimateSearch}
-                onChange={(event) => setEstimateSearch(event.target.value)}
-              />
-              <select value={estimateStatus} onChange={(event) => setEstimateStatus(event.target.value)}>
-                <option value="ALL">All statuses</option>
-                {statuses.map((status) => <option value={status} key={status}>{status}</option>)}
-              </select>
-            </div>
-          </div>
-          {estimatesLoading ? (
-            <p className="estimate-loading">Loading estimate history...</p>
-          ) : (
-            <div className="table-container estimates-table-wrap">
-              <table className="estimates-table">
-                <thead><tr><th>Property / Repair</th><th>Estimate</th><th>Category</th><th>Requested by</th><th>Status</th><th>Value</th><th>Next step</th></tr></thead>
-                <tbody>
-                  {filteredEstimates.slice(0, 250).map((estimate, index) => (
-                    <tr key={`${estimate.estimateNumber}-${estimate.title}-${index}`}>
-                      <td><strong>{estimate.title || 'Unnamed property'}</strong><small>{estimate.opportunityName || 'Repair details pending'}</small></td>
-                      <td><strong>{estimate.estimateNumber ? `#${estimate.estimateNumber}` : 'Not created'}</strong><small>{estimate.createdAt || 'No date'}</small></td>
-                      <td><span className="estimate-category">{estimate.category}</span></td>
-                      <td>{estimate.requestedBy}</td>
-                      <td><span className={`estimate-status estimate-${estimate.status.toLowerCase().replaceAll(' ', '-')}`}>{estimate.status}</span></td>
-                      <td><strong>{estimate.value ? `$${estimate.value.toLocaleString('en-US')}` : '—'}</strong></td>
-                      <td>{estimate.status === 'Requested' ? 'Create in QuickBooks' : estimate.status === 'Pending' ? 'Follow up approval' : estimate.status === 'Accepted' ? 'Schedule repair' : estimate.invoiceNumber ? `Invoice #${estimate.invoiceNumber}` : 'Review record'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filteredEstimates.length > 250 && <p className="table-limit-note">Showing the first 250 results. Use search or status filters to narrow the view.</p>}
-            </div>
-          )}
-        </section>
-      </div>
-    );
-  }
-
-  function renderAreaLanding(area: Exclude<AppArea, 'commercial' | 'chemicals' | 'health' | 'reports' | 'estimates'>) {
-    const content = {
-      home: ['BlueLife Workspace', 'One internal system for commercial, chemicals, health compliance, reports, repairs, operations and finance.', ['Commercial CRM', 'Químicos', 'Health Department', 'Reports', 'Estimates', 'Operations', 'Finance']],
-      operations: ['Operations', 'Coordinate approved repairs, technicians, scheduled dates and completion.', ['Repair schedule', 'Technician workload', 'Completed work', 'Service alerts']],
-      finance: ['Finance', 'Follow converted estimates through invoicing and payment reconciliation.', ['Ready to invoice', 'Invoices issued', 'Revenue', 'QuickBooks status']],
-    }[area];
-
-    return (
-      <div className="page app-page area-landing-page">
-        {renderAppSidebar()}
-        <header className="area-page-header"><div><span className="area-eyebrow">BLUE LIFE INTERNAL APP</span><h1>{content[0]}</h1><p>{content[1]}</p></div></header>
-        <section className="area-landing-grid">
-          {(content[2] as string[]).map((item, index) => (
-            <button type="button" key={item} onClick={() => area === 'home' && navigateToArea((['commercial', 'chemicals', 'health', 'reports', 'estimates', 'operations', 'finance'] as AppArea[])[index])}>
-              <span>{String(index + 1).padStart(2, '0')}</span><strong>{item}</strong><small>{area === 'home' ? 'Open area →' : 'Module foundation ready'}</small>
-            </button>
-          ))}
-        </section>
-      </div>
-    );
   }
 
   function renderProposalReminderCenter() {
@@ -2643,28 +2375,15 @@ function App() {
     );
   }
 
-  if (activeArea === 'estimates') return renderEstimatesPage();
   if (activeArea === 'health') return <HealthDepartmentPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} unassignedOnly={healthUnassignedOnly} onClearUnassignedFilter={() => setHealthUnassignedOnly(false)} />;
   if (activeArea === 'reports') return <ReportsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} />;
   if (activeArea === 'chemicals') {
     return <ChemicalsPage sidebar={renderAppSidebar()} />;
   }
   if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} onOpenHealth={() => navigateToArea('health', { healthUnassignedOnly: true })} />;
-  if (activeArea === 'operations' || activeArea === 'finance') {
-    return renderAreaLanding(activeArea);
-  }
-
   if (
     selectedProperty
   ) {
-    const normalizedPropertyName = selectedProperty.name.trim().toLowerCase();
-    const propertyEstimates = estimateOpportunities.filter((estimate) => {
-      const estimateProperty = estimate.title.trim().toLowerCase();
-      if (!estimateProperty) return false;
-      return estimateProperty === normalizedPropertyName ||
-        estimateProperty.includes(normalizedPropertyName) ||
-        normalizedPropertyName.includes(estimateProperty);
-    });
     const approvedProposals = selectedProperty.salesActivities.filter((activity) => activity.status === 'APPROVED').length;
     const isClient = selectedProperty.lifecycleStatus === 'CLIENT';
     return (
@@ -2732,7 +2451,6 @@ function App() {
           {([
             ['overview', 'Overview'],
             ['commercial', 'Commercial'],
-            ['estimates', `Estimates (${propertyEstimates.length})`],
             ['contracts', 'Contracts'],
           ] as Array<[PropertyTab, string]>).map(([tab, label]) => (
             <button type="button" className={propertyTab === tab ? 'property-tab-active' : ''} key={tab} onClick={() => setPropertyTab(tab)}>
@@ -3862,62 +3580,11 @@ function App() {
           </div>
         ))}
 
-        {propertyTab === 'estimates' && (
-          <section className="detail-card property-tab-panel">
-            <div className="card-header"><div><h2>Estimates & repairs</h2><p>QuickBooks estimates associated with this property.</p></div><button className="primary-button" type="button" onClick={() => { setRepairRequest((current) => ({ ...current, property: selectedProperty.name, requestedBy: 'Commercial' })); setShowRepairRequest(true); }}>+ Request repair</button></div>
-            {propertyEstimates.length === 0 ? <div className="property-tab-empty"><strong>No estimates found</strong><p>Create a repair request to start the QuickBooks estimate workflow.</p></div> : (
-              <div className="estimate-journey-list">
-                {propertyEstimates.map((estimate, index) => {
-                  const estimateCreated = Boolean(estimate.estimateNumber);
-                  const customerApproved = Boolean(estimate.approvalDate) || ['Accepted', 'Converted', 'Repair Done'].includes(estimate.status);
-                  const repairStarted = Boolean(estimate.estimatedRepairDate || estimate.actualRepairDate) || ['Converted', 'Repair Done'].includes(estimate.status);
-                  const invoiced = Boolean(estimate.invoiceNumber || estimate.invoiceDate);
-                  const nextAction = !estimateCreated
-                    ? 'Create estimate in QuickBooks'
-                    : !customerApproved
-                      ? 'Send or follow up with customer'
-                      : !repairStarted
-                        ? 'Assign technician and schedule repair'
-                        : !invoiced
-                          ? 'Complete repair and create invoice'
-                          : 'Workflow complete';
-
-                  return (
-                    <article className="estimate-journey-card" key={`${estimate.estimateNumber}-${index}`}>
-                      <div className="estimate-journey-header">
-                        <div><span>{estimate.estimateNumber ? `ESTIMATE #${estimate.estimateNumber}` : 'NEW REQUEST'}</span><h3>{estimate.opportunityName || estimate.category}</h3><small>{estimate.category} · Requested by {estimate.requestedBy}</small></div>
-                        <div><span className={`estimate-status estimate-${estimate.status.toLowerCase().replaceAll(' ', '-')}`}>{estimate.status}</span><strong>{estimate.value ? `$${estimate.value.toLocaleString('en-US')}` : 'Value pending'}</strong></div>
-                      </div>
-                      <div className="estimate-process-track">
-                        <span className="process-complete">Requested</span>
-                        <span className={estimateCreated ? 'process-complete' : ''}>QuickBooks estimate</span>
-                        <span className={customerApproved ? 'process-complete' : ''}>Customer approval</span>
-                        <span className={repairStarted ? 'process-complete' : ''}>Repair</span>
-                        <span className={invoiced ? 'process-complete' : ''}>Invoice</span>
-                      </div>
-                      <div className="estimate-next-action"><span>Next action</span><strong>{nextAction}</strong></div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        )}
-
         {propertyTab === 'contracts' && (
           <section className="detail-card property-tab-panel">
             <div className="card-header"><div><h2>Contracts</h2><p>Maintenance agreements created after an approved commercial proposal.</p></div><button className="secondary-button" type="button">+ Add contract</button></div>
             {approvedProposals === 0 ? <div className="property-tab-empty"><strong>No active maintenance contract</strong><p>When a maintenance proposal is approved, its contract stage will appear here.</p></div> : <div className="contract-summary"><div><span>Status</span><strong>Ready for contract</strong></div><div><span>Approved proposals</span><strong>{approvedProposals}</strong></div><div><span>SharePoint</span><strong>{selectedProperty.sharepointFolderUrl ? 'Folder ready' : 'Folder pending'}</strong></div></div>}
           </section>
-        )}
-
-        {showRepairRequest && (
-          <div className="modal-backdrop" role="presentation">
-            <section className="property-modal repair-request-modal" role="dialog" aria-modal="true" aria-labelledby="property-repair-request-title">
-              <div className="edit-panel-header"><div><h2 id="property-repair-request-title">New repair request</h2><p>This request will enter the estimate workflow for {selectedProperty.name}.</p></div><button className="modal-close" type="button" onClick={() => setShowRepairRequest(false)}>&times;</button></div>
-              <form onSubmit={(event) => { event.preventDefault(); setEstimateOpportunities((current) => [{ title: selectedProperty.name, propertyLink: selectedProperty.name, estimateNumber: '', value: 0, status: 'Requested', category: repairRequest.category.trim() || 'Uncategorized', contractor: '', opportunityName: repairRequest.description.trim(), createdAt: new Date().toLocaleDateString('en-US'), requestedBy: repairRequest.requestedBy, approvalDate: '', approvedBy: '', estimatedRepairDate: '', technician: '', actualRepairDate: '', invoiceNumber: '', invoiceValue: 0, invoiceDate: '' }, ...current]); setRepairRequest({ property: '', description: '', category: '', requestedBy: 'Commercial' }); setShowRepairRequest(false); }}><div className="form-grid"><div className="form-field"><label>Requested by</label><select value={repairRequest.requestedBy} onChange={(event) => setRepairRequest((current) => ({ ...current, requestedBy: event.target.value }))}><option>Commercial</option><option>Technician</option></select></div><div className="form-field"><label>Category</label><input value={repairRequest.category} onChange={(event) => setRepairRequest((current) => ({ ...current, category: event.target.value }))} /></div><div className="form-field form-field-wide"><label>Repair needed *</label><textarea required rows={5} value={repairRequest.description} onChange={(event) => setRepairRequest((current) => ({ ...current, description: event.target.value }))} /></div></div><div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setShowRepairRequest(false)}>Cancel</button><button className="primary-button" type="submit" disabled={!repairRequest.description.trim()}>Send to Estimates</button></div></form>
-            </section>
-          </div>
         )}
 
         {showProposal && (
