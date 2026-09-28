@@ -2669,6 +2669,7 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   border-radius: 11px;
   padding: 4px;
   background: white;
+  box-shadow: 0 3px 10px rgba(0, 55, 91, 0.18);
   object-fit: contain;
 }
 
