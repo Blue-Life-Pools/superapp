@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { API_URL } from './api';
 import { daysUntilInspection, englishChemical, englishHealthStatus, healthDate, inspectionSignal } from './healthDisplay';
 import { healthHistoryDate, indexPropertyHealthTickets, propertyNameKey, ticketInspectionDate } from './propertyHistory';
@@ -10,9 +10,21 @@ type HistoryProperty = {
   propertyType: string | null; segment: string | null; addressLine1: string | null; city: string | null;
   state: string | null; zipCode: string | null; county: string | null; maintenanceChiefInfo: string | null;
   sharepointFolderUrl: string | null;
-  managementCompany: { name: string } | null;
-  contacts: Array<{ id: string; role: string | null; isPrimary: boolean; contact: { firstName: string | null; lastName: string | null; email: string | null; phone: string | null } }>;
+  managementCompany: { id: string; name: string } | null;
+  contacts: Array<{ id: string; role: string | null; isPrimary: boolean; contact: { id: string; firstName: string | null; lastName: string | null; email: string | null; phone: string | null } }>;
   waterBodies: Array<{ id: string; name: string; type: string; size: string | null; gallons: number | null; active: boolean }>;
+};
+type GeneralInformationForm = {
+  name: string;
+  managementCompanyName: string;
+  propertyType: string;
+  segment: string;
+  addressLine1: string;
+  city: string;
+  county: string;
+  state: string;
+  zipCode: string;
+  maintenanceChiefInfo: string;
 };
 type PropertyReport = {
   id: string; occurredAt: string; propertyId?: string | null; propertyName: string; importance: 'HIGH' | 'MEDIUM' | 'LOW';
@@ -39,8 +51,22 @@ function reportDate(value: string) { return new Date(value).toLocaleDateString('
 function reportStatus(value: PropertyReport['status']) { return value === 'SOLVED' ? 'Solved' : 'Pending'; }
 function reportImportance(value: PropertyReport['importance']) { return value === 'HIGH' ? 'High' : value === 'LOW' ? 'Low' : 'Medium'; }
 function propertyWords(value: string) { return propertyNameKey(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').split(' ').filter(Boolean).map((word) => word.length > 4 && word.endsWith('s') ? word.slice(0, -1) : word); }
+function propertyToGeneralInformation(property: HistoryProperty): GeneralInformationForm {
+  return {
+    name: property.name,
+    managementCompanyName: property.managementCompany?.name || '',
+    propertyType: property.propertyType || '',
+    segment: property.segment || '',
+    addressLine1: property.addressLine1 || '',
+    city: property.city || '',
+    county: property.county || '',
+    state: property.state || '',
+    zipCode: property.zipCode || '',
+    maintenanceChiefInfo: property.maintenanceChiefInfo || '',
+  };
+}
 
-export function PropertyHistoryPage({ sidebar, properties, onOpenHealth }: { sidebar: ReactNode; properties: HistoryProperty[]; onOpenHealth: () => void }) {
+export function PropertyHistoryPage({ sidebar, properties, onOpenHealth, onPropertyUpdated }: { sidebar: ReactNode; properties: HistoryProperty[]; onOpenHealth: () => void; onPropertyUpdated: (property: HistoryProperty) => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const [search, setSearch] = useState('');
@@ -51,6 +77,11 @@ export function PropertyHistoryPage({ sidebar, properties, onOpenHealth }: { sid
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [clock, setClock] = useState(() => new Date());
+  const [editingGeneral, setEditingGeneral] = useState(false);
+  const [generalForm, setGeneralForm] = useState<GeneralInformationForm | null>(null);
+  const [savingGeneral, setSavingGeneral] = useState(false);
+  const [creatingSharePointFolder, setCreatingSharePointFolder] = useState(false);
+  const [generalMessage, setGeneralMessage] = useState('');
   useEffect(() => {
     const controller = new AbortController();
     let pending = false;
@@ -128,7 +159,76 @@ export function PropertyHistoryPage({ sidebar, properties, onOpenHealth }: { sid
   const deadlines = history.map((ticket) => ({ ticket, date: healthDate(ticket.healthData?.['Fecha Límite'] || '') })).filter(({ ticket, date }) => ticket.status !== 'CLOSED' && date && daysUntilInspection(date, clock) >= 0).sort((a, b) => a.date.localeCompare(b.date));
   const totalLinked = Array.from(index.byProperty.values()).reduce((sum, rows) => sum + rows.length, 0);
   const totalReportsLinked = Array.from(reportIndex.byProperty.values()).reduce((sum, rows) => sum + rows.length, 0);
-  function select(id: string) { setSelectedId(id); setTab('overview'); }
+  function select(id: string) { setSelectedId(id); setTab('overview'); setEditingGeneral(false); setGeneralForm(null); setGeneralMessage(''); }
+  function startGeneralEditing() {
+    if (!property) return;
+    setGeneralForm(propertyToGeneralInformation(property));
+    setEditingGeneral(true);
+    setGeneralMessage('');
+  }
+  function updateGeneralField(field: keyof GeneralInformationForm, value: string) {
+    setGeneralForm((current) => current ? { ...current, [field]: value } : current);
+  }
+  async function saveGeneralInformation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!property || !generalForm || savingGeneral) return;
+
+    try {
+      setSavingGeneral(true);
+      setGeneralMessage('');
+      const response = await fetch(`${API_URL}/properties/${property.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: generalForm.name.trim(),
+          managementCompanyName: generalForm.managementCompanyName.trim(),
+          propertyType: generalForm.propertyType || undefined,
+          segment: generalForm.segment || undefined,
+          addressLine1: generalForm.addressLine1.trim() || undefined,
+          city: generalForm.city.trim() || undefined,
+          county: generalForm.county.trim() || undefined,
+          state: generalForm.state.trim() || undefined,
+          zipCode: generalForm.zipCode.trim() || undefined,
+          maintenanceChiefInfo: generalForm.maintenanceChiefInfo.trim() || undefined,
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { message?: string | string[] } | null;
+        const message = Array.isArray(payload?.message) ? payload.message.join(' ') : payload?.message;
+        throw new Error(message || 'The property information could not be saved.');
+      }
+
+      const refreshedResponse = await fetch(`${API_URL}/properties/${property.id}`);
+      if (!refreshedResponse.ok) throw new Error('The saved property could not be refreshed.');
+      const updatedProperty = await refreshedResponse.json() as HistoryProperty;
+      onPropertyUpdated(updatedProperty);
+      setGeneralForm(propertyToGeneralInformation(updatedProperty));
+      setEditingGeneral(false);
+      setGeneralMessage('Changes saved. Commercial and Home are now updated.');
+    } catch (cause) {
+      setGeneralMessage((cause as Error).message);
+    } finally {
+      setSavingGeneral(false);
+    }
+  }
+  async function createSharePointFolder() {
+    if (!property || creatingSharePointFolder) return;
+
+    try {
+      setCreatingSharePointFolder(true);
+      setGeneralMessage('');
+      const response = await fetch(`${API_URL}/properties/${property.id}/sharepoint-folder`, { method: 'POST' });
+      const payload = await response.json().catch(() => null) as HistoryProperty | { message?: string } | null;
+      if (!response.ok) throw new Error(payload && 'message' in payload && payload.message ? payload.message : 'The SharePoint folder could not be created.');
+      const updatedProperty = payload as HistoryProperty;
+      onPropertyUpdated(updatedProperty);
+      setGeneralMessage('SharePoint folder created and linked to this property.');
+    } catch (cause) {
+      setGeneralMessage((cause as Error).message);
+    } finally {
+      setCreatingSharePointFolder(false);
+    }
+  }
   function stats(rows: PropertyHealthTicket[], propertyReports: PropertyReport[]) {
     return <div className="history-metrics"><article><span>Reports</span><strong>{propertyReports.length}</strong></article><article><span>Pending reports</span><strong>{propertyReports.filter((item) => item.status === 'PENDING').length}</strong></article><article><span>Solved reports</span><strong>{propertyReports.filter((item) => item.status === 'SOLVED').length}</strong></article><article><span>Health records</span><strong>{rows.length}</strong></article></div>;
   }
@@ -187,7 +287,7 @@ export function PropertyHistoryPage({ sidebar, properties, onOpenHealth }: { sid
       <div className="history-property-navigation"><button className="history-back-button" onClick={() => setSelectedId(null)}>← All properties</button><label>Property<select value={property.id} onChange={(event) => select(event.target.value)}>{properties.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></div>
       <nav className="history-tabs" aria-label="Property sections">{tabs.map(([key, title]) => <button key={key} aria-current={tab === key ? 'page' : undefined} className={tab === key ? 'history-tab-active' : ''} onClick={() => setTab(key)}>{title}{key === 'reports' && <span>{reportHistory.length}</span>}{key === 'health' && <span>{history.length}</span>}</button>)}</nav>
       {tab === 'overview' && <>{stats(history, reportHistory)}<div className="history-overview-grid"><section className="history-panel"><h2>Property overview</h2><dl className="history-info-grid">{info('Management company', property.managementCompany?.name)}{info('Address', [property.addressLine1, property.city, property.state, property.zipCode].filter(Boolean).join(', '))}{info('Property type', label(property.propertyType))}{info('Service status', label(property.lifecycleStatus))}</dl><button className="history-text-button" onClick={() => setTab('general')}>View general information →</button></section><section className="history-panel"><h2>Next reinspection deadline</h2>{deadlines[0] ? <><span className={'history-deadline health-inspection-' + inspectionSignal(daysUntilInspection(deadlines[0].date, clock))}>{deadlines[0].date}<small>{daysUntilInspection(deadlines[0].date, clock) === 0 ? 'Today' : daysUntilInspection(deadlines[0].date, clock) + ' days remaining'}</small></span><p>{deadlines[0].ticket.ticketNumber}</p><button className="history-text-button" onClick={() => setTab('health')}>View Health history →</button></> : <p className="history-muted">No upcoming reinspection deadline assigned.</p>}</section></div><section className="history-panel"><div className="history-panel-heading"><h2>Latest Reports</h2><button className="history-text-button" onClick={() => setTab('reports')}>View all →</button></div>{loading ? <p>Loading Reports history…</p> : reportHistory.length === 0 ? <p className="history-muted">No Reports linked to this property yet.</p> : <div className="history-timeline">{reportHistory.slice(0, 3).map(reportCard)}</div>}</section><section className="history-panel"><div className="history-panel-heading"><h2>Latest Health records</h2><button className="history-text-button" onClick={() => setTab('health')}>View all →</button></div>{loading ? <p>Loading Health history…</p> : history.length === 0 ? <p className="history-muted">No Health records linked to this property yet.</p> : <div className="history-timeline">{history.slice(0, 3).map(healthCard)}</div>}</section></>}
-      {tab === 'general' && <div className="history-overview-grid"><section className="history-panel"><h2>General information</h2><p className="history-muted">Read from Commercial. Update this information in Commercial.</p><dl className="history-info-grid">{info('Property name', property.name)}{info('Property code', property.code)}{info('Management company', property.managementCompany?.name)}{info('Property type', label(property.propertyType))}{info('Segment', label(property.segment))}{info('Service status', label(property.lifecycleStatus))}{info('Service start date', healthDate(property.serviceStartDate || ''))}{info('Address', property.addressLine1)}{info('City', property.city)}{info('County', property.county)}{info('State', property.state)}{info('ZIP code', property.zipCode)}{info('Maintenance contact information', property.maintenanceChiefInfo)}<div className="history-info-item history-sharepoint-field"><dt>SharePoint folder</dt><dd>{property.sharepointFolderUrl ? <a href={property.sharepointFolderUrl} target="_blank" rel="noreferrer">Open SharePoint folder →</a> : 'Folder not available in Commercial'}</dd></div></dl></section><div className="history-side-panels"><section className="history-panel"><h2>Contacts</h2>{property.contacts.length === 0 && <p className="history-muted">No contacts registered.</p>}{property.contacts.map((relation) => <div className="history-contact" key={relation.id}><strong>{[relation.contact.firstName, relation.contact.lastName].filter(Boolean).join(' ') || 'Contact'}{relation.isPrimary ? ' · Primary' : ''}</strong><small>{label(relation.role)}</small><span>{relation.contact.email || 'Email not assigned'}</span><span>{relation.contact.phone || 'Phone not assigned'}</span></div>)}</section><section className="history-panel"><h2>Water bodies</h2>{property.waterBodies.length === 0 && <p className="history-muted">No water bodies registered.</p>}{property.waterBodies.map((body) => <div className="history-contact" key={body.id}><strong>{body.name}</strong><small>{label(body.type)} · {body.active ? 'Active' : 'Inactive'}</small><span>{label(body.size)}{body.gallons != null ? ' · ' + body.gallons.toLocaleString('en-US') + ' gallons' : ''}</span></div>)}</section></div></div>}
+      {tab === 'general' && <div className="history-overview-grid"><section className="history-panel"><div className="history-panel-heading history-general-heading"><div><h2>General information</h2><p className="history-muted">Changes made here or in Commercial update the same property record.</p></div>{!editingGeneral && <button type="button" className="secondary-button history-edit-information" onClick={startGeneralEditing}>Edit information</button>}</div>{generalMessage && <div className="history-general-message" role="status">{generalMessage}</div>}{editingGeneral && generalForm ? <form className="history-general-form" onSubmit={saveGeneralInformation}><div className="history-general-form-grid"><label><span>Property name</span><input required value={generalForm.name} onChange={(event) => updateGeneralField('name', event.target.value)} /></label><label><span>Property code</span><input value={property.code || ''} disabled /></label><label><span>Management company</span><input value={generalForm.managementCompanyName} onChange={(event) => updateGeneralField('managementCompanyName', event.target.value)} /></label><label><span>Property type</span><select required value={generalForm.propertyType} onChange={(event) => updateGeneralField('propertyType', event.target.value)}><option value="">Select type</option><option value="COMMERCIAL">Commercial</option><option value="RESIDENTIAL">Residential</option></select></label><label><span>Segment</span><select required value={generalForm.segment} onChange={(event) => updateGeneralField('segment', event.target.value)}><option value="">Select segment</option><option value="MULTIFAMILY">Multifamily</option><option value="HOA">HOA</option><option value="HOTEL">Hotel</option><option value="SINGLE_FAMILY">Single Family</option></select></label><label><span>Service status</span><input value={label(property.lifecycleStatus)} disabled /></label><label><span>Service start date</span><input type="date" value={property.serviceStartDate?.slice(0, 10) || ''} disabled /></label><label><span>Address</span><input value={generalForm.addressLine1} onChange={(event) => updateGeneralField('addressLine1', event.target.value)} /></label><label><span>City</span><input value={generalForm.city} onChange={(event) => updateGeneralField('city', event.target.value)} /></label><label><span>County</span><input value={generalForm.county} onChange={(event) => updateGeneralField('county', event.target.value)} /></label><label><span>State</span><input maxLength={2} value={generalForm.state} onChange={(event) => updateGeneralField('state', event.target.value.toUpperCase())} /></label><label><span>ZIP code</span><input value={generalForm.zipCode} onChange={(event) => updateGeneralField('zipCode', event.target.value)} /></label><label className="history-general-form-wide"><span>Maintenance contact information</span><textarea rows={3} value={generalForm.maintenanceChiefInfo} onChange={(event) => updateGeneralField('maintenanceChiefInfo', event.target.value)} /></label></div><div className="history-general-actions"><button type="button" className="secondary-button" disabled={savingGeneral} onClick={() => { setEditingGeneral(false); setGeneralForm(null); setGeneralMessage(''); }}>Cancel</button><button type="submit" className="primary-button" disabled={savingGeneral || !generalForm.name.trim() || !generalForm.propertyType || !generalForm.segment}>{savingGeneral ? 'Saving…' : 'Save changes'}</button></div></form> : <dl className="history-info-grid">{info('Property name', property.name)}{info('Property code', property.code)}{info('Management company', property.managementCompany?.name)}{info('Property type', label(property.propertyType))}{info('Segment', label(property.segment))}{info('Service status', label(property.lifecycleStatus))}{info('Service start date', healthDate(property.serviceStartDate || ''))}{info('Address', property.addressLine1)}{info('City', property.city)}{info('County', property.county)}{info('State', property.state)}{info('ZIP code', property.zipCode)}{info('Maintenance contact information', property.maintenanceChiefInfo)}</dl>}<dl className="history-info-grid history-sharepoint-grid"><div className="history-info-item history-sharepoint-field"><dt>SharePoint folder</dt><dd>{property.sharepointFolderUrl ? <a href={property.sharepointFolderUrl} target="_blank" rel="noreferrer">Open SharePoint folder →</a> : <button type="button" className="history-create-sharepoint" onClick={createSharePointFolder} disabled={creatingSharePointFolder}>{creatingSharePointFolder ? 'Creating folder…' : 'Create SharePoint folder'}</button>}</dd></div></dl></section><div className="history-side-panels"><section className="history-panel"><h2>Contacts</h2>{property.contacts.length === 0 && <p className="history-muted">No contacts registered.</p>}{property.contacts.map((relation) => <div className="history-contact" key={relation.id}><strong>{[relation.contact.firstName, relation.contact.lastName].filter(Boolean).join(' ') || 'Contact'}{relation.isPrimary ? ' · Primary' : ''}</strong><small>{label(relation.role)}</small><span>{relation.contact.email || 'Email not assigned'}</span><span>{relation.contact.phone || 'Phone not assigned'}</span></div>)}</section><section className="history-panel"><h2>Water bodies</h2>{property.waterBodies.length === 0 && <p className="history-muted">No water bodies registered.</p>}{property.waterBodies.map((body) => <div className="history-contact" key={body.id}><strong>{body.name}</strong><small>{label(body.type)} · {body.active ? 'Active' : 'Inactive'}</small><span>{label(body.size)}{body.gallons != null ? ' · ' + body.gallons.toLocaleString('en-US') + ' gallons' : ''}</span></div>)}</section></div></div>}
       {tab === 'reports' && <section className="history-panel"><div className="history-panel-heading"><div><h2>Reports history</h2><p className="history-muted">Live records from Nathalia's Reports table, grouped with pending reports first.</p></div></div>{loading ? <p>Loading Reports history…</p> : reportHistory.length === 0 ? <p className="history-empty">No Reports match this property's name.</p> : <div className="history-timeline">{reportHistory.map(reportCard)}</div>}</section>}
       {tab === 'health' && <section className="history-panel"><div className="history-panel-heading"><div><h2>Health Department history</h2><p className="history-muted">Live records from Health Department, including closed tickets and comment history.</p></div><button className="secondary-button" onClick={onOpenHealth}>Open Health Department</button></div>{loading ? <p>Loading Health history…</p> : history.length === 0 ? <p className="history-empty">No Health tickets match this property's Commercial name.</p> : <div className="history-timeline">{history.map(healthCard)}</div>}</section>}
     </>}

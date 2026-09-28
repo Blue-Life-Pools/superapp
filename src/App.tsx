@@ -2380,7 +2380,7 @@ function App() {
   if (activeArea === 'chemicals') {
     return <ChemicalsPage sidebar={renderAppSidebar()} />;
   }
-  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} onOpenHealth={() => navigateToArea('health', { healthUnassignedOnly: true })} />;
+  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} onOpenHealth={() => navigateToArea('health', { healthUnassignedOnly: true })} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
   if (
     selectedProperty
   ) {
