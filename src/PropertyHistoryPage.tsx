@@ -110,7 +110,7 @@ function propertyToWaterBodyInformation(property: HistoryProperty): WaterBodyInf
   }));
 }
 
-export function PropertyHistoryPage({ sidebar, properties, onOpenHealth, onPropertyUpdated }: { sidebar: ReactNode; properties: HistoryProperty[]; onOpenHealth: () => void; onPropertyUpdated: (property: HistoryProperty) => void }) {
+export function PropertyHistoryPage({ sidebar, properties, onOpenHealth, onNewProperty, onPropertyUpdated }: { sidebar: ReactNode; properties: HistoryProperty[]; onOpenHealth: () => void; onNewProperty: () => void; onPropertyUpdated: (property: HistoryProperty) => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const [search, setSearch] = useState('');
@@ -487,7 +487,7 @@ export function PropertyHistoryPage({ sidebar, properties, onOpenHealth, onPrope
   return <div className="page app-page property-history-page">{sidebar}
     <header className="area-page-header history-page-header">
       <div><span className="area-eyebrow">PROPERTY RECORDS</span><h1>{property ? property.name : 'Property history'}</h1>{property && <p className="history-header-description">One property. A shared history across your team.</p>}</div>
-      <button className="secondary-button history-refresh-button history-header-refresh" onClick={() => setRefresh((value) => value + 1)}>Refresh history</button>
+      <div className="history-header-actions"><button className="primary-button history-new-property" onClick={onNewProperty}>+ New property</button><button className="secondary-button history-refresh-button" onClick={() => setRefresh((value) => value + 1)}>Refresh history</button></div>
     </header>
     {error && <div role="alert" className="history-error">{error} <button onClick={() => setRefresh((value) => value + 1)}>Retry</button></div>}
     {!property ? <>

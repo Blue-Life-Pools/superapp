@@ -358,6 +358,16 @@ function isValidHttpUrl(value: string) {
   }
 }
 
+function normalizePropertyMatchValue(value: string | null | undefined) {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
 function propertyToForm(
   property: Property,
 ): EditPropertyForm {
@@ -783,6 +793,12 @@ function App() {
   const [isCreating, setIsCreating] =
     useState(false);
 
+  const [createReturnArea, setCreateReturnArea] =
+    useState<AppArea | null>(null);
+
+  const [possibleMatchesReviewed, setPossibleMatchesReviewed] =
+    useState(false);
+
   const [creating, setCreating] =
     useState(false);
 
@@ -826,6 +842,59 @@ function App() {
     contactEmailsAreUnique &&
     createContacts.filter((contact) => contact.isPrimary).length === 1;
 
+  const possiblePropertyMatches = useMemo(() => {
+    const name = normalizePropertyMatchValue(createForm.name);
+    const address = normalizePropertyMatchValue(createForm.addressLine1);
+    const city = normalizePropertyMatchValue(createForm.city);
+    const state = normalizePropertyMatchValue(createForm.state);
+    const zipCode = normalizePropertyMatchValue(createForm.zipCode);
+
+    if (name.length < 4 && address.length < 5) return [];
+
+    return [...properties, ...deletedProperties].flatMap((property) => {
+      const propertyName = normalizePropertyMatchValue(property.name);
+      const propertyAddress = normalizePropertyMatchValue(property.addressLine1);
+      const propertyCity = normalizePropertyMatchValue(property.city);
+      const propertyState = normalizePropertyMatchValue(property.state);
+      const propertyZipCode = normalizePropertyMatchValue(property.zipCode);
+      const sameName = Boolean(name) && propertyName === name;
+      const similarName = name.length >= 5 &&
+        (propertyName.includes(name) || name.includes(propertyName));
+      const sameAddress = address.length >= 5 && propertyAddress === address;
+      const sameLocation = sameAddress &&
+        (!city || propertyCity === city) &&
+        (!state || propertyState === state) &&
+        (!zipCode || propertyZipCode === zipCode);
+      const exact = sameName || (sameLocation && Boolean(zipCode));
+
+      if (!sameName && !similarName && !sameAddress) return [];
+
+      return [{
+        property,
+        exact,
+        reason: sameName
+          ? 'Same property name'
+          : sameLocation
+            ? 'Same address'
+            : similarName
+              ? 'Similar property name'
+              : 'Similar address',
+      }];
+    }).slice(0, 5);
+  }, [
+    createForm.addressLine1,
+    createForm.city,
+    createForm.name,
+    createForm.state,
+    createForm.zipCode,
+    deletedProperties,
+    properties,
+  ]);
+
+  const hasExactPropertyMatch = possiblePropertyMatches.some(
+    (match) => match.exact,
+  );
+
   const createFormIsValid =
     requiredPropertyFields.every((field) =>
       createForm[field].trim(),
@@ -834,7 +903,9 @@ function App() {
     /^\d{5}(-\d{4})?$/.test(createForm.zipCode.trim()) &&
     isValidHttpUrl(createForm.sharepointFolderUrl) &&
     contactsAreValid &&
-    createWaterBodiesAreValid;
+    createWaterBodiesAreValid &&
+    !hasExactPropertyMatch &&
+    (possiblePropertyMatches.length === 0 || possibleMatchesReviewed);
 
   useEffect(() => {
     async function loadProperties() {
@@ -1186,6 +1257,9 @@ function App() {
       ...current,
       [field]: value,
     }));
+    if (['name', 'addressLine1', 'city', 'state', 'zipCode'].includes(field)) {
+      setPossibleMatchesReviewed(false);
+    }
     setCreateError('');
   }
 
@@ -1237,14 +1311,25 @@ function App() {
     });
   }
 
+  function openCreateForm(returnArea: AppArea | null = null) {
+    setCreateReturnArea(returnArea);
+    setPossibleMatchesReviewed(false);
+    if (returnArea === 'home') navigateToArea('commercial');
+    setIsCreating(true);
+  }
+
   function closeCreateForm() {
     if (creating) return;
 
+    const returnArea = createReturnArea;
     setIsCreating(false);
+    setCreateReturnArea(null);
+    setPossibleMatchesReviewed(false);
     setCreateForm(emptyPropertyForm);
     setCreateContacts([{ ...emptyContactForm }]);
     setCreateWaterBodies([]);
     setCreateError('');
+    if (returnArea) navigateToArea(returnArea);
   }
 
   async function createProperty(
@@ -1300,7 +1385,9 @@ function App() {
       );
 
       if (!response.ok) {
-        throw new Error('Could not create property');
+        const payload = await response.json().catch(() => null) as { message?: string | string[] } | null;
+        const message = Array.isArray(payload?.message) ? payload.message.join(' ') : payload?.message;
+        throw new Error(message || 'Could not create property');
       }
 
       const createdProperty: Property =
@@ -1334,11 +1421,16 @@ function App() {
           a.name.localeCompare(b.name),
         ),
       );
+      const returnArea = createReturnArea;
       setIsCreating(false);
+      setCreateReturnArea(null);
+      setPossibleMatchesReviewed(false);
       setCreateForm(emptyPropertyForm);
       setCreateContacts([{ ...emptyContactForm }]);
       setCreateWaterBodies([]);
       setCreateError('');
+
+      if (returnArea) navigateToArea(returnArea);
 
       if (photoUploadFailures > 0) {
         window.alert(
@@ -1348,7 +1440,9 @@ function App() {
     } catch (error) {
       console.error(error);
       setCreateError(
-        'The property could not be created. Check the information and try again.',
+        error instanceof Error
+          ? error.message
+          : 'The property could not be created. Check the information and try again.',
       );
     } finally {
       setCreating(false);
@@ -2380,7 +2474,7 @@ function App() {
   if (activeArea === 'chemicals') {
     return <ChemicalsPage sidebar={renderAppSidebar()} />;
   }
-  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} onOpenHealth={() => navigateToArea('health', { healthUnassignedOnly: true })} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
+  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} onOpenHealth={() => navigateToArea('health', { healthUnassignedOnly: true })} onNewProperty={() => openCreateForm('home')} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
   if (
     selectedProperty
   ) {
@@ -4155,7 +4249,7 @@ function App() {
           </button>
           <button
             className="primary-button"
-            onClick={() => setIsCreating(true)}
+            onClick={() => openCreateForm()}
           >
             + New Property
           </button>
@@ -4202,6 +4296,46 @@ function App() {
                       updateCreateField('name', event.target.value)
                     }
                   />
+                  {possiblePropertyMatches.length > 0 && (
+                    <div
+                      className={`property-match-review${hasExactPropertyMatch ? ' property-match-review-blocked' : ''}`}
+                      role={hasExactPropertyMatch ? 'alert' : 'status'}
+                    >
+                      <strong>
+                        {hasExactPropertyMatch
+                          ? 'This property already appears to exist.'
+                          : 'Possible property matches found.'}
+                      </strong>
+                      <p>
+                        Review these records before creating a new property.
+                      </p>
+                      <ul>
+                        {possiblePropertyMatches.map(({ property, reason }) => (
+                          <li key={property.id}>
+                            <span>
+                              <b>{property.name}</b>
+                              <small>{property.deletedAt ? 'Deleted record · ' : ''}{[property.addressLine1, property.city, property.state, property.zipCode].filter(Boolean).join(', ') || 'Address not assigned'} · {reason}</small>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      {!hasExactPropertyMatch && (
+                        <label className="property-match-confirmation">
+                          <input
+                            type="checkbox"
+                            checked={possibleMatchesReviewed}
+                            onChange={(event) => setPossibleMatchesReviewed(event.target.checked)}
+                          />
+                          I reviewed these matches and this is a different property.
+                        </label>
+                      )}
+                      {hasExactPropertyMatch && (
+                        <small className="property-match-block-message">
+                          Creation is blocked. Use the existing property record instead.
+                        </small>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-field">
