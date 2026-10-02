@@ -2319,7 +2319,8 @@ function App() {
     if (!sharedChemicalAccess && area !== 'home') {
       const role = appSession?.user.role;
       const assignedArea = role?.toLowerCase();
-      if (role !== 'SUPER_ADMIN' && area !== assignedArea) area = 'home';
+      const sharedAreas: AppArea[] = ['home', 'complaints'];
+      if (role !== 'SUPER_ADMIN' && !sharedAreas.includes(area) && area !== assignedArea) area = 'home';
     }
     setActiveArea(area);
     setHealthUnassignedOnly(area === 'health' && Boolean(options?.healthUnassignedOnly));
