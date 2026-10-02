@@ -8,9 +8,10 @@ import { HealthDepartmentPage } from './HealthDepartmentPage';
 import { PropertyHistoryPage } from './PropertyHistoryPage';
 import { ReportsPage } from './ReportsPage';
 import { LoginPage, type AppSession } from './LoginPage';
+import { ComplaintsPage } from './ComplaintsPage';
 import './App.css';
 
-type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports';
+type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports' | 'complaints';
 type PropertyTab = 'overview' | 'commercial' | 'contracts';
 
 function initialAppArea(): AppArea {
@@ -671,8 +672,8 @@ function App() {
   const [trashActionId, setTrashActionId] =
     useState<string | null>(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [, setLoading] =
+    useState(false);
 
   const [search, setSearch] =
     useState('');
@@ -2334,12 +2335,13 @@ function App() {
       { id: 'chemicals', label: 'Químicos', icon: '⚗' },
       { id: 'health', label: 'Health Dept.', icon: '♥' },
       { id: 'reports', label: 'Reports', icon: '!' },
+      { id: 'complaints', label: 'Complaints', icon: '◌' },
     ];
     const role = appSession?.user.role;
     const assignedArea = role?.toLowerCase();
     const areas = role === 'SUPER_ADMIN'
       ? allAreas
-      : allAreas.filter((area) => area.id === 'home' || area.id === assignedArea);
+      : allAreas.filter((area) => area.id === 'home' || area.id === 'complaints' || area.id === assignedArea);
 
     return (<>
       <aside className={`app-sidebar${sidebarCollapsed ? ' app-sidebar-collapsed' : ''}`} aria-label="BlueLife areas">
@@ -2528,21 +2530,12 @@ function App() {
     return <LoginPage onLogin={(session) => { setAppSession(session); setActiveArea('home'); setLoading(true); }} />;
   }
 
-  if (loading) {
-    return (
-      <div className="page">
-        <p>
-          Loading properties...
-        </p>
-      </div>
-    );
-  }
-
   if (activeArea === 'health') return <HealthDepartmentPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} unassignedOnly={healthUnassignedOnly} onClearUnassignedFilter={() => setHealthUnassignedOnly(false)} />;
   if (activeArea === 'reports') return <ReportsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} />;
   if (activeArea === 'chemicals') {
     return <ChemicalsPage sidebar={renderAppSidebar()} />;
   }
+  if (activeArea === 'complaints') return <ComplaintsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} />;
   if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} canEdit={appSession?.user.role === 'COMMERCIAL' || appSession?.user.role === 'SUPER_ADMIN'} onOpenHealth={appSession?.user.role === 'HEALTH' || appSession?.user.role === 'SUPER_ADMIN' ? () => navigateToArea('health', { healthUnassignedOnly: true }) : undefined} onNewProperty={() => openCreateForm('home')} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
   if (
     selectedProperty

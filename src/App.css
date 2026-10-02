@@ -4991,3 +4991,19 @@ tbody tr:hover,
     align-items: flex-start;
   }
 }
+.complaints-header p { margin: 0.35rem 0 0; color: var(--muted-text, #7e6570); }
+.complaints-card { margin: 1.5rem; }
+.complaint-list { display: grid; gap: 0.75rem; }
+.complaint-item { display: flex; justify-content: space-between; gap: 1rem; padding: 1.1rem; border: 1px solid #ead9df; border-radius: 14px; background: #fffdfd; }
+.complaint-item h3 { margin: 0.35rem 0; color: #263d5a; }
+.complaint-item p { margin: 0; white-space: pre-wrap; color: #5c5360; line-height: 1.5; }
+.complaint-meta { display: flex; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; min-width: 150px; }
+.complaint-editor-modal { max-width: 760px; }
+.complaint-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.complaint-form label { display: grid; gap: 0.35rem; color: #8e2147; font-weight: 600; }
+.complaint-form input, .complaint-form select, .complaint-form textarea { box-sizing: border-box; width: 100%; border: 1px solid #efbdcb; border-radius: 10px; padding: 0.75rem; font: inherit; color: #31445d; background: #fff; }
+.complaint-wide { grid-column: 1 / -1; }
+.complaint-check { display: flex !important; grid-template-columns: auto 1fr; align-items: center; gap: 0.5rem !important; }
+.complaint-check input { width: auto; }
+.health-load-more { display: block; margin: 1rem auto; }
+@media (max-width: 760px) { .complaint-item, .complaint-form { display: grid; grid-template-columns: 1fr; } .complaint-wide { grid-column: auto; } .complaint-meta { justify-content: flex-start; } }

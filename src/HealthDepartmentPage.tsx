@@ -48,6 +48,7 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
   const [editing, setEditing] = useState<Ticket | null>(null);
   const [filter, setFilter] = useState('All');
   const [estimateFilter, setEstimateFilter] = useState('ALL');
+  const [initialReportFilter, setInitialReportFilter] = useState('ALL');
   const [propertySearch, setPropertySearch] = useState('');
   const [openComments, setOpenComments] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -59,8 +60,10 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
   const [deleting, setDeleting] = useState<Ticket | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [token, setToken] = useState(() => getAppToken() || sessionStorage.getItem('bluelife-health-admin-token') || localStorage.getItem('bluelife-chemicals-owner-token') || '');
-  const load = useCallback(async () => { const rows = await request('/health-department/tickets'); const commercialPropertyNames = new Set(properties.map((property) => property.name)); setTickets(rows.map((row: Record<string, any>) => mapTicket(row, commercialPropertyNames))); }, [properties]);
+  const load = useCallback(async (append = false) => { const offset = append ? tickets.length : 0; const result = await request(`/health-department/tickets?offset=${offset}&limit=25`); const commercialPropertyNames = new Set(properties.map((property) => property.name)); const next = result.items.map((row: Record<string, any>) => mapTicket(row, commercialPropertyNames)); setTickets((current) => append ? [...current, ...next] : next); setHasMore(result.hasMore); }, [properties, tickets.length]);
   useEffect(() => { void load().catch((error: Error) => setMessage(error.message)); }, [load]);
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60000);
@@ -78,9 +81,12 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
         || (estimateFilter === 'NOT_REQUIRED' && ticket.estimate === 'NOT_REQUIRED')
         || (estimateFilter === 'REQUIRED' && ticket.estimate === 'REQUIRED')
         || (estimateFilter.startsWith('STATUS:') && ticket.healthData['Estado Estimado']?.trim() === estimateFilter.slice(7));
-      return (filter === 'All' || ticket.status === filter) && estimateMatches && (!unassignedOnly || !ticket.property) && (!query || searchKey(ticket.property).includes(query) || searchKey(ticket.name).includes(query));
+      const initialMatches = initialReportFilter === 'ALL' || ticket.healthData.Estado?.trim() === initialReportFilter;
+      return (filter === 'All' || ticket.status === filter) && estimateMatches && initialMatches && (!unassignedOnly || !ticket.property) && (!query || searchKey(ticket.property).includes(query) || searchKey(ticket.name).includes(query));
     });
-  }, [tickets, filter, estimateFilter, propertySearch, unassignedOnly]);
+  }, [tickets, filter, estimateFilter, initialReportFilter, propertySearch, unassignedOnly]);
+  const initialReportOptions = useMemo(() => [...new Set(['Satisfactory', 'Unsatisfactory', 'Closed', ...tickets.map((ticket) => ticket.healthData.Estado?.trim()).filter((value): value is string => Boolean(value))])], [tickets]);
+  async function loadMore() { if (loadingMore || !hasMore) return; setLoadingMore(true); try { await load(true); } finally { setLoadingMore(false); } }
   const upcoming = useMemo(() => tickets.map((ticket) => ({ ticket, ...inspectionAlertDate(ticket) })).filter(({ ticket, date }) => ticket.status !== 'CLOSED' && date && daysUntilInspection(date, clock) >= 0).sort((a, b) => a.date.localeCompare(b.date)), [tickets, clock]);
   const urgent = upcoming.filter(({ date }) => daysUntilInspection(date, clock) <= 10);
   function newTicket() {
@@ -166,7 +172,7 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
     {unassignedOnly && <div className="health-unassigned-banner"><span>Showing {filtered.length} tickets without a Commercial property assignment.</span><button type="button" onClick={onClearUnassignedFilter}>Show all tickets</button></div>}
     {urgent.length > 0 && <div className="health-alert-banner"><span className="health-alert-icon">!</span><div><strong>{urgent.length} reinspections within 10 days</strong><p>Based only on assigned reinspection deadlines.</p></div></div>}
     <div className="health-main-grid">
-      <section className="health-card health-tickets-card"><div className="health-card-heading"><div><h2>Ticket inbox</h2><p>Inspection reports and follow-up.</p></div><div className="health-ticket-filters"><input type="search" aria-label="Search by property name" placeholder="Search property" value={propertySearch} onChange={(event) => setPropertySearch(event.target.value)} /><select aria-label="Filter tickets" value={filter} onChange={(event) => setFilter(event.target.value)}><option>All</option><option value="NEW">New</option><option value="IN_PROGRESS">In progress</option><option value="CLOSED">Closed</option></select><select className="health-estimate-filter" aria-label="Filter by estimate status" value={estimateFilter} onChange={(event) => setEstimateFilter(event.target.value)}><option value="ALL">All estimates</option><option value="PENDING">Pending decision</option><option value="NOT_REQUIRED">Not required</option><option value="REQUIRED">Requires estimate</option>{estimateDetailOptions.map((status) => <option key={status} value={`STATUS:${status}`}>Estimate: {status}</option>)}</select></div></div>
+      <section className="health-card health-tickets-card"><div className="health-card-heading"><div><h2>Ticket inbox</h2><p>Inspection reports and follow-up.</p></div><div className="health-ticket-filters"><input type="search" aria-label="Search by property name" placeholder="Search property" value={propertySearch} onChange={(event) => setPropertySearch(event.target.value)} /><select aria-label="Filter tickets" value={filter} onChange={(event) => setFilter(event.target.value)}><option>All</option><option value="NEW">New</option><option value="IN_PROGRESS">In progress</option><option value="CLOSED">Closed</option></select><select className="health-estimate-filter" aria-label="Filter by estimate status" value={estimateFilter} onChange={(event) => setEstimateFilter(event.target.value)}><option value="ALL">All estimates</option><option value="PENDING">Pending decision</option><option value="NOT_REQUIRED">Not required</option><option value="REQUIRED">Requires estimate</option>{estimateDetailOptions.map((status) => <option key={status} value={`STATUS:${status}`}>Estimate: {status}</option>)}</select><select className="health-report-filter" aria-label="Filter by initial report status" value={initialReportFilter} onChange={(event) => setInitialReportFilter(event.target.value)}><option value="ALL">All initial reports</option>{initialReportOptions.map((status) => <option key={status} value={status}>{status}</option>)}</select></div></div>
         <div className="health-ticket-list">{filtered.length === 0 && <p className="health-empty">No tickets to display.</p>}{filtered.map((ticket) => <article className="health-ticket" key={ticket.id}>
           <div className="health-ticket-top"><span className="health-ticket-id">{ticket.id}</span><span className={'health-status health-status-' + statusLabel(ticket.status).toLowerCase().replace(' ', '-')}>{statusLabel(ticket.status)}</span></div>
           <h3>{ticketTitle(ticket)}</h3>
@@ -174,7 +180,7 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
           <div className="health-ticket-meta"><span>Received {new Date(ticket.receivedAt).toLocaleDateString('en-US')}</span></div>{summary(ticket)}
           <div className="health-ticket-actions"><button className="health-estimate-action" onClick={() => setEditing({ ...ticket, healthData: { ...ticket.healthData } })}>Edit ticket</button><button className="health-comments-button" onClick={() => { setOpenComments(openComments === ticket.id ? null : ticket.id); setDraft(''); }}>Comments ({ticket.comments.length})</button><button className="health-delete-button" onClick={() => { setMessage(''); setDeleting(ticket); }}>Delete ticket</button></div>
           {openComments === ticket.id && <div className="health-comments-panel"><div className="health-comments-list">{ticket.comments.map((comment) => <div className="health-comment" key={comment.id}><strong>{comment.author}</strong><small> {new Date(comment.createdAt).toLocaleString()}</small><p>{comment.body}</p></div>)}</div><form className="health-comment-form" onSubmit={(event) => void addComment(event, ticket)}><input aria-label="Comment author" required value={author} onChange={(event) => setAuthor(event.target.value)} /><textarea aria-label="Comment" required rows={2} value={draft} onChange={(event) => setDraft(event.target.value)} /><button className="secondary-button" disabled={busy}>Add comment</button></form></div>}
-        </article>)}</div>
+        </article>)}{hasMore && <button className="secondary-button health-load-more" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? 'Loading...' : 'Load more tickets'}</button>}</div>
       </section>
       <aside className="health-card health-upcoming">
         <div className="health-card-heading"><div><h2>Upcoming inspections</h2><p>Based only on assigned reinspection deadlines.</p></div></div>
