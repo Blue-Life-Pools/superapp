@@ -5001,7 +5001,7 @@ tbody tr:hover,
 .complaints-header { margin-right: 1.5rem; margin-left: 1.5rem; }
 .complaints-header p { margin: 0.35rem 0 0; color: var(--muted-text, #7e6570); }
 .complaints-card { margin: 1.5rem; }
-.complaints-new-button { min-width: 0; padding: 12px 18px; }
+.complaints-new-button { min-width: 0; margin-top: 12px; padding: 12px 18px; }
 .complaint-list { display: grid; gap: 0.75rem; }
 .complaint-item { display: flex; justify-content: space-between; gap: 1rem; padding: 1.1rem; border: 1px solid #ead9df; border-radius: 14px; background: #fffdfd; }
 .complaint-item h3 { margin: 0.35rem 0; color: #263d5a; }
