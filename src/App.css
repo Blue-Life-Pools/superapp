@@ -5016,13 +5016,14 @@ tbody tr:hover,
 .complaint-wide { grid-column: 1 / -1; }
 .complaint-estimate-stack { display: grid; grid-column: 1; gap: 1rem; align-content: start; }
 .complaint-status-field { align-self: start; }
-.complaint-reminder-field { grid-column: 2; align-self: start; }
+.complaint-status-stack { display: grid; grid-column: 2; gap: 1rem; align-content: start; }
+.complaint-reminder-field { align-self: start; }
 .complaint-check { display: flex !important; grid-template-columns: auto 1fr; align-items: flex-start; gap: 0.5rem !important; padding-top: 0; }
 .complaint-check input { width: auto; }
 .complaint-estimate-field { grid-column: auto; }
 .complaint-form input:focus, .complaint-form select:focus, .complaint-form textarea:focus { border-color: var(--bluelife-blue); outline: 2px solid rgba(12, 113, 195, 0.12); }
 .health-load-more { display: block; margin: 1rem auto; }
-@media (max-width: 760px) { .complaint-item, .complaint-form { display: grid; grid-template-columns: 1fr; } .complaint-wide, .complaint-estimate-stack, .complaint-estimate-field { grid-column: auto; } .complaint-meta { justify-content: flex-start; } }
+@media (max-width: 760px) { .complaint-item, .complaint-form { display: grid; grid-template-columns: 1fr; } .complaint-wide, .complaint-estimate-stack, .complaint-status-stack, .complaint-estimate-field { grid-column: auto; } .complaint-meta { justify-content: flex-start; } }
 .calls-main-grid { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 1.5rem; align-items: start; }
 .calls-main-grid .complaints-card { margin: 0; }
 .calls-upcoming { min-width: 0; }
