@@ -9,9 +9,10 @@ import { PropertyHistoryPage } from './PropertyHistoryPage';
 import { ReportsPage } from './ReportsPage';
 import { LoginPage, type AppSession } from './LoginPage';
 import { ComplaintsPage } from './ComplaintsPage';
+import { QualityInspectionsPage } from './QualityInspectionsPage';
 import './App.css';
 
-type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports' | 'complaints';
+type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports' | 'complaints' | 'quality';
 type PropertyTab = 'overview' | 'commercial' | 'contracts';
 
 function initialAppArea(): AppArea {
@@ -2319,7 +2320,7 @@ function App() {
     if (!sharedChemicalAccess && area !== 'home') {
       const role = appSession?.user.role;
       const assignedArea = role?.toLowerCase();
-      const sharedAreas: AppArea[] = ['home', 'complaints'];
+      const sharedAreas: AppArea[] = ['home', 'complaints', 'quality'];
       if (role !== 'SUPER_ADMIN' && !sharedAreas.includes(area) && area !== assignedArea) area = 'home';
     }
     setActiveArea(area);
@@ -2337,12 +2338,13 @@ function App() {
       { id: 'health', label: 'Health Dept.', icon: '♥' },
       { id: 'reports', label: 'Reports', icon: '!' },
       { id: 'complaints', label: 'Calls', icon: '◌' },
+      { id: 'quality', label: 'Quality', icon: '✓' },
     ];
     const role = appSession?.user.role;
     const assignedArea = role?.toLowerCase();
     const areas = role === 'SUPER_ADMIN'
       ? allAreas
-      : allAreas.filter((area) => area.id === 'home' || area.id === 'complaints' || area.id === assignedArea);
+      : allAreas.filter((area) => area.id === 'home' || area.id === 'complaints' || area.id === 'quality' || area.id === assignedArea);
 
     return (<>
       <aside className={`app-sidebar${sidebarCollapsed ? ' app-sidebar-collapsed' : ''}`} aria-label="BlueLife areas">
@@ -2537,6 +2539,7 @@ function App() {
     return <ChemicalsPage sidebar={renderAppSidebar()} />;
   }
   if (activeArea === 'complaints') return <ComplaintsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} />;
+  if (activeArea === 'quality') return <QualityInspectionsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name, waterBodies: property.waterBodies }))} />;
   if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} canEdit={appSession?.user.role === 'COMMERCIAL' || appSession?.user.role === 'SUPER_ADMIN'} onOpenHealth={appSession?.user.role === 'HEALTH' || appSession?.user.role === 'SUPER_ADMIN' ? () => navigateToArea('health', { healthUnassignedOnly: true }) : undefined} onNewProperty={() => openCreateForm('home')} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
   if (
     selectedProperty

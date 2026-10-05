@@ -52,8 +52,9 @@ type PropertyComplaint = {
   id: string; propertyId: string; complaint: string; createdAt: string; requiresEstimate: boolean; typeOfCall?: 'CALL' | 'COMPLAINT'; status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
   property?: { id: string; name: string };
 };
+type PropertyQualityInspection = { id: string; propertyId: string; findings: Array<{ status: string }> };
 type Tab = 'overview' | 'general' | 'reports' | 'health' | 'complaints';
-type AlertFilter = 'all' | 'reports' | 'health' | 'complaints';
+type AlertFilter = 'all' | 'reports' | 'health' | 'complaints' | 'quality';
 const tabs: Array<[Tab, string]> = [['overview', 'Overview'], ['general', 'General information'], ['reports', 'Reports'], ['health', 'Health Department'], ['complaints', 'Complaints']];
 const checklistFields = [
   ['Quimico', 'Chemical'], ['Feeders', 'Feeders'], ['Main drain', 'Main drain'], ['Flow meter /  Flow rate', 'Flow meter / Flow rate'],
@@ -122,6 +123,7 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
   const [tickets, setTickets] = useState<PropertyHealthTicket[]>([]);
   const [reports, setReports] = useState<PropertyReport[]>([]);
   const [complaints, setComplaints] = useState<PropertyComplaint[]>([]);
+  const [qualityInspections, setQualityInspections] = useState<PropertyQualityInspection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
@@ -163,17 +165,20 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
           }
           return rows;
         }
-        const [healthRows, reportsResponse, complaintsResponse] = await Promise.all([
+        const [healthRows, reportsResponse, complaintsResponse, qualityResponse] = await Promise.all([
           loadAllHealthTickets(),
           fetch(API_URL + '/reports', { signal: controller.signal }),
           fetch(API_URL + '/complaints', { signal: controller.signal }),
+          fetch(API_URL + '/quality-inspections', { signal: controller.signal }),
         ]);
         if (!reportsResponse.ok) throw new Error('Unable to load Reports history.');
         if (!complaintsResponse.ok) throw new Error('Unable to load complaints history.');
+        if (!qualityResponse.ok) throw new Error('Unable to load quality inspection history.');
         const reportsDashboard: unknown = await reportsResponse.json();
         const complaintsRows: unknown = await complaintsResponse.json();
-        if (!reportsDashboard || typeof reportsDashboard !== 'object' || !Array.isArray((reportsDashboard as { incidents?: unknown }).incidents) || !Array.isArray(complaintsRows)) throw new Error('Unable to load the property history.');
-        if (!controller.signal.aborted) { setTickets(healthRows); setReports((reportsDashboard as { incidents: PropertyReport[] }).incidents); setComplaints(complaintsRows as PropertyComplaint[]); setError(''); }
+        const qualityRows: unknown = await qualityResponse.json();
+        if (!reportsDashboard || typeof reportsDashboard !== 'object' || !Array.isArray((reportsDashboard as { incidents?: unknown }).incidents) || !Array.isArray(complaintsRows) || !Array.isArray(qualityRows)) throw new Error('Unable to load the property history.');
+        if (!controller.signal.aborted) { setTickets(healthRows); setReports((reportsDashboard as { incidents: PropertyReport[] }).incidents); setComplaints(complaintsRows as PropertyComplaint[]); setQualityInspections(qualityRows as PropertyQualityInspection[]); setError(''); }
       } catch (cause) {
         if (!controller.signal.aborted) setError((cause as Error).message);
       } finally { pending = false; if (!controller.signal.aborted) setLoading(false); }
@@ -220,25 +225,35 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
     for (const rows of byProperty.values()) rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return { byProperty };
   }, [complaints, properties]);
+  const qualityIndex = useMemo(() => {
+    const byProperty = new Map<string, number>(properties.map((item) => [item.id, 0]));
+    for (const inspection of qualityInspections) {
+      const openFindings = inspection.findings.filter((finding) => finding.status !== 'RESOLVED').length;
+      if (byProperty.has(inspection.propertyId)) byProperty.set(inspection.propertyId, (byProperty.get(inspection.propertyId) || 0) + openFindings);
+    }
+    return { byProperty };
+  }, [properties, qualityInspections]);
   const propertyAlerts = useMemo(() => {
-    const alerts = new Map<string, { pendingReports: number; healthRecords: number; openComplaints: number }>();
+    const alerts = new Map<string, { pendingReports: number; healthRecords: number; openComplaints: number; qualityFindings: number }>();
     for (const item of properties) {
       const pendingReports = (reportIndex.byProperty.get(item.id) || []).filter((report) => report.status === 'PENDING').length;
       const healthRecords = (index.byProperty.get(item.id) || []).filter((ticket) => ticket.status !== 'CLOSED').length;
       const openComplaints = complaintIndex.byProperty.get(item.id)?.length || 0;
-      alerts.set(item.id, { pendingReports, healthRecords, openComplaints });
+      const qualityFindings = qualityIndex.byProperty.get(item.id) || 0;
+      alerts.set(item.id, { pendingReports, healthRecords, openComplaints, qualityFindings });
     }
     return alerts;
-  }, [complaintIndex.byProperty, index.byProperty, properties, reportIndex.byProperty]);
+  }, [complaintIndex.byProperty, index.byProperty, properties, qualityIndex.byProperty, reportIndex.byProperty]);
   const alertTotals = useMemo(() => Array.from(propertyAlerts.values()).reduce((totals, alerts) => ({
     pendingReports: totals.pendingReports + alerts.pendingReports,
     healthRecords: totals.healthRecords + alerts.healthRecords,
     openComplaints: totals.openComplaints + alerts.openComplaints,
-  }), { pendingReports: 0, healthRecords: 0, openComplaints: 0 }), [propertyAlerts]);
+    qualityFindings: totals.qualityFindings + alerts.qualityFindings,
+  }), { pendingReports: 0, healthRecords: 0, openComplaints: 0, qualityFindings: 0 }), [propertyAlerts]);
   const displayed = useMemo(() => properties.filter((property) => {
     const matchesSearch = propertyNameKey([property.name, property.addressLine1, property.city, property.managementCompany?.name].filter(Boolean).join(' ')).includes(propertyNameKey(search));
-    const alerts = propertyAlerts.get(property.id) || { pendingReports: 0, healthRecords: 0, openComplaints: 0 };
-    const matchesAlert = alertFilter === 'all' || (alertFilter === 'reports' ? alerts.pendingReports > 0 : alertFilter === 'health' ? alerts.healthRecords > 0 : alerts.openComplaints > 0);
+    const alerts = propertyAlerts.get(property.id) || { pendingReports: 0, healthRecords: 0, openComplaints: 0, qualityFindings: 0 };
+    const matchesAlert = alertFilter === 'all' || (alertFilter === 'reports' ? alerts.pendingReports > 0 : alertFilter === 'health' ? alerts.healthRecords > 0 : alertFilter === 'complaints' ? alerts.openComplaints > 0 : alerts.qualityFindings > 0);
     return matchesSearch && matchesAlert;
   }).slice().sort((a, b) => a.name.localeCompare(b.name)), [alertFilter, properties, propertyAlerts, search]);
   const property = properties.find((item) => item.id === selectedId);
@@ -533,18 +548,19 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
     </header>
     {error && <div role="alert" className="history-error">{error} <button onClick={() => setRefresh((value) => value + 1)}>Retry</button></div>}
     {!property ? <>
-      <div className="history-directory-heading"><div className="history-directory-summary"><strong>{displayed.length} {displayed.length === 1 ? 'property' : 'properties'}</strong><span>{loading ? 'Loading property history…' : `${totalReportsLinked} linked Reports · ${totalLinked} linked Health records · ${alertTotals.openComplaints} open complaints`}</span></div><div className="history-directory-tools"><div className="history-alert-filters" aria-label="Filter properties by notification"><button type="button" className={`history-alert-filter history-alert-filter-health${alertFilter === 'health' ? ' history-alert-filter-active' : ''}`} aria-pressed={alertFilter === 'health'} title="Health Department — pink" onClick={() => setAlertFilter((current) => current === 'health' ? 'all' : 'health')}><span>{alertTotals.healthRecords}</span><small>Health</small></button><button type="button" className={`history-alert-filter history-alert-filter-reports${alertFilter === 'reports' ? ' history-alert-filter-active' : ''}`} aria-pressed={alertFilter === 'reports'} title="Reports — blue" onClick={() => setAlertFilter((current) => current === 'reports' ? 'all' : 'reports')}><span>{alertTotals.pendingReports}</span><small>Reports</small></button><button type="button" className={`history-alert-filter history-alert-filter-complaints${alertFilter === 'complaints' ? ' history-alert-filter-active' : ''}`} aria-pressed={alertFilter === 'complaints'} title="Complaints — purple" onClick={() => setAlertFilter((current) => current === 'complaints' ? 'all' : 'complaints')}><span>{alertTotals.openComplaints}</span><small>Complaints</small></button></div><input type="search" aria-label="Search properties" placeholder="Search property, address or management company" value={search} onChange={(event) => setSearch(event.target.value)} /></div></div>
+      <div className="history-directory-heading"><div className="history-directory-summary"><strong>{displayed.length} {displayed.length === 1 ? 'property' : 'properties'}</strong><span>{loading ? 'Loading property history…' : `${totalReportsLinked} linked Reports · ${totalLinked} linked Health records · ${alertTotals.openComplaints} open complaints · ${alertTotals.qualityFindings} quality findings`}</span></div><div className="history-directory-tools"><div className="history-alert-filters" aria-label="Filter properties by notification"><button type="button" className={`history-alert-filter history-alert-filter-health${alertFilter === 'health' ? ' history-alert-filter-active' : ''}`} aria-pressed={alertFilter === 'health'} title="Health Department — pink" onClick={() => setAlertFilter((current) => current === 'health' ? 'all' : 'health')}><span>{alertTotals.healthRecords}</span><small>Health</small></button><button type="button" className={`history-alert-filter history-alert-filter-reports${alertFilter === 'reports' ? ' history-alert-filter-active' : ''}`} aria-pressed={alertFilter === 'reports'} title="Reports — blue" onClick={() => setAlertFilter((current) => current === 'reports' ? 'all' : 'reports')}><span>{alertTotals.pendingReports}</span><small>Reports</small></button><button type="button" className={`history-alert-filter history-alert-filter-complaints${alertFilter === 'complaints' ? ' history-alert-filter-active' : ''}`} aria-pressed={alertFilter === 'complaints'} title="Complaints — purple" onClick={() => setAlertFilter((current) => current === 'complaints' ? 'all' : 'complaints')}><span>{alertTotals.openComplaints}</span><small>Complaints</small></button><button type="button" className={`history-alert-filter history-alert-filter-quality${alertFilter === 'quality' ? ' history-alert-filter-active' : ''}`} aria-pressed={alertFilter === 'quality'} title="Quality findings — yellow" onClick={() => setAlertFilter((current) => current === 'quality' ? 'all' : 'quality')}><span>{alertTotals.qualityFindings}</span><small>Quality</small></button></div><input type="search" aria-label="Search properties" placeholder="Search property, address or management company" value={search} onChange={(event) => setSearch(event.target.value)} /></div></div>
       {index.unmatched > 0 && !loading && <div className="history-link-notice">{index.unmatched} Health records need a matching Commercial property name. They are not assigned automatically to similar names. {onOpenHealth && <button onClick={onOpenHealth}>Review Health tickets →</button>}</div>}
       {reportIndex.unmatched > 0 && !loading && <div className="history-link-notice">{reportIndex.unmatched} Reports need a unique matching property name and remain available in the main Reports table.</div>}
       <div className="history-property-grid">{displayed.map((item) => {
         const records = index.byProperty.get(item.id) || [];
         const propertyReports = reportIndex.byProperty.get(item.id) || [];
-        const { pendingReports, healthRecords, openComplaints } = propertyAlerts.get(item.id) || { pendingReports: 0, healthRecords: 0, openComplaints: 0 };
+        const { pendingReports, healthRecords, openComplaints, qualityFindings } = propertyAlerts.get(item.id) || { pendingReports: 0, healthRecords: 0, openComplaints: 0, qualityFindings: 0 };
         return <button className="history-property-card" key={item.id} onClick={() => select(item.id)}>
-          {(pendingReports > 0 || healthRecords > 0 || openComplaints > 0) && <span className="history-property-notifications">
+          {(pendingReports > 0 || healthRecords > 0 || openComplaints > 0 || qualityFindings > 0) && <span className="history-property-notifications">
             {healthRecords > 0 && <span className="history-notification history-notification-health" title={`${healthRecords} Health Department record${healthRecords === 1 ? '' : 's'}`} aria-label={`${healthRecords} Health Department records`}>{healthRecords}</span>}
             {pendingReports > 0 && <span className="history-notification history-notification-reports" title={`${pendingReports} pending Report${pendingReports === 1 ? '' : 's'}`} aria-label={`${pendingReports} pending Reports`}>{pendingReports}</span>}
             {openComplaints > 0 && <span className="history-notification history-notification-complaints" title={`${openComplaints} open complaint${openComplaints === 1 ? '' : 's'}`} aria-label={`${openComplaints} open complaints`}>{openComplaints}</span>}
+            {qualityFindings > 0 && <span className="history-notification history-notification-quality" title={`${qualityFindings} open quality finding${qualityFindings === 1 ? '' : 's'}`} aria-label={`${qualityFindings} open quality findings`}>{qualityFindings}</span>}
           </span>}
           <div className="history-property-card-top"><span className="history-property-avatar" aria-hidden="true">{item.name.slice(0, 2).toUpperCase()}</span><span className="history-lifecycle">{label(item.lifecycleStatus)}</span></div><h2>{item.name}</h2><p>{[item.addressLine1, item.city, item.state].filter(Boolean).join(', ') || 'Address not assigned'}</p><small>{item.managementCompany?.name || 'Management company not assigned'}</small><div className="history-property-card-footer"><span>{loading ? 'Loading…' : `${propertyReports.length} Reports · ${records.length} Health · ${openComplaints} complaints`}</span><strong>View record →</strong></div>
         </button>;
