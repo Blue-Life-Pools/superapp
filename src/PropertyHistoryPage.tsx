@@ -49,7 +49,7 @@ type PropertyReport = {
   inspector?: { name: string } | null; attachments?: Array<{ id: string; fileName: string; sharepointWebUrl: string }>;
 };
 type PropertyComplaint = {
-  id: string; propertyId: string; complaint: string; createdAt: string; requiresEstimate: boolean; status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
+  id: string; propertyId: string; complaint: string; createdAt: string; requiresEstimate: boolean; typeOfCall?: 'CALL' | 'COMPLAINT'; status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
   property?: { id: string; name: string };
 };
 type Tab = 'overview' | 'general' | 'reports' | 'health' | 'complaints';
@@ -213,6 +213,7 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
   const complaintIndex = useMemo(() => {
     const byProperty = new Map<string, PropertyComplaint[]>(properties.map((item) => [item.id, []]));
     for (const complaint of complaints) {
+      if (complaint.typeOfCall !== 'COMPLAINT') continue;
       if (complaint.status !== 'OPEN' && complaint.status !== 'IN_PROGRESS') continue;
       if (byProperty.has(complaint.propertyId)) byProperty.get(complaint.propertyId)!.push(complaint);
     }
