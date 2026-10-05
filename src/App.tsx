@@ -2336,7 +2336,7 @@ function App() {
       { id: 'chemicals', label: 'Químicos', icon: '⚗' },
       { id: 'health', label: 'Health Dept.', icon: '♥' },
       { id: 'reports', label: 'Reports', icon: '!' },
-      { id: 'complaints', label: 'Complaints', icon: '◌' },
+      { id: 'complaints', label: 'Calls', icon: '◌' },
     ];
     const role = appSession?.user.role;
     const assignedArea = role?.toLowerCase();
