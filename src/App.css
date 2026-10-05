@@ -4999,6 +4999,7 @@ tbody tr:hover,
   }
 }
 .complaints-header { margin-right: 1.5rem; margin-left: 1.5rem; }
+.complaints-message { margin: 0 1.5rem 1rem; }
 .complaints-header p { margin: 0.35rem 0 0; color: var(--muted-text, #7e6570); }
 .complaints-card { margin: 1.5rem; }
 .complaints-new-button { min-width: 0; margin-top: 12px; padding: 12px 18px; }
@@ -5009,6 +5010,10 @@ tbody tr:hover,
 .complaint-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; min-width: 150px; }
 .complaint-meta .health-status, .complaint-meta .health-summary-estimate-status { box-sizing: border-box; min-height: 30px; padding: 7px 12px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; font-size: 11px; line-height: 1; font-weight: 800; }
 .complaint-meta .health-summary-estimate-status { background: #eef2f6; color: #475467; }
+.complaint-delete-button { min-height: 30px; padding: 7px 12px; border: 0; border-radius: 8px; background: #fee4e2; color: #b42318; cursor: pointer; font: inherit; font-size: 11px; line-height: 1; font-weight: 800; }
+.complaint-delete-button:hover { background: #fecdca; }
+.complaint-filters { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.complaint-filters select { min-height: 32px; padding: 6px 9px; border: 1px solid #d0d5dd; border-radius: 8px; background: white; color: var(--bluelife-ink); font: inherit; font-size: 11px; }
 .complaint-editor-modal { max-width: 760px; }
 .complaint-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .complaint-form label { display: grid; gap: 0.35rem; color: var(--bluelife-blue-dark); font-weight: 600; }
