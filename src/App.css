@@ -5009,7 +5009,7 @@ tbody tr:hover,
 .complaint-item p { margin: 0; white-space: pre-wrap; color: #5c5360; line-height: 1.5; }
 .complaint-meta { display: grid; min-width: 300px; justify-items: end; gap: 0.5rem; }
 .complaint-action-row, .complaint-status-row { display: flex; align-items: center; gap: 0.5rem; }
-.complaint-status-row { justify-content: flex-end; }
+.complaint-status-row { justify-content: flex-start; margin: 0.45rem 0 0.35rem; }
 .complaint-meta .health-status, .complaint-meta .health-summary-estimate-status { box-sizing: border-box; min-height: 30px; padding: 7px 12px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; font-size: 11px; line-height: 1; font-weight: 800; }
 .complaint-meta .health-summary-estimate-status { background: #eef2f6; color: #475467; }
 .complaint-delete-button { min-height: 30px; padding: 7px 12px; border: 0; border-radius: 8px; background: #fee4e2; color: #b42318; cursor: pointer; font: inherit; font-size: 11px; line-height: 1; font-weight: 800; }
@@ -5030,7 +5030,7 @@ tbody tr:hover,
 .complaint-estimate-field { grid-column: auto; }
 .complaint-form input:focus, .complaint-form select:focus, .complaint-form textarea:focus { border-color: var(--bluelife-blue); outline: 2px solid rgba(12, 113, 195, 0.12); }
 .health-load-more { display: block; margin: 1rem auto; }
-@media (max-width: 760px) { .complaint-item, .complaint-form { display: grid; grid-template-columns: 1fr; } .complaint-wide, .complaint-estimate-stack, .complaint-status-stack, .complaint-estimate-field { grid-column: auto; } .complaint-meta { min-width: 0; justify-items: start; } .complaint-status-row { justify-content: flex-start; } }
+@media (max-width: 760px) { .complaint-item, .complaint-form { display: grid; grid-template-columns: 1fr; } .complaint-wide, .complaint-estimate-stack, .complaint-status-stack, .complaint-estimate-field { grid-column: auto; } .complaint-meta { min-width: 0; justify-items: start; } }
 .calls-main-grid { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 1.5rem; align-items: start; }
 .calls-main-grid .complaints-card { margin: 0; }
 .calls-upcoming { min-width: 0; }
