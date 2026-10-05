@@ -12,7 +12,13 @@ const emptyFinding = (): Finding => ({ title: 'Finding', description: '', severi
 const emptyForm = (): Form => ({ propertyId: '', waterBodyId: '', technicianName: '', visitDate: new Date().toISOString().slice(0, 16), ph: '', chlorine: '', alkalinity: '', stabilizer: '', salt: '', temperature: '', chlorineDosage: '', acidDosage: '', algaecideDosage: '', shockDosage: '', stabilizerDosage: '', otherDosage: '', notes: '', findings: [], photos: [] });
 function signal(finding: Finding) { return finding.status === 'RESOLVED' ? 'green' : finding.severity === 'CRITICAL' || finding.severity === 'HIGH' ? 'red' : 'yellow'; }
 function dateLabel(value: string) { return new Date(value).toLocaleString('en-US', { timeZone: 'America/Bogota' }); }
-function fileData(file: File) { return new Promise<Photo>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve({ name: file.name, type: file.type, data: String(reader.result) }); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); }); }
+async function fileData(file: File): Promise<Photo> {
+  const source = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); });
+  if (!file.type.startsWith('image/')) return { name: file.name, type: file.type, data: source };
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => { const element = new Image(); element.onload = () => resolve(element); element.onerror = () => reject(new Error('Could not read image.')); element.src = source; });
+  const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight)); const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale)); canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return { name: file.name, type: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.8) };
+}
 
 export function QualityInspectionsPage({ sidebar, properties }: { sidebar: ReactNode; properties: Property[] }) {
   const [items, setItems] = useState<Inspection[]>([]); const [editing, setEditing] = useState<Form | null>(null); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false); const [findingFilter, setFindingFilter] = useState('ALL');
