@@ -5055,4 +5055,6 @@ tbody tr:hover,
 
 @media (max-width: 760px) { .quality-finding-editor > textarea, .quality-finding-editor > select { margin-top: 0; } }
 .quality-form input, .quality-form select, .quality-form textarea { border-color: #b8d4e5; }.quality-form input:focus, .quality-form select:focus, .quality-form textarea:focus { border-color: var(--bluelife-blue); outline: 2px solid rgba(12, 113, 195, 0.12); }.quality-finding-photos { display: flex; gap: 8px; margin-bottom: 5px; overflow-x: auto; }.quality-finding-photos img { width: 90px; height: 68px; object-fit: cover; border-radius: 7px; }.quality-severity { align-self: start; border: 1px solid #d0d5dd; border-radius: 8px; padding: 7px 9px; background: white; color: var(--bluelife-navy); font-size: 10px; font-weight: 800; }
-.quality-finding-editor > textarea, .quality-finding-editor > select { margin-top: 24px; }
+.quality-finding-photo-field { gap: 0 !important; font-size: 0; }
+.quality-finding-photo-field input { font-size: 13px; }
+.quality-finding-editor > textarea, .quality-finding-editor > select { margin-top: 0; }
