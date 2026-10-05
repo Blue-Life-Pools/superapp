@@ -5007,6 +5007,7 @@ tbody tr:hover,
 .complaint-item h3 { margin: 0.35rem 0; color: #263d5a; }
 .complaint-item p { margin: 0; white-space: pre-wrap; color: #5c5360; line-height: 1.5; }
 .complaint-meta { display: flex; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; min-width: 150px; }
+.complaint-meta .health-summary-estimate-status { border-radius: 999px; padding: 4px 7px; background: #eef2f6; color: #475467; font-size: 9px; font-weight: 800; }
 .complaint-editor-modal { max-width: 760px; }
 .complaint-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .complaint-form label { display: grid; gap: 0.35rem; color: var(--bluelife-blue-dark); font-weight: 600; }
