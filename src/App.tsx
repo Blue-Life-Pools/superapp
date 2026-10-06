@@ -2317,10 +2317,12 @@ function App() {
   }
 
   function navigateToArea(area: AppArea, options?: { healthUnassignedOnly?: boolean }) {
+    const isNathalia = appSession?.user.name?.toLowerCase().includes('nathalia') || appSession?.user.email?.toLowerCase().includes('nathalia');
+    if (isNathalia && !['home', 'reports', 'quality'].includes(area)) area = 'home';
     if (!sharedChemicalAccess && area !== 'home') {
       const role = appSession?.user.role;
       const assignedArea = role?.toLowerCase();
-      const sharedAreas: AppArea[] = ['home', 'complaints', 'quality'];
+      const sharedAreas: AppArea[] = isNathalia ? ['home', 'quality'] : ['home', 'complaints', 'quality'];
       if (role !== 'SUPER_ADMIN' && !sharedAreas.includes(area) && area !== assignedArea) area = 'home';
     }
     setActiveArea(area);
@@ -2342,9 +2344,12 @@ function App() {
     ];
     const role = appSession?.user.role;
     const assignedArea = role?.toLowerCase();
+    const isNathalia = appSession?.user.name?.toLowerCase().includes('nathalia') || appSession?.user.email?.toLowerCase().includes('nathalia');
     const areas = role === 'SUPER_ADMIN'
       ? allAreas
-      : allAreas.filter((area) => area.id === 'home' || area.id === 'complaints' || area.id === 'quality' || area.id === assignedArea);
+      : allAreas.filter((area) => isNathalia
+        ? area.id === 'home' || area.id === 'reports' || area.id === 'quality'
+        : area.id === 'home' || area.id === 'complaints' || area.id === 'quality' || area.id === assignedArea);
 
     return (<>
       <aside className={`app-sidebar${sidebarCollapsed ? ' app-sidebar-collapsed' : ''}`} aria-label="BlueLife areas">

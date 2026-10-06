@@ -160,6 +160,11 @@ export function QualityInspectionsPage({
   const [busy, setBusy] = useState(false);
   const [findingFilter, setFindingFilter] = useState("ALL");
   const [dashboardFilter, setDashboardFilter] = useState("ALL");
+  const [propertyFilter, setPropertyFilter] = useState("ALL");
+  const [technicianFilter, setTechnicianFilter] = useState("ALL");
+  const [findingStatusFilter, setFindingStatusFilter] = useState("ALL");
+  const [severityFilter, setSeverityFilter] = useState("ALL");
+  const [estimateFilter, setEstimateFilter] = useState("ALL");
   const [technicians, setTechnicians] = useState<string[]>([]);
   async function load() {
     const response = await fetch(`${API_URL}/quality-inspections`);
@@ -186,22 +191,35 @@ export function QualityInspectionsPage({
     }
     void loadTechnicians().catch(() => setTechnicians([]));
   }, []);
+  const qualityFilteredItems = useMemo(
+    () => items.filter((inspection) => {
+      if (propertyFilter !== "ALL" && inspection.propertyId !== propertyFilter) return false;
+      if (technicianFilter !== "ALL" && inspection.technicianName !== technicianFilter) return false;
+      if (findingStatusFilter === "ALL" && severityFilter === "ALL" && estimateFilter === "ALL") return true;
+      return inspection.findings.some((finding) =>
+        (findingStatusFilter === "ALL" || finding.status === findingStatusFilter) &&
+        (severityFilter === "ALL" || finding.severity === severityFilter) &&
+        (estimateFilter === "ALL" || (estimateFilter === "REQUIRED" ? finding.requiresEstimate : !finding.requiresEstimate)),
+      );
+    }),
+    [estimateFilter, findingStatusFilter, items, propertyFilter, severityFilter, technicianFilter],
+  );
   const openFindings = useMemo(
     () =>
-      items.flatMap((inspection) =>
+      qualityFilteredItems.flatMap((inspection) =>
         inspection.findings
           .filter((finding) => finding.status !== "RESOLVED")
           .map((finding) => ({ inspection, finding })),
       ),
-    [items],
+    [qualityFilteredItems],
   );
   const filteredFindings =
     findingFilter === "ALL"
       ? openFindings
       : openFindings.filter(({ finding }) => finding.status === findingFilter);
-  const allFindings = useMemo(() => items.flatMap((inspection) => inspection.findings), [items]);
+  const allFindings = useMemo(() => qualityFilteredItems.flatMap((inspection) => inspection.findings), [qualityFilteredItems]);
   const dashboardCounts = { all: allFindings.length, pending: allFindings.filter((finding) => finding.status !== "RESOLVED").length, solved: allFindings.filter((finding) => finding.status === "RESOLVED").length, estimate: allFindings.filter((finding) => finding.requiresEstimate).length };
-  const dashboardItems = dashboardFilter === "ALL" ? items : items.filter((inspection) => inspection.findings.some((finding) => dashboardFilter === "ESTIMATE" ? finding.requiresEstimate : dashboardFilter === "PENDING" ? finding.status !== "RESOLVED" : finding.status === "RESOLVED"));
+  const dashboardItems = dashboardFilter === "ALL" ? qualityFilteredItems : qualityFilteredItems.filter((inspection) => inspection.findings.some((finding) => dashboardFilter === "ESTIMATE" ? finding.requiresEstimate : dashboardFilter === "PENDING" ? finding.status !== "RESOLVED" : finding.status === "RESOLVED"));
   const selectedProperty = properties.find(
     (property) => property.id === editing?.propertyId,
   );
@@ -335,6 +353,19 @@ export function QualityInspectionsPage({
       {message && (
         <p className="health-sync-message quality-message">{message}</p>
       )}
+      <section className="quality-filter-panel" aria-label="Quality filters">
+        <div className="quality-filter-heading">
+          <div><h2>Filters</h2><p>Filter inspections, readings and findings by Quality information.</p></div>
+          <button type="button" onClick={() => { setPropertyFilter("ALL"); setTechnicianFilter("ALL"); setFindingStatusFilter("ALL"); setSeverityFilter("ALL"); setEstimateFilter("ALL"); setDashboardFilter("ALL"); }}>Clear filters</button>
+        </div>
+        <div className="quality-filter-grid">
+          <label><span>Property</span><select value={propertyFilter} onChange={(event) => setPropertyFilter(event.target.value)}><option value="ALL">All properties</option>{properties.map((property) => <option value={property.id} key={property.id}>{property.name}</option>)}</select></label>
+          <label><span>Technician</span><select value={technicianFilter} onChange={(event) => setTechnicianFilter(event.target.value)}><option value="ALL">All technicians</option>{technicians.map((technician) => <option value={technician} key={technician}>{technician}</option>)}</select></label>
+          <label><span>Finding status</span><select value={findingStatusFilter} onChange={(event) => setFindingStatusFilter(event.target.value)}><option value="ALL">All statuses</option><option value="OPEN">Open</option><option value="IN_PROGRESS">In progress</option><option value="RESOLVED">Resolved</option></select></label>
+          <label><span>Importance</span><select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)}><option value="ALL">All levels</option><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></select></label>
+          <label><span>Estimate</span><select value={estimateFilter} onChange={(event) => setEstimateFilter(event.target.value)}><option value="ALL">All findings</option><option value="REQUIRED">Requires estimate</option><option value="NOT_REQUIRED">No estimate required</option></select></label>
+        </div>
+      </section>
       <div className="quality-dashboard-filters" aria-label="Quality filters">
         {[["ALL", dashboardCounts.all, "All"], ["PENDING", dashboardCounts.pending, "Pending"], ["SOLVED", dashboardCounts.solved, "Solved"], ["ESTIMATE", dashboardCounts.estimate, "Require estimate"]].map(([value, count, label]) => <button type="button" className={dashboardFilter === value ? "quality-dashboard-filter active" : "quality-dashboard-filter"} aria-pressed={dashboardFilter === value} onClick={() => setDashboardFilter(value as string)} key={value as string}><span>{count}</span>{label}</button>)}
       </div>
