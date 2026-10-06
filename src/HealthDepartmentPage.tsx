@@ -63,7 +63,7 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [token, setToken] = useState(() => getAppToken() || sessionStorage.getItem('bluelife-health-admin-token') || localStorage.getItem('bluelife-chemicals-owner-token') || '');
-  const load = useCallback(async (append = false) => { const offset = append ? tickets.length : 0; const result = await request(`/health-department/tickets?offset=${offset}&limit=25`); const commercialPropertyNames = new Set(properties.map((property) => property.name)); const next = result.items.map((row: Record<string, any>) => mapTicket(row, commercialPropertyNames)); setTickets((current) => append ? [...current, ...next] : next); setHasMore(result.hasMore); }, [properties, tickets.length]);
+  const load = useCallback(async (append = false) => { const offset = append ? tickets.length : 0; const result = await request(`/health-department/tickets?offset=${offset}&limit=25`); const rows = Array.isArray(result) ? result : Array.isArray(result.items) ? result.items : []; const commercialPropertyNames = new Set(properties.map((property) => property.name)); const next = rows.map((row: Record<string, any>) => mapTicket(row, commercialPropertyNames)); setTickets((current) => append ? [...current, ...next] : next); setHasMore(Array.isArray(result) ? false : Boolean(result.hasMore)); }, [properties, tickets.length]);
   useEffect(() => { void load().catch((error: Error) => setMessage(error.message)); }, [load]);
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60000);
@@ -86,7 +86,7 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
     });
   }, [tickets, filter, estimateFilter, initialReportFilter, propertySearch, unassignedOnly]);
   const initialReportOptions = useMemo(() => [...new Set(['Satisfactory', 'Unsatisfactory', 'Closed', ...tickets.map((ticket) => ticket.healthData.Estado?.trim()).filter((value): value is string => Boolean(value))])], [tickets]);
-  async function loadMore() { if (loadingMore || !hasMore) return; setLoadingMore(true); try { await load(true); } finally { setLoadingMore(false); } }
+  async function loadMore() { if (loadingMore || !hasMore) return; setLoadingMore(true); try { setMessage(''); await load(true); } catch (error) { setMessage((error as Error).message); } finally { setLoadingMore(false); } }
   const upcoming = useMemo(() => tickets.map((ticket) => ({ ticket, ...inspectionAlertDate(ticket) })).filter(({ ticket, date }) => ticket.status !== 'CLOSED' && date && daysUntilInspection(date, clock) >= 0).sort((a, b) => a.date.localeCompare(b.date)), [tickets, clock]);
   const urgent = upcoming.filter(({ date }) => daysUntilInspection(date, clock) <= 10);
   function newTicket() {
