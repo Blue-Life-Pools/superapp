@@ -555,7 +555,7 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
         const records = index.byProperty.get(item.id) || [];
         const propertyReports = reportIndex.byProperty.get(item.id) || [];
         const { pendingReports, healthRecords, openComplaints, qualityFindings } = propertyAlerts.get(item.id) || { pendingReports: 0, healthRecords: 0, openComplaints: 0, qualityFindings: 0 };
-        return <button className="history-property-card" key={item.id} onClick={() => select(item.id)}>
+        return <button className={'history-property-card' + (item.lifecycleStatus === 'INACTIVE' ? ' history-property-card-inactive' : '')} key={item.id} onClick={() => select(item.id)}>
           {(pendingReports > 0 || healthRecords > 0 || openComplaints > 0 || qualityFindings > 0) && <span className="history-property-notifications">
             {healthRecords > 0 && <span className="history-notification history-notification-health" title={`${healthRecords} Health Department record${healthRecords === 1 ? '' : 's'}`} aria-label={`${healthRecords} Health Department records`}>{healthRecords}</span>}
             {pendingReports > 0 && <span className="history-notification history-notification-reports" title={`${pendingReports} pending Report${pendingReports === 1 ? '' : 's'}`} aria-label={`${pendingReports} pending Reports`}>{pendingReports}</span>}
