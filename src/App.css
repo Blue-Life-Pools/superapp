@@ -5069,7 +5069,11 @@ tbody tr:hover,
 .quality-finding-editor > .quality-finding-photo-field { display: flex; align-items: center; padding: 10px; border: 1px solid #b8d4e5; border-radius: 9px; background: white; }
 .quality-finding-editor > .quality-finding-photo-field input { width: 100%; border: 0; padding: 0; }
 .quality-editor-modal { width: min(920px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow-y: auto; }
+.quality-visit-actions { display: flex; align-items: center; gap: 8px; }
+.quality-delete-button { border: 1px solid #f3b4b0; border-radius: 8px; padding: 8px 10px; background: #fff1f0; color: #b42318; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+.quality-delete-button:hover { background: #fee4e2; }
 .quality-data-section { display: grid; gap: 6px; }
 .quality-data-section > strong { color: var(--bluelife-navy); font-size: 12px; }
 .quality-readings-field select, .quality-readings-field input { min-height: 40px; }
 @media (max-width: 760px) { .quality-editor-modal { width: calc(100vw - 16px); max-height: calc(100vh - 16px); padding: 16px; }.quality-readings-field { grid-template-columns: 1fr; }.quality-main-grid { gap: 12px; }.quality-page .area-page-header { align-items: stretch; flex-direction: column; }.quality-page .area-page-header button { width: 100%; } }
+@media (max-width: 520px) { .quality-visit-actions { align-items: flex-end; flex-direction: column; } }

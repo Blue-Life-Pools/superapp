@@ -146,9 +146,11 @@ async function fileData(file: File): Promise<Photo> {
 export function QualityInspectionsPage({
   sidebar,
   properties,
+  isSuperAdmin,
 }: {
   sidebar: ReactNode;
   properties: Property[];
+  isSuperAdmin: boolean;
 }) {
   const [items, setItems] = useState<Inspection[]>([]);
   const [editing, setEditing] = useState<Form | null>(null);
@@ -296,6 +298,18 @@ export function QualityInspectionsPage({
       })),
     );
   }
+  async function deleteFinding(id: string) {
+    if (!isSuperAdmin || !window.confirm("Delete this finding?")) return;
+    const response = await fetch(`${API_URL}/quality-inspections/findings/${id}`, { method: "DELETE" });
+    if (!response.ok) { setMessage("Could not delete finding."); return; }
+    setItems((current) => current.map((inspection) => ({ ...inspection, findings: inspection.findings.filter((finding) => finding.id !== id) })));
+  }
+  async function deleteInspection(id: string) {
+    if (!isSuperAdmin || !window.confirm("Delete this entire quality inspection?")) return;
+    const response = await fetch(`${API_URL}/quality-inspections/${id}`, { method: "DELETE" });
+    if (!response.ok) { setMessage("Could not delete inspection."); return; }
+    setItems((current) => current.filter((inspection) => inspection.id !== id));
+  }
   return (
     <div className="page app-page quality-page">
       {sidebar}
@@ -342,10 +356,7 @@ export function QualityInspectionsPage({
                         Technician: {item.technicianName}
                       </p>
                     </div>
-                    <span className="quality-reading-count">
-                      {item.findings.length} finding
-                      {item.findings.length === 1 ? "" : "s"}
-                    </span>
+                    <div className="quality-visit-actions"><span className="quality-reading-count">{item.findings.length} finding{item.findings.length === 1 ? "" : "s"}</span>{isSuperAdmin && <button type="button" className="quality-delete-button" onClick={() => void deleteInspection(item.id)}>Delete inspection</button>}</div>
                   </div>
                   <div className="quality-data-section"><strong>Readings</strong><div className="quality-reading-grid">
                     {Object.entries(item.readings || {})
@@ -405,6 +416,7 @@ export function QualityInspectionsPage({
                         <option value="IN_PROGRESS">In progress</option>
                         <option value="RESOLVED">Resolved</option>
                       </select>
+                      {isSuperAdmin && <button type="button" className="quality-delete-button" onClick={() => finding.id && void deleteFinding(finding.id)}>Delete</button>}
                     </div>
                   ))}
                 </article>
