@@ -106,7 +106,7 @@ const dosageLabels: Record<string, string> = { Chlorine: "Chlorine", Acid: "Acid
 function signal(finding: Finding) {
   return finding.status === "RESOLVED"
     ? "green"
-    : finding.severity === "CRITICAL" || finding.severity === "HIGH"
+    : finding.severity === "HIGH"
       ? "red"
       : "yellow";
 }
@@ -665,7 +665,6 @@ export function QualityInspectionsPage({
                       <option value="LOW">Low</option>
                       <option value="MEDIUM">Medium</option>
                       <option value="HIGH">High</option>
-                      <option value="CRITICAL">Critical</option>
                     </select>
                     <label className="quality-estimate-check"><input type="checkbox" checked={finding.requiresEstimate} onChange={(event) => { const findings = [...editing.findings]; findings[index] = { ...finding, requiresEstimate: event.target.checked }; update({ findings }); }} /><span>Requires estimate</span></label>
                   </div>
