@@ -110,6 +110,9 @@ function signal(finding: Finding) {
       ? "red"
       : "yellow";
 }
+function severityLabel(value: string) {
+  return value.charAt(0) + value.slice(1).toLowerCase();
+}
 function dateLabel(value: string) {
   return new Date(value).toLocaleString("en-US", {
     timeZone: "America/Bogota",
@@ -398,7 +401,7 @@ export function QualityInspectionsPage({
                         Technician: {item.technicianName}
                       </p>
                     </div>
-                    <div className="quality-visit-actions"><span className="quality-reading-count">{item.findings.length} finding{item.findings.length === 1 ? "" : "s"}</span>{isSuperAdmin && <button type="button" className="quality-delete-button" onClick={() => void deleteInspection(item.id)}>Delete inspection</button>}</div>
+                    <div className="quality-visit-actions"><span className="quality-reading-count">{item.findings.length} finding{item.findings.length === 1 ? "" : "s"}</span>{isSuperAdmin && <button type="button" className="quality-delete-button" onClick={() => void deleteInspection(item.id)}>Delete</button>}</div>
                   </div>
                   <div className="quality-data-section"><strong>Readings</strong><div className="quality-reading-grid">
                     {Object.entries(item.readings || {})
@@ -431,12 +434,12 @@ export function QualityInspectionsPage({
                       key={findingKey}
                     >
                       <i className="quality-signal-dot" />
-                      <button type="button" className="quality-finding-toggle" aria-expanded={expanded} onClick={() => setExpandedFindings((current) => { const next = new Set(current); if (next.has(findingKey)) next.delete(findingKey); else next.add(findingKey); return next; })}><span><strong>{finding.description}</strong><small>{finding.severity}{finding.requiresEstimate ? " · Requires estimate" : ""}</small></span><b aria-hidden="true">{expanded ? "⌃" : "⌄"}</b></button>
+                      <button type="button" className="quality-finding-toggle" aria-expanded={expanded} onClick={() => setExpandedFindings((current) => { const next = new Set(current); if (next.has(findingKey)) next.delete(findingKey); else next.add(findingKey); return next; })}><span><strong>{finding.description}</strong><small>{severityLabel(finding.severity)}{finding.requiresEstimate ? " · Requires estimate" : ""}</small></span><b aria-hidden="true">{expanded ? "⌃" : "⌄"}</b></button>
                       {expanded && <div className="quality-finding-details">
                         {finding.photos?.length > 0 && <div className="quality-finding-photos">{finding.photos.map((photo) => <img key={photo.name + photo.data.slice(-12)} src={photo.data} alt={photo.name} />)}</div>}
                         <p>{finding.description}</p>
                       </div>}
-                      {expanded && <span className="quality-severity">{finding.severity}</span>}
+                      {expanded && <span className="quality-severity">{severityLabel(finding.severity)}</span>}
                       {expanded && finding.requiresEstimate && <span className="quality-estimate-badge">Estimate</span>}
                       {expanded && <select aria-label="Update finding" value={finding.status} onChange={(event) => finding.id && void updateFinding(finding.id, event.target.value)}><option value="OPEN">Open</option><option value="IN_PROGRESS">In progress</option><option value="RESOLVED">Resolved</option></select>}
                       {expanded && isSuperAdmin && <button type="button" className="quality-delete-button" onClick={() => finding.id && void deleteFinding(finding.id)}>Delete</button>}
@@ -483,7 +486,7 @@ export function QualityInspectionsPage({
                   </small>
                   <em>
                     {finding.status === "IN_PROGRESS" ? "In progress" : "Open"}{" "}
-                    - {finding.severity}
+                    - {severityLabel(finding.severity)}
                   </em>
                 </span>
               </button>
