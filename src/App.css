@@ -5069,11 +5069,25 @@ tbody tr:hover,
 .quality-finding-editor > .quality-finding-photo-field { display: flex; align-items: center; padding: 10px; border: 1px solid #b8d4e5; border-radius: 9px; background: white; }
 .quality-finding-editor > .quality-finding-photo-field input { width: 100%; border: 0; padding: 0; }
 .quality-editor-modal { width: min(920px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow-y: auto; }
+.quality-dashboard-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 16px; }
+.quality-dashboard-filter { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 66px; border: 1px solid var(--bluelife-border); border-radius: 14px; background: white; color: var(--bluelife-navy); font: inherit; font-weight: 800; cursor: pointer; }
+.quality-dashboard-filter span { display: grid; place-items: center; min-width: 34px; height: 34px; border-radius: 10px; background: #edf3f6; color: var(--bluelife-navy); }
+.quality-dashboard-filter.active { border-color: #1ba2c6; background: #effaff; }
+.quality-dashboard-filter.active span { background: #149dc1; color: white; }
+.quality-dashboard-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+.quality-dashboard-kpis article { display: grid; justify-items: center; gap: 4px; min-height: 110px; padding: 16px; border: 1px solid var(--bluelife-border); border-top: 4px solid #63b9cf; border-radius: 14px; background: white; text-align: center; }
+.quality-dashboard-kpis article:nth-child(2) { border-top-color: #eaa16f; }.quality-dashboard-kpis article:nth-child(3) { border-top-color: #62b57f; }.quality-dashboard-kpis article:nth-child(4) { border-top-color: #8b87d8; }
+.quality-dashboard-kpis span { color: var(--bluelife-navy); font-size: 11px; font-weight: 800; text-transform: uppercase; }.quality-dashboard-kpis strong { color: var(--bluelife-blue-dark); font-size: 30px; line-height: 1; }.quality-dashboard-kpis small { color: var(--bluelife-muted); font-size: 10px; }
 .quality-visit-actions { display: flex; align-items: center; gap: 8px; }
-.quality-delete-button { border: 1px solid #f3b4b0; border-radius: 8px; padding: 8px 10px; background: #fff1f0; color: #b42318; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+.quality-delete-button { align-self: flex-start; min-height: 40px; min-width: 92px; border: 1px solid #f3b4b0; border-radius: 8px; padding: 8px 10px; background: #fff1f0; color: #b42318; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
 .quality-delete-button:hover { background: #fee4e2; }
+.quality-estimate-badge { align-self: flex-start; min-height: 40px; display: inline-flex; align-items: center; border-radius: 8px; padding: 0 10px; background: #fff4d6; color: #925f00; font-size: 10px; font-weight: 800; }
+.quality-estimate-check { display: flex !important; align-items: center; gap: 7px !important; min-height: 40px; padding: 8px 10px; border: 1px solid #f0d38a; border-radius: 8px; background: #fffaf0; color: #925f00 !important; font-size: 11px; }
+.quality-estimate-check input { width: 16px !important; height: 16px; }
 .quality-data-section { display: grid; gap: 6px; }
 .quality-data-section > strong { color: var(--bluelife-navy); font-size: 12px; }
 .quality-readings-field select, .quality-readings-field input { min-height: 40px; }
 @media (max-width: 760px) { .quality-editor-modal { width: calc(100vw - 16px); max-height: calc(100vh - 16px); padding: 16px; }.quality-readings-field { grid-template-columns: 1fr; }.quality-main-grid { gap: 12px; }.quality-page .area-page-header { align-items: stretch; flex-direction: column; }.quality-page .area-page-header button { width: 100%; } }
 @media (max-width: 520px) { .quality-visit-actions { align-items: flex-end; flex-direction: column; } }
+@media (max-width: 760px) { .quality-dashboard-filters, .quality-dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }.quality-dashboard-filter { min-height: 58px; font-size: 12px; }.quality-dashboard-kpis article { min-height: 96px; padding: 12px 8px; }.quality-dashboard-kpis strong { font-size: 25px; } }
+@media (max-width: 420px) { .quality-dashboard-filters, .quality-dashboard-kpis { grid-template-columns: 1fr; } }

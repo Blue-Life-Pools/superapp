@@ -16,6 +16,7 @@ type Finding = {
   description: string;
   severity: string;
   status: string;
+  requiresEstimate: boolean;
   resolution?: string | null;
   photos: Photo[];
 };
@@ -63,6 +64,7 @@ const emptyFinding = (): Finding => ({
   description: "",
   severity: "MEDIUM",
   status: "OPEN",
+  requiresEstimate: false,
   resolution: "",
   photos: [],
 });
@@ -157,6 +159,7 @@ export function QualityInspectionsPage({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [findingFilter, setFindingFilter] = useState("ALL");
+  const [dashboardFilter, setDashboardFilter] = useState("ALL");
   const [technicians, setTechnicians] = useState<string[]>([]);
   async function load() {
     const response = await fetch(`${API_URL}/quality-inspections`);
@@ -196,6 +199,9 @@ export function QualityInspectionsPage({
     findingFilter === "ALL"
       ? openFindings
       : openFindings.filter(({ finding }) => finding.status === findingFilter);
+  const allFindings = useMemo(() => items.flatMap((inspection) => inspection.findings), [items]);
+  const dashboardCounts = { all: allFindings.length, pending: allFindings.filter((finding) => finding.status !== "RESOLVED").length, solved: allFindings.filter((finding) => finding.status === "RESOLVED").length, estimate: allFindings.filter((finding) => finding.requiresEstimate).length };
+  const dashboardItems = dashboardFilter === "ALL" ? items : items.filter((inspection) => inspection.findings.some((finding) => dashboardFilter === "ESTIMATE" ? finding.requiresEstimate : dashboardFilter === "PENDING" ? finding.status !== "RESOLVED" : finding.status === "RESOLVED"));
   const selectedProperty = properties.find(
     (property) => property.id === editing?.propertyId,
   );
@@ -329,6 +335,10 @@ export function QualityInspectionsPage({
       {message && (
         <p className="health-sync-message quality-message">{message}</p>
       )}
+      <div className="quality-dashboard-filters" aria-label="Quality filters">
+        {[["ALL", dashboardCounts.all, "All"], ["PENDING", dashboardCounts.pending, "Pending"], ["SOLVED", dashboardCounts.solved, "Solved"], ["ESTIMATE", dashboardCounts.estimate, "Require estimate"]].map(([value, count, label]) => <button type="button" className={dashboardFilter === value ? "quality-dashboard-filter active" : "quality-dashboard-filter"} aria-pressed={dashboardFilter === value} onClick={() => setDashboardFilter(value as string)} key={value as string}><span>{count}</span>{label}</button>)}
+      </div>
+      <div className="quality-dashboard-kpis"><article><span>Total findings</span><strong>{dashboardCounts.all}</strong><small>Current selection</small></article><article><span>Pending</span><strong>{dashboardCounts.pending}</strong><small>Needs action</small></article><article><span>Solved</span><strong>{dashboardCounts.solved}</strong><small>Work completed</small></article><article><span>Require estimate</span><strong>{dashboardCounts.estimate}</strong><small>Supervisor follow-up</small></article></div>
       <div className="quality-main-grid">
         <section className="health-card quality-inspections-card">
           <div className="health-card-heading">
@@ -339,11 +349,11 @@ export function QualityInspectionsPage({
               </p>
             </div>
           </div>
-          {items.length === 0 ? (
+          {dashboardItems.length === 0 ? (
             <p className="health-empty">No quality inspections recorded.</p>
           ) : (
             <div className="quality-visit-list">
-              {items.map((item) => (
+              {dashboardItems.map((item) => (
                 <article className="quality-visit-card" key={item.id}>
                   <div className="quality-visit-heading">
                     <div>
@@ -404,6 +414,7 @@ export function QualityInspectionsPage({
                       <span className="quality-severity">
                         {finding.severity}
                       </span>
+                      {finding.requiresEstimate && <span className="quality-estimate-badge">Estimate</span>}
                       <select
                         aria-label="Update finding"
                         value={finding.status}
@@ -656,6 +667,7 @@ export function QualityInspectionsPage({
                       <option value="HIGH">High</option>
                       <option value="CRITICAL">Critical</option>
                     </select>
+                    <label className="quality-estimate-check"><input type="checkbox" checked={finding.requiresEstimate} onChange={(event) => { const findings = [...editing.findings]; findings[index] = { ...finding, requiresEstimate: event.target.checked }; update({ findings }); }} /><span>Requires estimate</span></label>
                   </div>
                 ))}
               </div>
