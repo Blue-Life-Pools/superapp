@@ -543,15 +543,14 @@ export function QualityInspectionsPage({
                 {readingFields.map(([key, label, options]) => (
                   <label key={key}>
                     {label}
-                    <select
-                      value={editing[key] as string}
-                      onChange={(event) =>
-                        update({ [key]: event.target.value })
-                      }
-                    >
-                      <option value="">Select</option>
-                      {options.map((option) => <option value={option} key={option}>{option}</option>)}
-                    </select>
+                    {key === "ph" ? (
+                      <input type="number" min="6" max="9" step="0.1" value={editing[key] as string} onChange={(event) => update({ [key]: event.target.value })} />
+                    ) : (
+                      <select value={editing[key] as string} onChange={(event) => update({ [key]: event.target.value })}>
+                        <option value="">Select</option>
+                        {options.map((option) => <option value={option} key={option}>{option}</option>)}
+                      </select>
+                    )}
                   </label>
                 ))}
               </fieldset>
