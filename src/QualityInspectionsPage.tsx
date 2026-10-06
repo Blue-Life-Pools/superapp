@@ -165,6 +165,7 @@ export function QualityInspectionsPage({
   const [findingStatusFilter, setFindingStatusFilter] = useState("ALL");
   const [severityFilter, setSeverityFilter] = useState("ALL");
   const [estimateFilter, setEstimateFilter] = useState("ALL");
+  const [expandedFindings, setExpandedFindings] = useState<Set<string>>(new Set());
   const [technicians, setTechnicians] = useState<string[]>([]);
   async function load() {
     const response = await fetch(`${API_URL}/quality-inspections`);
@@ -353,6 +354,10 @@ export function QualityInspectionsPage({
       {message && (
         <p className="health-sync-message quality-message">{message}</p>
       )}
+      <div className="quality-dashboard-filters" aria-label="Quality filters">
+        {[["ALL", dashboardCounts.all, "All"], ["PENDING", dashboardCounts.pending, "Pending"], ["SOLVED", dashboardCounts.solved, "Solved"], ["ESTIMATE", dashboardCounts.estimate, "Require estimate"]].map(([value, count, label]) => <button type="button" className={dashboardFilter === value ? "quality-dashboard-filter active" : "quality-dashboard-filter"} aria-pressed={dashboardFilter === value} onClick={() => setDashboardFilter(value as string)} key={value as string}><span>{count}</span>{label}</button>)}
+      </div>
+      <div className="quality-dashboard-kpis"><article><span>Total findings</span><strong>{dashboardCounts.all}</strong><small>Current selection</small></article><article><span>Pending</span><strong>{dashboardCounts.pending}</strong><small>Needs action</small></article><article><span>Solved</span><strong>{dashboardCounts.solved}</strong><small>Work completed</small></article><article><span>Require estimate</span><strong>{dashboardCounts.estimate}</strong><small>Supervisor follow-up</small></article></div>
       <section className="quality-filter-panel" aria-label="Quality filters">
         <div className="quality-filter-heading">
           <div><h2>Filters</h2><p>Filter inspections, readings and findings by Quality information.</p></div>
@@ -366,10 +371,6 @@ export function QualityInspectionsPage({
           <label><span>Estimate</span><select value={estimateFilter} onChange={(event) => setEstimateFilter(event.target.value)}><option value="ALL">All findings</option><option value="REQUIRED">Requires estimate</option><option value="NOT_REQUIRED">No estimate required</option></select></label>
         </div>
       </section>
-      <div className="quality-dashboard-filters" aria-label="Quality filters">
-        {[["ALL", dashboardCounts.all, "All"], ["PENDING", dashboardCounts.pending, "Pending"], ["SOLVED", dashboardCounts.solved, "Solved"], ["ESTIMATE", dashboardCounts.estimate, "Require estimate"]].map(([value, count, label]) => <button type="button" className={dashboardFilter === value ? "quality-dashboard-filter active" : "quality-dashboard-filter"} aria-pressed={dashboardFilter === value} onClick={() => setDashboardFilter(value as string)} key={value as string}><span>{count}</span>{label}</button>)}
-      </div>
-      <div className="quality-dashboard-kpis"><article><span>Total findings</span><strong>{dashboardCounts.all}</strong><small>Current selection</small></article><article><span>Pending</span><strong>{dashboardCounts.pending}</strong><small>Needs action</small></article><article><span>Solved</span><strong>{dashboardCounts.solved}</strong><small>Work completed</small></article><article><span>Require estimate</span><strong>{dashboardCounts.estimate}</strong><small>Supervisor follow-up</small></article></div>
       <div className="quality-main-grid">
         <section className="health-card quality-inspections-card">
           <div className="health-card-heading">
@@ -420,47 +421,27 @@ export function QualityInspectionsPage({
                       ))}
                   </div></div>
                   {item.notes && <p className="quality-notes">{item.notes}</p>}
-                  {item.findings.map((finding) => (
-                    <div
+                  {item.findings.map((finding, findingIndex) => {
+                    const findingKey = finding.id || `${item.id}-${findingIndex}`;
+                    const expanded = expandedFindings.has(findingKey);
+                    return <div
                       className={
-                        "quality-finding quality-finding-" + signal(finding)
+                        "quality-finding quality-finding-" + signal(finding) + (expanded ? " quality-finding-expanded" : "")
                       }
-                      key={finding.id || finding.title}
+                      key={findingKey}
                     >
                       <i className="quality-signal-dot" />
-                      <div>
-                        {finding.photos?.length > 0 && (
-                          <div className="quality-finding-photos">
-                            {finding.photos.map((photo) => (
-                              <img
-                                key={photo.name + photo.data.slice(-12)}
-                                src={photo.data}
-                                alt={photo.name}
-                              />
-                            ))}
-                          </div>
-                        )}
+                      <button type="button" className="quality-finding-toggle" aria-expanded={expanded} onClick={() => setExpandedFindings((current) => { const next = new Set(current); if (next.has(findingKey)) next.delete(findingKey); else next.add(findingKey); return next; })}><span><strong>{finding.description}</strong><small>{finding.severity}{finding.requiresEstimate ? " · Requires estimate" : ""}</small></span><b aria-hidden="true">{expanded ? "⌃" : "⌄"}</b></button>
+                      {expanded && <div className="quality-finding-details">
+                        {finding.photos?.length > 0 && <div className="quality-finding-photos">{finding.photos.map((photo) => <img key={photo.name + photo.data.slice(-12)} src={photo.data} alt={photo.name} />)}</div>}
                         <p>{finding.description}</p>
-                      </div>
-                      <span className="quality-severity">
-                        {finding.severity}
-                      </span>
-                      {finding.requiresEstimate && <span className="quality-estimate-badge">Estimate</span>}
-                      <select
-                        aria-label="Update finding"
-                        value={finding.status}
-                        onChange={(event) =>
-                          finding.id &&
-                          void updateFinding(finding.id, event.target.value)
-                        }
-                      >
-                        <option value="OPEN">Open</option>
-                        <option value="IN_PROGRESS">In progress</option>
-                        <option value="RESOLVED">Resolved</option>
-                      </select>
-                      {isSuperAdmin && <button type="button" className="quality-delete-button" onClick={() => finding.id && void deleteFinding(finding.id)}>Delete</button>}
+                      </div>}
+                      {expanded && <span className="quality-severity">{finding.severity}</span>}
+                      {expanded && finding.requiresEstimate && <span className="quality-estimate-badge">Estimate</span>}
+                      {expanded && <select aria-label="Update finding" value={finding.status} onChange={(event) => finding.id && void updateFinding(finding.id, event.target.value)}><option value="OPEN">Open</option><option value="IN_PROGRESS">In progress</option><option value="RESOLVED">Resolved</option></select>}
+                      {expanded && isSuperAdmin && <button type="button" className="quality-delete-button" onClick={() => finding.id && void deleteFinding(finding.id)}>Delete</button>}
                     </div>
-                  ))}
+                  })}
                 </article>
               ))}
             </div>
