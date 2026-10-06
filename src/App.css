@@ -2877,6 +2877,9 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
 .history-property-card:hover { border-color: #2ea3f2; box-shadow: 0 8px 24px rgba(0, 90, 135, .09); }
 .history-property-card-inactive { filter: grayscale(1); opacity: .68; background: #f5f6f7; }
 .history-property-card-inactive:hover { border-color: #98a2b3; box-shadow: 0 8px 24px rgba(52, 64, 84, .08); }
+.history-lifecycle-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 12px 0 16px; color: #526b78; font-size: 12px; }
+.history-lifecycle-actions button { min-width: 128px; }
+@media (max-width: 600px) { .history-lifecycle-actions { align-items: stretch; flex-direction: column; } }
 .history-property-notifications { position: absolute; z-index: 1; top: -9px; right: -9px; display: flex; gap: 5px; }
 .history-notification { display: grid; place-items: center; min-width: 25px; height: 25px; border: 2px solid white; border-radius: 999px; padding: 0 6px; color: white; font-size: 10px; font-weight: 900; box-shadow: 0 4px 10px rgba(28, 53, 66, .18); }
 .history-notification-reports { background: #1889d7; }

@@ -143,6 +143,7 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
   const [waterBodyForms, setWaterBodyForms] = useState<WaterBodyInformationForm[]>([]);
   const [savingWaterBodies, setSavingWaterBodies] = useState(false);
   const [waterBodiesMessage, setWaterBodiesMessage] = useState('');
+  const [savingLifecycleStatus, setSavingLifecycleStatus] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     let pending = false;
@@ -314,6 +315,18 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
     } finally {
       setSavingGeneral(false);
     }
+  }
+  async function toggleLifecycleStatus() {
+    if (!property || savingLifecycleStatus) return;
+    const lifecycleStatus = property.lifecycleStatus === 'INACTIVE' ? 'CLIENT' : 'INACTIVE';
+    try {
+      setSavingLifecycleStatus(true);
+      const response = await fetch(`${API_URL}/properties/${property.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lifecycleStatus }) });
+      const payload = await response.json().catch(() => null) as HistoryProperty | { message?: string | string[] } | null;
+      if (!response.ok) { const message = payload && 'message' in payload ? payload.message : undefined; throw new Error(Array.isArray(message) ? message.join(' ') : message || 'The service status could not be updated.'); }
+      onPropertyUpdated(payload as HistoryProperty);
+      setGeneralMessage(lifecycleStatus === 'INACTIVE' ? 'Property set as inactive.' : 'Property set as active.');
+    } catch (cause) { setGeneralMessage((cause as Error).message); } finally { setSavingLifecycleStatus(false); }
   }
   async function createSharePointFolder() {
     if (!property || creatingSharePointFolder) return;
@@ -501,7 +514,7 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
     }
   }
   function stats(rows: PropertyHealthTicket[], propertyReports: PropertyReport[], propertyComplaints: PropertyComplaint[] = complaintHistory) {
-    return <div className="history-metrics"><article><span>Reports</span><strong>{propertyReports.length}</strong></article><article><span>Pending reports</span><strong>{propertyReports.filter((item) => item.status === 'PENDING').length}</strong></article><article><span>Health records</span><strong>{rows.length}</strong></article><article><span>Open complaints</span><strong>{propertyComplaints.length}</strong></article></div>;
+    return <><div className="history-metrics"><article><span>Reports</span><strong>{propertyReports.length}</strong></article><article><span>Pending reports</span><strong>{propertyReports.filter((item) => item.status === 'PENDING').length}</strong></article><article><span>Health records</span><strong>{rows.length}</strong></article><article><span>Open complaints</span><strong>{propertyComplaints.length}</strong></article></div>{canEdit && property && <div className="history-lifecycle-actions"><span>Service status: <strong>{label(property.lifecycleStatus)}</strong></span><button type="button" className={property.lifecycleStatus === 'INACTIVE' ? 'primary-button' : 'secondary-button'} onClick={() => void toggleLifecycleStatus()} disabled={savingLifecycleStatus}>{savingLifecycleStatus ? 'Saving…' : property.lifecycleStatus === 'INACTIVE' ? 'Set as active' : 'Set as inactive'}</button></div>}</>;
   }
   function healthCard(ticket: PropertyHealthTicket) {
     const data = ticket.healthData || {};
