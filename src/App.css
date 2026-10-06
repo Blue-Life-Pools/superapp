@@ -5068,3 +5068,8 @@ tbody tr:hover,
 .quality-finding-editor > .quality-finding-photo-field { height: 94px; min-height: 94px; box-sizing: border-box; margin-top: 0; }
 .quality-finding-editor > .quality-finding-photo-field { display: flex; align-items: center; padding: 10px; border: 1px solid #b8d4e5; border-radius: 9px; background: white; }
 .quality-finding-editor > .quality-finding-photo-field input { width: 100%; border: 0; padding: 0; }
+.quality-editor-modal { width: min(920px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow-y: auto; }
+.quality-data-section { display: grid; gap: 6px; }
+.quality-data-section > strong { color: var(--bluelife-navy); font-size: 12px; }
+.quality-readings-field select, .quality-readings-field input { min-height: 40px; }
+@media (max-width: 760px) { .quality-editor-modal { width: calc(100vw - 16px); max-height: calc(100vh - 16px); padding: 16px; }.quality-readings-field { grid-template-columns: 1fr; }.quality-main-grid { gap: 12px; }.quality-page .area-page-header { align-items: stretch; flex-direction: column; }.quality-page .area-page-header button { width: 100%; } }
