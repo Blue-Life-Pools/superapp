@@ -64,7 +64,7 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
   const [hasMore, setHasMore] = useState(false);
   const [token, setToken] = useState(() => getAppToken() || sessionStorage.getItem('bluelife-health-admin-token') || localStorage.getItem('bluelife-chemicals-owner-token') || '');
   const load = useCallback(async (append = false) => { const offset = append ? tickets.length : 0; const result = await request(`/health-department/tickets?offset=${offset}&limit=25`); const rows = Array.isArray(result) ? result : Array.isArray(result.items) ? result.items : []; const commercialPropertyNames = new Set(properties.map((property) => property.name)); const next = rows.map((row: Record<string, any>) => mapTicket(row, commercialPropertyNames)); setTickets((current) => append ? [...current, ...next] : next); setHasMore(Array.isArray(result) ? false : Boolean(result.hasMore)); }, [properties, tickets.length]);
-  useEffect(() => { void load().catch((error: Error) => setMessage(error.message)); }, [load]);
+  useEffect(() => { void load().catch((error: Error) => setMessage(error.message)); }, [properties]);
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60000);
     return () => window.clearInterval(timer);
