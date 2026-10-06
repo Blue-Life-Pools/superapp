@@ -165,7 +165,7 @@ export function QualityInspectionsPage({
   const [findingStatusFilter, setFindingStatusFilter] = useState("ALL");
   const [severityFilter, setSeverityFilter] = useState("ALL");
   const [estimateFilter, setEstimateFilter] = useState("ALL");
-  const [expandedFindings, setExpandedFindings] = useState<Set<string>>(new Set());
+  const setExpandedFindings = (_updater: (current: Set<string>) => Set<string>) => undefined;
   const [technicians, setTechnicians] = useState<string[]>([]);
   async function load() {
     const response = await fetch(`${API_URL}/quality-inspections`);
@@ -423,7 +423,7 @@ export function QualityInspectionsPage({
                   {item.notes && <p className="quality-notes">{item.notes}</p>}
                   {item.findings.map((finding, findingIndex) => {
                     const findingKey = finding.id || `${item.id}-${findingIndex}`;
-                    const expanded = expandedFindings.has(findingKey);
+                    const expanded = true;
                     return <div
                       className={
                         "quality-finding quality-finding-" + signal(finding) + (expanded ? " quality-finding-expanded" : "")
