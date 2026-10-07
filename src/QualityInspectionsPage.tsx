@@ -168,7 +168,8 @@ export function QualityInspectionsPage({
   const [findingStatusFilter, setFindingStatusFilter] = useState("ALL");
   const [severityFilter, setSeverityFilter] = useState("ALL");
   const [estimateFilter, setEstimateFilter] = useState("ALL");
-  const setExpandedFindings = (_updater: (current: Set<string>) => Set<string>) => undefined;
+  const [expandedFindingGroups, setExpandedFindingGroups] = useState<Set<string>>(new Set());
+  const [loadingFindingGroups, setLoadingFindingGroups] = useState<Set<string>>(new Set());
   const [technicians, setTechnicians] = useState<string[]>([]);
   async function load() {
     const response = await fetch(`${API_URL}/quality-inspections`);
@@ -212,10 +213,13 @@ export function QualityInspectionsPage({
     () =>
       qualityFilteredItems.flatMap((inspection) =>
         inspection.findings
-          .filter((finding) => finding.status !== "RESOLVED")
+          .filter((finding) => finding.status !== "RESOLVED" &&
+            (findingStatusFilter === "ALL" || finding.status === findingStatusFilter) &&
+            (severityFilter === "ALL" || finding.severity === severityFilter) &&
+            (estimateFilter === "ALL" || (estimateFilter === "REQUIRED" ? finding.requiresEstimate : !finding.requiresEstimate)))
           .map((finding) => ({ inspection, finding })),
       ),
-    [qualityFilteredItems],
+    [estimateFilter, findingStatusFilter, qualityFilteredItems, severityFilter],
   );
   const filteredFindings =
     findingFilter === "ALL"
@@ -224,6 +228,34 @@ export function QualityInspectionsPage({
   const allFindings = useMemo(() => qualityFilteredItems.flatMap((inspection) => inspection.findings), [qualityFilteredItems]);
   const dashboardCounts = { all: allFindings.length, pending: allFindings.filter((finding) => finding.status !== "RESOLVED").length, solved: allFindings.filter((finding) => finding.status === "RESOLVED").length, estimate: allFindings.filter((finding) => finding.requiresEstimate).length };
   const dashboardItems = dashboardFilter === "ALL" ? qualityFilteredItems : qualityFilteredItems.filter((inspection) => inspection.findings.some((finding) => dashboardFilter === "ESTIMATE" ? finding.requiresEstimate : dashboardFilter === "PENDING" ? finding.status !== "RESOLVED" : finding.status === "RESOLVED"));
+  function matchesFindingFilters(finding: Finding) {
+    return (findingStatusFilter === "ALL" || finding.status === findingStatusFilter) &&
+      (severityFilter === "ALL" || finding.severity === severityFilter) &&
+      (estimateFilter === "ALL" || (estimateFilter === "REQUIRED" ? finding.requiresEstimate : !finding.requiresEstimate));
+  }
+  function matchesDashboardFilter(finding: Finding) {
+    return dashboardFilter === "ALL" || (dashboardFilter === "ESTIMATE" ? finding.requiresEstimate : dashboardFilter === "PENDING" ? finding.status !== "RESOLVED" : finding.status === "RESOLVED");
+  }
+  async function toggleFindingGroup(inspectionId: string) {
+    if (expandedFindingGroups.has(inspectionId)) {
+      setExpandedFindingGroups((current) => { const next = new Set(current); next.delete(inspectionId); return next; });
+      return;
+    }
+    setExpandedFindingGroups((current) => new Set(current).add(inspectionId));
+    const inspection = items.find((item) => item.id === inspectionId);
+    if (!inspection || inspection.findings.some((finding) => finding.photos !== undefined)) return;
+    setLoadingFindingGroups((current) => new Set(current).add(inspectionId));
+    try {
+      const response = await fetch(`${API_URL}/quality-inspections/${inspectionId}`);
+      if (!response.ok) throw new Error("Could not load findings.");
+      const detail = await response.json() as Inspection;
+      setItems((current) => current.map((item) => item.id === inspectionId ? detail : item));
+    } catch (error) {
+      setMessage((error as Error).message);
+    } finally {
+      setLoadingFindingGroups((current) => { const next = new Set(current); next.delete(inspectionId); return next; });
+    }
+  }
   const selectedProperty = properties.find(
     (property) => property.id === editing?.propertyId,
   );
@@ -401,7 +433,7 @@ export function QualityInspectionsPage({
                         Technician: {item.technicianName}
                       </p>
                     </div>
-                    <div className="quality-visit-actions"><span className="quality-reading-count">{item.findings.length} finding{item.findings.length === 1 ? "" : "s"}</span>{isSuperAdmin && <button type="button" className="quality-delete-button" onClick={() => void deleteInspection(item.id)}>Delete</button>}</div>
+                    <div className="quality-visit-actions"><span className="quality-reading-count">{item.findings.filter((finding) => matchesFindingFilters(finding) && matchesDashboardFilter(finding)).length} finding{item.findings.filter((finding) => matchesFindingFilters(finding) && matchesDashboardFilter(finding)).length === 1 ? "" : "s"}</span>{isSuperAdmin && <button type="button" className="quality-delete-button" onClick={() => void deleteInspection(item.id)}>Delete</button>}</div>
                   </div>
                   <div className="quality-data-section"><strong>Readings</strong><div className="quality-reading-grid">
                     {Object.entries(item.readings || {})
@@ -424,9 +456,11 @@ export function QualityInspectionsPage({
                       ))}
                   </div></div>
                   {item.notes && <p className="quality-notes">{item.notes}</p>}
-                  {item.findings.map((finding, findingIndex) => {
+                  <div className="quality-findings-section">
+                    <div className="quality-findings-heading"><strong>Findings</strong><button type="button" aria-expanded={expandedFindingGroups.has(item.id)} onClick={() => setExpandedFindingGroups((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; })}>{item.findings.filter((finding) => matchesFindingFilters(finding) && matchesDashboardFilter(finding)).length} finding{item.findings.filter((finding) => matchesFindingFilters(finding) && matchesDashboardFilter(finding)).length === 1 ? "" : "s"}<span aria-hidden="true">{expandedFindingGroups.has(item.id) ? "⌃" : "⌄"}</span></button></div>
+                    {expandedFindingGroups.has(item.id) && item.findings.filter((finding) => matchesFindingFilters(finding) && matchesDashboardFilter(finding)).map((finding, findingIndex) => {
                     const findingKey = finding.id || `${item.id}-${findingIndex}`;
-                    const expanded = true;
+                    const expanded = expandedFindingGroups.has(item.id);
                     return <div
                       className={
                         "quality-finding quality-finding-" + signal(finding) + (expanded ? " quality-finding-expanded" : "")
@@ -434,7 +468,7 @@ export function QualityInspectionsPage({
                       key={findingKey}
                     >
                       <i className="quality-signal-dot" />
-                      <button type="button" className="quality-finding-toggle" aria-expanded={expanded} onClick={() => setExpandedFindings((current) => { const next = new Set(current); if (next.has(findingKey)) next.delete(findingKey); else next.add(findingKey); return next; })}><span><strong>{finding.description}</strong><small>{severityLabel(finding.severity)}{finding.requiresEstimate ? " · Requires estimate" : ""}</small></span><b aria-hidden="true">{expanded ? "⌃" : "⌄"}</b></button>
+                      <button type="button" className="quality-finding-toggle" aria-expanded={expanded} onClick={() => void toggleFindingGroup(item.id)}><span><strong>{finding.description}</strong><small>{severityLabel(finding.severity)}{finding.requiresEstimate ? " · Requires estimate" : ""}</small></span><b aria-hidden="true">{expanded ? "⌃" : "⌄"}</b></button>
                       {expanded && <div className="quality-finding-details">
                         {finding.photos?.length > 0 && <div className="quality-finding-photos">{finding.photos.map((photo) => <img key={photo.name + photo.data.slice(-12)} src={photo.data} alt={photo.name} />)}</div>}
                         <p>{finding.description}</p>
@@ -445,6 +479,8 @@ export function QualityInspectionsPage({
                       {expanded && isSuperAdmin && <button type="button" className="quality-delete-button" onClick={() => finding.id && void deleteFinding(finding.id)}>Delete</button>}
                     </div>
                   })}
+                    {loadingFindingGroups.has(item.id) && <p className="quality-findings-loading">Loading finding details…</p>}
+                  </div>
                 </article>
               ))}
             </div>
