@@ -39,6 +39,7 @@ const fileSize = (bytes: number) => bytes >= 1024 * 1024 ? `${(bytes / 1024 / 10
 const reportImportanceLabel = (value: string) => value === 'HIGH' ? 'Alta' : value === 'LOW' ? 'Baja' : 'Media';
 const reportStatusLabel = (value: string) => value === 'SOLVED' ? 'Solucionada' : 'Pendiente';
 const REPORT_COLOR_PALETTE = ['#55b5d3', '#72a7db', '#8a83d5', '#cf8bd6', '#ef946b', '#e8b552', '#80c49e', '#52b7a5'];
+const reportPropertyKey = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, options);
@@ -47,7 +48,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return data as T;
 }
 
-export function ReportsPage({ sidebar, properties }: { sidebar: ReactNode; properties: Array<{ id: string; name: string }> }) {
+export function ReportsPage({ sidebar, properties, unassignedOnly = false, onClearUnassignedFilter }: { sidebar: ReactNode; properties: Array<{ id: string; name: string }>; unassignedOnly?: boolean; onClearUnassignedFilter?: () => void }) {
   const [dashboard, setDashboard] = useState<Dashboard>({ incidents: [], people: [], types: [] });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -129,6 +130,10 @@ export function ReportsPage({ sidebar, properties }: { sidebar: ReactNode; prope
   const technicians = people('TECHNICIAN');
   const inspectors = people('INSPECTOR');
   const propertiesInHistory = Array.from(new Set([...properties.map((item) => item.name), ...dashboard.incidents.map((item) => item.propertyName)])).filter(Boolean).sort();
+  const hasRegisteredProperty = (incident: Incident) => Boolean(
+    (incident.propertyId && properties.some((property) => property.id === incident.propertyId)) ||
+    properties.filter((property) => reportPropertyKey(property.name) === reportPropertyKey(incident.propertyName)).length === 1,
+  );
 
   const filtered = useMemo(() => dashboard.incidents.filter((incident) => {
     const date = dateKey(incident.occurredAt);
@@ -148,8 +153,9 @@ export function ReportsPage({ sidebar, properties }: { sidebar: ReactNode; prope
     if (inspectorFilter === 'none' && incident.inspector) return false;
     if (inspectorFilter && inspectorFilter !== 'none' && incident.inspector?.id !== inspectorFilter) return false;
     if (statusFilter && incident.status !== statusFilter) return false;
+    if (unassignedOnly && hasRegisteredProperty(incident)) return false;
     return true;
-  }).sort((a, b) => (a.status === b.status ? 0 : a.status === 'PENDING' ? -1 : 1) || dateKey(b.occurredAt).localeCompare(dateKey(a.occurredAt))), [dashboard.incidents, quickView, search, periodMode, day, from, to, month, propertyFilter, typeFilter, importanceFilter, technicianFilter, supervisorFilter, inspectorFilter, statusFilter]);
+  }).sort((a, b) => (a.status === b.status ? 0 : a.status === 'PENDING' ? -1 : 1) || dateKey(b.occurredAt).localeCompare(dateKey(a.occurredAt))), [dashboard.incidents, quickView, search, periodMode, day, from, to, month, propertyFilter, typeFilter, importanceFilter, technicianFilter, supervisorFilter, inspectorFilter, statusFilter, unassignedOnly, properties]);
 
   const quickCounts = {
     ALL: dashboard.incidents.length,
@@ -309,6 +315,7 @@ export function ReportsPage({ sidebar, properties }: { sidebar: ReactNode; prope
   return <div className="page app-page reports-page">{sidebar}
     <header className="area-page-header reports-header"><div><span className="area-eyebrow">OPERATIONS & ACCOUNTABILITY</span><h1>Reports</h1><p>Track field incidents, ownership, inspections and resolution in one shared control center.</p></div><div className="reports-header-actions"><button className="reports-button reports-button-ghost" onClick={() => setSettingsOpen(true)}>Settings</button><button className="reports-button reports-button-secondary" onClick={() => setReportOpen(true)}>Period report</button><button className="reports-button reports-button-primary" onClick={openNew}>+ New report</button></div></header>
     {error && <div className="reports-message" role="alert">{error}</div>}
+    {unassignedOnly && <div className="reports-review-banner"><span>Reviewing reports without a unique Commercial property match.</span><button type="button" onClick={onClearUnassignedFilter}>Show all reports</button></div>}
     {missingLists && !loading && <button className="reports-setup-banner" onClick={() => setSettingsOpen(true)}><strong>Complete setup</strong><span>Add supervisors, technicians and inspectors before registering the first report.</span><b>Open settings →</b></button>}
     <nav className="reports-quick-nav" aria-label="Quick report views">{([['ALL','All'],['PENDING','Pending'],['SOLVED','Solved'],['INSPECTION','Require inspector']] as Array<[QuickView,string]>).map(([key,label])=><button key={key} className={quickView===key?'reports-quick-active':''} onClick={()=>setQuickView(key)}><span>{quickCounts[key]}</span>{label}</button>)}</nav>
     <section className="reports-kpis"><article><span>Total reports</span><strong>{kpis.total}</strong><small>Current selection</small></article><article className="reports-kpi-pending"><span>Pending</span><strong>{kpis.pending}</strong><small>Needs action</small></article><article className="reports-kpi-solved"><span>Solved</span><strong>{kpis.solved}</strong><small>Work completed</small></article><article className="reports-kpi-inspector"><span>Require inspector</span><strong>{kpis.inspections}</strong><small>Inspection follow-up</small></article></section>

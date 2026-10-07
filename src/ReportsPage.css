@@ -23,6 +23,7 @@
 .reports-button-ghost { border: 1px solid var(--reports-line); background: white; color: var(--reports-ink); }
 .reports-button-solved { background: #2e9a61; color: white; }
 .reports-message { margin: -10px 0 16px; padding: 11px 14px; border: 1px solid #f5b6b6; border-radius: 10px; background: #fff3f3; color: #a43131; font-size: 11px; }
+.reports-review-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -10px 0 16px; padding: 11px 14px; border: 1px solid #f1d38a; border-radius: 10px; background: #fff9e8; color: #8a5a00; font-size: 11px; }.reports-review-banner button { border: 0; background: transparent; color: #075477; cursor: pointer; font: inherit; font-size: 10px; font-weight: 800; white-space: nowrap; }
 .reports-setup-banner { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; width: 100%; margin-bottom: 16px; border: 1px solid #9edce8; border-radius: 13px; padding: 13px 16px; background: #edfaff; color: #075477; text-align: left; cursor: pointer; }
 .reports-setup-banner strong { font-size: 12px; }.reports-setup-banner span { color: #557984; font-size: 11px; }.reports-setup-banner b { font-size: 10px; }
 

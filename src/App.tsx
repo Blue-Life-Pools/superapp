@@ -671,6 +671,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(!sharedChemicalAccess);
   const [activeArea, setActiveArea] = useState<AppArea>(initialAppArea);
   const [healthUnassignedOnly, setHealthUnassignedOnly] = useState(false);
+  const [reportsUnassignedOnly, setReportsUnassignedOnly] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return window.localStorage.getItem('bluelife-sidebar-collapsed') === 'true'; }
     catch { return false; }
@@ -2393,7 +2394,7 @@ function App() {
     }
   }
 
-  function navigateToArea(area: AppArea, options?: { healthUnassignedOnly?: boolean }) {
+  function navigateToArea(area: AppArea, options?: { healthUnassignedOnly?: boolean; reportsUnassignedOnly?: boolean }) {
     const isNathalia = appSession?.user.name?.toLowerCase().includes('nathalia') || appSession?.user.email?.toLowerCase().includes('nathalia');
     if (isNathalia && !['home', 'reports', 'quality'].includes(area)) area = 'home';
     if (!sharedChemicalAccess && area !== 'home') {
@@ -2404,6 +2405,7 @@ function App() {
     }
     setActiveArea(area);
     setHealthUnassignedOnly(area === 'health' && Boolean(options?.healthUnassignedOnly));
+    setReportsUnassignedOnly(area === 'reports' && Boolean(options?.reportsUnassignedOnly));
     setSelectedProperty(null);
     setShowDeleted(false);
   }
@@ -2616,13 +2618,13 @@ function App() {
   }
 
   if (activeArea === 'health') return <HealthDepartmentPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} unassignedOnly={healthUnassignedOnly} onClearUnassignedFilter={() => setHealthUnassignedOnly(false)} />;
-  if (activeArea === 'reports') return <ReportsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} />;
+  if (activeArea === 'reports') return <ReportsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} unassignedOnly={reportsUnassignedOnly} onClearUnassignedFilter={() => setReportsUnassignedOnly(false)} />;
   if (activeArea === 'chemicals') {
     return <ChemicalsPage sidebar={renderAppSidebar()} />;
   }
   if (activeArea === 'complaints') return <ComplaintsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} />;
   if (activeArea === 'quality') return <QualityInspectionsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name, waterBodies: property.waterBodies }))} isSuperAdmin={appSession?.user.role === 'SUPER_ADMIN'} />;
-  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} canEdit={appSession?.user.role === 'COMMERCIAL' || appSession?.user.role === 'SUPER_ADMIN'} onOpenHealth={appSession?.user.role === 'HEALTH' || appSession?.user.role === 'SUPER_ADMIN' ? () => navigateToArea('health', { healthUnassignedOnly: true }) : undefined} onNewProperty={() => openCreateForm('home')} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
+  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} canEdit={appSession?.user.role === 'COMMERCIAL' || appSession?.user.role === 'SUPER_ADMIN'} onOpenHealth={appSession?.user.role === 'HEALTH' || appSession?.user.role === 'SUPER_ADMIN' ? () => navigateToArea('health', { healthUnassignedOnly: true }) : undefined} onOpenReports={() => navigateToArea('reports', { reportsUnassignedOnly: true })} onNewProperty={() => openCreateForm('home')} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
   if (
     selectedProperty
   ) {
