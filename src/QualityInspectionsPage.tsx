@@ -217,11 +217,15 @@ export function QualityInspectionsPage({
         fetch(`${API_URL}/reports`),
       ]);
       const names = new Set<string>();
-      if (technicianResponse.ok) (await technicianResponse.json() as Array<{ name?: string }>).forEach((item) => item.name?.trim() && names.add(item.name.trim()));
+      const addTechnicianName = (value?: string) => {
+        const name = value?.trim();
+        if (name && !/^\d/.test(name)) names.add(name);
+      };
+      if (technicianResponse.ok) (await technicianResponse.json() as Array<{ name?: string }>).forEach((item) => addTechnicianName(item.name));
       if (reportsResponse.ok) {
         const payload = await reportsResponse.json() as { incidents?: Array<{ technician?: { name?: string } }> } | Array<{ technician?: { name?: string } }>;
         const reports = Array.isArray(payload) ? payload : payload.incidents || [];
-        reports.forEach((item) => item.technician?.name?.trim() && names.add(item.technician.name.trim()));
+        reports.forEach((item) => addTechnicianName(item.technician?.name));
       }
       setTechnicians([...names].sort((a, b) => a.localeCompare(b)));
     }
