@@ -58,6 +58,35 @@ type Form = {
   findings: Finding[];
   photos: Photo[];
 };
+function formFromInspection(item: Inspection): Form {
+  const readings = item.readings || {};
+  const dosages = item.dosages || {};
+  return {
+    ...emptyForm(),
+    propertyId: item.propertyId,
+    waterBodyId: item.waterBodyId || "",
+    technicianName: item.technicianName,
+    visitDate: new Date(item.visitDate).toISOString().slice(0, 16),
+    ph: readings.pH || "",
+    chlorine: readings.Chlorine || "",
+    alkalinity: readings.Alkalinity || "",
+    stabilizer: readings.Stabilizer || "",
+    salt: readings.Salt || "",
+    temperature: readings.Temperature || "",
+    phosphates: readings.Phosphates || "",
+    calcium: readings.Calcium || "",
+    saturationIndex: readings["Saturation index"] || "",
+    chlorineDosage: dosages.Chlorine || "",
+    acidDosage: dosages.Acid || "",
+    algaecideDosage: dosages.Algaecide || "",
+    shockDosage: dosages.Shock || "",
+    stabilizerDosage: dosages.Stabilizer || "",
+    otherDosage: dosages.Other || "",
+    notes: item.notes || "",
+    findings: item.findings.map((finding) => ({ ...finding, photos: finding.photos || [] })),
+    photos: item.photos || [],
+  };
+}
 
 const emptyFinding = (): Finding => ({
   title: "Finding",
@@ -159,6 +188,7 @@ export function QualityInspectionsPage({
 }) {
   const [items, setItems] = useState<Inspection[]>([]);
   const [editing, setEditing] = useState<Form | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [findingFilter, setFindingFilter] = useState("ALL");
@@ -262,7 +292,13 @@ export function QualityInspectionsPage({
     (property) => property.id === editing?.propertyId,
   );
   function startNew() {
+    setEditingId(null);
     setEditing(emptyForm());
+    setMessage("");
+  }
+  function startEdit(item: Inspection) {
+    setEditingId(item.id);
+    setEditing(formFromInspection(item));
     setMessage("");
   }
   function update(patch: Partial<Form>) {
@@ -308,8 +344,8 @@ export function QualityInspectionsPage({
         Stabilizer: editing.stabilizerDosage,
         Other: editing.otherDosage,
       };
-      const response = await fetch(`${API_URL}/quality-inspections`, {
-        method: "POST",
+      const response = await fetch(`${API_URL}/quality-inspections${editingId ? `/${editingId}` : ""}`, {
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           propertyId: editing.propertyId,
@@ -329,7 +365,8 @@ export function QualityInspectionsPage({
       const data = await response.json();
       if (!response.ok)
         throw new Error(data.message || "Could not save inspection.");
-      setItems((current) => [data, ...current]);
+      setItems((current) => editingId ? current.map((item) => item.id === editingId ? data : item) : [data, ...current]);
+      setEditingId(null);
       setEditing(null);
       setMessage("Quality inspection saved.");
     } catch (error) {
@@ -435,7 +472,7 @@ export function QualityInspectionsPage({
                         Technician: {item.technicianName}
                       </p>
                     </div>
-                    <div className="quality-visit-actions"><span className="quality-reading-count">{item.findings.filter((finding) => matchesFindingFilters(finding) && matchesDashboardFilter(finding)).length} finding{item.findings.filter((finding) => matchesFindingFilters(finding) && matchesDashboardFilter(finding)).length === 1 ? "" : "s"}</span>{isSuperAdmin && <button type="button" className="quality-delete-button" onClick={() => void deleteInspection(item.id)}>Delete</button>}</div>
+                    <div className="quality-visit-actions"><button type="button" className="quality-edit-button" onClick={() => startEdit(item)}>Edit</button>{isSuperAdmin && <button type="button" className="quality-delete-button" onClick={() => void deleteInspection(item.id)}>Delete</button>}</div>
                   </div>
                   <div className="quality-data-section"><strong>Readings</strong><div className="quality-reading-grid">
                     {Object.entries(item.readings || {})
@@ -539,7 +576,7 @@ export function QualityInspectionsPage({
             className="property-modal quality-editor-modal"
           >
             <div className="edit-panel-header">
-              <h2>New quality inspection</h2>
+              <h2>{editingId ? "Edit quality inspection" : "New quality inspection"}</h2>
               <button
                 className="modal-close"
                 onClick={() => setEditing(null)}
@@ -731,7 +768,7 @@ export function QualityInspectionsPage({
                   Cancel
                 </button>
                 <button className="primary-button" disabled={busy}>
-                  {busy ? "Saving..." : "Save inspection"}
+                  {busy ? "Saving..." : editingId ? "Save changes" : "Save inspection"}
                 </button>
               </div>
             </form>
