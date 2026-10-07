@@ -132,6 +132,45 @@ const readingFields: Array<[keyof Form, string, string[]]> = [
 const dosageFields: Array<[keyof Form, string]> = [["chlorineDosage", "Chlorine"], ["acidDosage", "Acid"], ["algaecideDosage", "Algaecide"], ["shockDosage", "Shock"], ["stabilizerDosage", "Stabilizer"], ["otherDosage", "Other"]];
 const readingLabels: Record<string, string> = { pH: "pH", Chlorine: "Chlorine (ppm)", Alkalinity: "Alkalinity (ppm)", Stabilizer: "Stabilizer (ppm)", Salt: "Salt (ppm)", Temperature: "Water temperature (°F)", Phosphates: "Phosphates (ppb)", Calcium: "Calcium (ppm)", "Saturation index": "Saturation index" };
 const dosageLabels: Record<string, string> = { Chlorine: "Chlorine", Acid: "Acid", Algaecide: "Algaecide", Shock: "Shock", Stabilizer: "Stabilizer", Other: "Other" };
+type ReadingAlertLevel = "normal" | "warning" | "alert";
+type ChemicalAlert = { key: string; label: string; value: number; message: string; level: ReadingAlertLevel };
+
+function chemicalAlertLevel(key: string, value: number): ReadingAlertLevel {
+  if (key === "pH") return value < 7 || value > 7.8 ? "alert" : value < 7.1 || value > 7.7 ? "warning" : "normal";
+  if (key === "Chlorine") return value === 0 || value > 7 ? "alert" : value <= 1 || value >= 6 ? "warning" : "normal";
+  if (key === "Salt") return value > 4500 ? "alert" : value >= 4000 ? "warning" : "normal";
+  if (key === "Calcium") return value > 500 ? "alert" : value >= 450 ? "warning" : "normal";
+  if (key === "Alkalinity") return value < 80 || value > 120 ? "alert" : value < 90 || value > 110 ? "warning" : "normal";
+  if (key === "Phosphates") return value > 300 ? "alert" : value >= 200 ? "warning" : "normal";
+  if (key === "Stabilizer") return value < 30 || value > 60 ? "alert" : value < 40 || value > 50 ? "warning" : "normal";
+  if (key === "Temperature") return value > 104 ? "alert" : value >= 101 ? "warning" : "normal";
+  return "normal";
+}
+
+function chemicalAlerts(readings: Record<string, string>): ChemicalAlert[] {
+  return Object.entries(readings).flatMap(([key, rawValue]) => {
+    const value = Number(rawValue);
+    if (!rawValue || !Number.isFinite(value)) return [];
+    const level = chemicalAlertLevel(key, value);
+    if (level === "normal") return [];
+    const label = readingLabels[key] || key;
+    const message = key === "pH" ? `${label}: ${value} (target 7.0–7.8)`
+      : key === "Chlorine" ? `${label}: ${value} (target 1–7)`
+        : key === "Salt" ? `${label}: ${value} (alert above 4500)`
+          : key === "Calcium" ? `${label}: ${value} (alert above 500)`
+            : key === "Alkalinity" ? `${label}: ${value} (target 80–120)`
+              : key === "Phosphates" ? `${label}: ${value} (alert above 300)`
+                : key === "Stabilizer" ? `${label}: ${value} (target 30–60)`
+                  : `${label}: ${value} (alert above 104°F)`;
+    return [{ key, label, value, message, level }];
+  });
+}
+
+function readingCardClass(key: string, value: string) {
+  const level = Number.isFinite(Number(value)) ? chemicalAlertLevel(key, Number(value)) : "normal";
+  return `quality-reading-card quality-reading-${level}`;
+}
+
 function signal(finding: Finding) {
   return finding.status === "RESOLVED"
     ? "green"
@@ -344,6 +383,21 @@ export function QualityInspectionsPage({
         Stabilizer: editing.stabilizerDosage,
         Other: editing.otherDosage,
       };
+      const alerts = chemicalAlerts(readings);
+      const manualFindings = editing.findings.filter(
+        (finding) => (finding.title || "Finding").trim() !== "Chemical readings alert",
+      );
+      const automaticFinding: Finding[] = alerts.length > 0
+        ? [{
+            title: "Chemical readings alert",
+            description: `Automatic chemical alert: ${alerts.map((alert) => alert.message).join("; ")}`,
+            severity: alerts.some((alert) => alert.level === "alert") ? "HIGH" : "MEDIUM",
+            status: "OPEN",
+            requiresEstimate: alerts.some((alert) => alert.level === "alert"),
+            resolution: "",
+            photos: [],
+          }]
+        : [];
       const response = await fetch(`${API_URL}/quality-inspections${editingId ? `/${editingId}` : ""}`, {
         method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -355,7 +409,7 @@ export function QualityInspectionsPage({
           readings,
           dosages,
           notes: editing.notes,
-          findings: editing.findings.filter(
+          findings: [...manualFindings, ...automaticFinding].filter(
             (finding) =>
               (finding.title || "Finding").trim() && finding.description.trim(),
           ),
@@ -432,6 +486,13 @@ export function QualityInspectionsPage({
         {[["ALL", dashboardCounts.all, "All"], ["PENDING", dashboardCounts.pending, "Pending"], ["SOLVED", dashboardCounts.solved, "Solved"], ["ESTIMATE", dashboardCounts.estimate, "Require estimate"]].map(([value, count, label]) => <button type="button" className={dashboardFilter === value ? "quality-dashboard-filter active" : "quality-dashboard-filter"} aria-pressed={dashboardFilter === value} onClick={() => setDashboardFilter(value as string)} key={value as string}><span>{count}</span>{label}</button>)}
       </div>
       <div className="quality-dashboard-kpis"><article><span>Total findings</span><strong>{dashboardCounts.all}</strong><small>Current selection</small></article><article><span>Pending</span><strong>{dashboardCounts.pending}</strong><small>Needs action</small></article><article><span>Solved</span><strong>{dashboardCounts.solved}</strong><small>Work completed</small></article><article><span>Require estimate</span><strong>{dashboardCounts.estimate}</strong><small>Supervisor follow-up</small></article></div>
+      <section className="quality-reading-scale" aria-label="Chemical reading alert scale">
+        <strong>Reading alert scale</strong>
+        <span className="quality-scale-normal"><i />Normal</span>
+        <span className="quality-scale-warning"><i />Review range</span>
+        <span className="quality-scale-alert"><i />Alert range</span>
+        <p>Target ranges: pH 7.0–7.8 · Chlorine 1–7 ppm · Alkalinity 80–120 ppm · Stabilizer 30–60 ppm · Salt ≤4500 ppm · Calcium ≤500 ppm · Phosphates ≤300 ppb · Temperature ≤104°F.</p>
+      </section>
       <section className="quality-filter-panel" aria-label="Quality filters">
         <div className="quality-filter-heading">
           <div><h2>Filters</h2><p>Filter inspections, readings and findings by Quality information.</p></div>
@@ -478,9 +539,10 @@ export function QualityInspectionsPage({
                     {Object.entries(item.readings || {})
                       .filter(([, value]) => value)
                       .map(([key, value]) => (
-                        <span key={key}>
+                        <span key={key} className={readingCardClass(key, String(value))}>
                           <small>{readingLabels[key] || key}</small>
                           <strong>{value}</strong>
+                          {chemicalAlertLevel(key, Number(value)) !== "normal" && <em>{chemicalAlertLevel(key, Number(value)) === "alert" ? "Alert" : "Review"}</em>}
                         </span>
                       ))}
                   </div></div>
