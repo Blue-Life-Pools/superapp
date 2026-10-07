@@ -143,6 +143,7 @@ function chemicalAlertLevel(key: string, value: number): ReadingAlertLevel {
   if (key === "Alkalinity") return value < 80 || value > 120 ? "alert" : value < 90 || value > 110 ? "warning" : "normal";
   if (key === "Phosphates") return value > 300 ? "alert" : value >= 200 ? "warning" : "normal";
   if (key === "Stabilizer") return value < 30 || value > 60 ? "alert" : value < 40 || value > 50 ? "warning" : "normal";
+  if (key === "Saturation index") return value < -0.3 || value > 0.3 ? "alert" : value <= -0.25 || value >= 0.25 ? "warning" : "normal";
   if (key === "Temperature") return value > 104 ? "alert" : value >= 101 ? "warning" : "normal";
   return "normal";
 }
@@ -161,7 +162,8 @@ function chemicalAlerts(readings: Record<string, string>): ChemicalAlert[] {
             : key === "Alkalinity" ? `${label}: ${value} (target 80–120)`
               : key === "Phosphates" ? `${label}: ${value} (alert above 300)`
                 : key === "Stabilizer" ? `${label}: ${value} (target 30–60)`
-                  : `${label}: ${value} (alert above 104°F)`;
+                  : key === "Saturation index" ? `${label}: ${value} (target -0.3 to 0.3)`
+                    : `${label}: ${value} (alert above 104°F)`;
     return [{ key, label, value, message, level }];
   });
 }
@@ -491,7 +493,7 @@ export function QualityInspectionsPage({
         <span className="quality-scale-normal"><i />Normal</span>
         <span className="quality-scale-warning"><i />Review range</span>
         <span className="quality-scale-alert"><i />Alert range</span>
-        <p>Target ranges: pH 7.0–7.8 · Chlorine 1–7 ppm · Alkalinity 80–120 ppm · Stabilizer 30–60 ppm · Salt ≤4500 ppm · Calcium ≤500 ppm · Phosphates ≤300 ppb · Temperature ≤104°F.</p>
+        <p>Target ranges: pH 7.0–7.8 · Chlorine 1–7 ppm · Alkalinity 80–120 ppm · Stabilizer 30–60 ppm · Salt ≤4500 ppm · Calcium ≤500 ppm · Phosphates ≤300 ppb · Saturation index -0.3–0.3 · Temperature ≤104°F.</p>
       </section>
       <section className="quality-filter-panel" aria-label="Quality filters">
         <div className="quality-filter-heading">
@@ -719,6 +721,13 @@ export function QualityInspectionsPage({
                     {label}
                     {key === "ph" ? (
                       <input type="number" min="6" max="9" step="0.1" value={editing[key] as string} onChange={(event) => update({ [key]: event.target.value })} />
+                    ) : key === "saturationIndex" ? (
+                      <>
+                        <input type="number" step="0.01" list="saturation-index-values" value={editing[key] as string} onChange={(event) => update({ [key]: event.target.value })} />
+                        <datalist id="saturation-index-values">
+                          {options.map((option) => <option value={option} key={option} />)}
+                        </datalist>
+                      </>
                     ) : (
                       <select value={editing[key] as string} onChange={(event) => update({ [key]: event.target.value })}>
                         <option value="">Select</option>
