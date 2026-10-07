@@ -471,7 +471,7 @@ export function QualityInspectionsPage({
                     >
                       <i className="quality-signal-dot" />
                       <button type="button" className="quality-finding-toggle" aria-expanded={expanded} onClick={() => void toggleFindingGroup(item.id)}><span><strong>{finding.description}</strong><small>{severityLabel(finding.severity)}{finding.requiresEstimate ? " · Requires estimate" : ""}</small></span><b aria-hidden="true">{expanded ? "⌃" : "⌄"}</b></button>
-                      {expanded && <div className="quality-finding-details">
+                      {expanded && <div className="quality-finding-details" aria-live="polite">
                         {loadingFindingGroups.has(item.id) ? <p className="quality-findings-loading">Loading finding details…</p> : <>{finding.photos?.length > 0 && <div className="quality-finding-photos">{finding.photos.map((photo) => <img key={photo.name + photo.data.slice(-12)} src={photo.data} alt={photo.name} />)}</div>}<p>{finding.description}</p></>}
                       </div>}
                       {expanded && <span className="quality-severity">{severityLabel(finding.severity)}</span>}
