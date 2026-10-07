@@ -390,15 +390,18 @@ export function QualityInspectionsPage({
         (finding) => (finding.title || "Finding").trim() !== "Chemical readings alert",
       );
       const automaticFinding: Finding[] = alerts.length > 0
-        ? [{
-            title: "Chemical readings alert",
-            description: `Automatic chemical alert: ${alerts.map((alert) => alert.message).join("; ")}`,
-            severity: alerts.some((alert) => alert.level === "alert") ? "HIGH" : "MEDIUM",
-            status: "OPEN",
-            requiresEstimate: alerts.some((alert) => alert.level === "alert"),
-            resolution: "",
-            photos: [],
-          }]
+        ? (() => {
+            const hasCriticalAlert = alerts.some((alert) => alert.level === "alert");
+            return [{
+              title: hasCriticalAlert ? "Chemical readings alert" : "Chemical readings review",
+              description: `${hasCriticalAlert ? "Automatic chemical alert" : "Chemical readings review required"}: ${alerts.map((alert) => alert.message).join("; ")}`,
+              severity: hasCriticalAlert ? "HIGH" : "MEDIUM",
+              status: "OPEN",
+              requiresEstimate: hasCriticalAlert,
+              resolution: "",
+              photos: [],
+            }];
+          })()
         : [];
       const response = await fetch(`${API_URL}/quality-inspections${editingId ? `/${editingId}` : ""}`, {
         method: editingId ? "PATCH" : "POST",
