@@ -170,6 +170,7 @@ export function QualityInspectionsPage({
   const [estimateFilter, setEstimateFilter] = useState("ALL");
   const [expandedFindingGroups, setExpandedFindingGroups] = useState<Set<string>>(new Set());
   const [loadingFindingGroups, setLoadingFindingGroups] = useState<Set<string>>(new Set());
+  const [loadedFindingGroups, setLoadedFindingGroups] = useState<Set<string>>(new Set());
   const [technicians, setTechnicians] = useState<string[]>([]);
   async function load() {
     const response = await fetch(`${API_URL}/quality-inspections`);
@@ -243,13 +244,14 @@ export function QualityInspectionsPage({
     }
     setExpandedFindingGroups((current) => new Set(current).add(inspectionId));
     const inspection = items.find((item) => item.id === inspectionId);
-    if (!inspection || inspection.findings.some((finding) => finding.photos !== undefined)) return;
+    if (!inspection || loadedFindingGroups.has(inspectionId)) return;
     setLoadingFindingGroups((current) => new Set(current).add(inspectionId));
     try {
       const response = await fetch(`${API_URL}/quality-inspections/${inspectionId}`);
       if (!response.ok) throw new Error("Could not load findings.");
       const detail = await response.json() as Inspection;
       setItems((current) => current.map((item) => item.id === inspectionId ? detail : item));
+      setLoadedFindingGroups((current) => new Set(current).add(inspectionId));
     } catch (error) {
       setMessage((error as Error).message);
     } finally {
@@ -470,8 +472,7 @@ export function QualityInspectionsPage({
                       <i className="quality-signal-dot" />
                       <button type="button" className="quality-finding-toggle" aria-expanded={expanded} onClick={() => void toggleFindingGroup(item.id)}><span><strong>{finding.description}</strong><small>{severityLabel(finding.severity)}{finding.requiresEstimate ? " · Requires estimate" : ""}</small></span><b aria-hidden="true">{expanded ? "⌃" : "⌄"}</b></button>
                       {expanded && <div className="quality-finding-details">
-                        {finding.photos?.length > 0 && <div className="quality-finding-photos">{finding.photos.map((photo) => <img key={photo.name + photo.data.slice(-12)} src={photo.data} alt={photo.name} />)}</div>}
-                        <p>{finding.description}</p>
+                        {loadingFindingGroups.has(item.id) ? <p className="quality-findings-loading">Loading finding details…</p> : <>{finding.photos?.length > 0 && <div className="quality-finding-photos">{finding.photos.map((photo) => <img key={photo.name + photo.data.slice(-12)} src={photo.data} alt={photo.name} />)}</div>}<p>{finding.description}</p></>}
                       </div>}
                       {expanded && <span className="quality-severity">{severityLabel(finding.severity)}</span>}
                       {expanded && finding.requiresEstimate && <span className="quality-estimate-badge">Estimate</span>}
