@@ -13,7 +13,7 @@ import { QualityInspectionsPage } from './QualityInspectionsPage';
 import './App.css';
 
 type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports' | 'complaints' | 'quality';
-type PropertyTab = 'overview' | 'commercial' | 'contracts';
+type PropertyTab = 'overview' | 'commercial' | 'contracts' | 'quality';
 
 function initialAppArea(): AppArea {
   const query = new URLSearchParams(window.location.search);
@@ -268,6 +268,25 @@ type Property = {
   contacts: ContactRelation[];
   waterBodies: WaterBody[];
   salesActivities: SalesActivity[];
+};
+
+type PropertyQualityInspection = {
+  id: string;
+  propertyId: string;
+  visitDate: string;
+  technicianName: string;
+  waterBody?: { name: string } | null;
+  readings: Record<string, string> | null;
+  dosages: Record<string, string> | null;
+  notes: string | null;
+  findings: Array<{
+    id?: string;
+    description: string;
+    severity: string;
+    status: string;
+    requiresEstimate: boolean;
+    photos?: Array<{ name: string; data: string }>;
+  }>;
 };
 
 type EditPropertyForm = {
@@ -718,6 +737,11 @@ function App() {
     setDetailLoading,
   ] = useState(false);
 
+  const [propertyQualityInspections, setPropertyQualityInspections] =
+    useState<PropertyQualityInspection[]>([]);
+  const [propertyQualityLoading, setPropertyQualityLoading] = useState(false);
+  const [propertyQualityError, setPropertyQualityError] = useState('');
+
   const [
     isEditing,
     setIsEditing,
@@ -755,6 +779,33 @@ function App() {
   const [routeDistanceMiles, setRouteDistanceMiles] = useState<number | null>(null);
   const [fuelPricePerGallon, setFuelPricePerGallon] = useState('3.50');
   const [vehicleMpg, setVehicleMpg] = useState('25');
+
+  useEffect(() => {
+    if (!selectedProperty || propertyTab !== 'quality') return;
+
+    let cancelled = false;
+    setPropertyQualityLoading(true);
+    setPropertyQualityError('');
+    void fetch(`${API_URL}/quality-inspections`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Could not load quality inspections.');
+        return response.json() as Promise<PropertyQualityInspection[]>;
+      })
+      .then((items) => {
+        if (cancelled) return;
+        setPropertyQualityInspections(
+          items.filter((item) => item.propertyId === selectedProperty.id),
+        );
+      })
+      .catch((error: Error) => {
+        if (!cancelled) setPropertyQualityError(error.message);
+      })
+      .finally(() => {
+        if (!cancelled) setPropertyQualityLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [propertyTab, selectedProperty]);
 
   const baseMonthlyPrice = proposalWaterBodies
     .filter((body) => body.include)
@@ -2643,6 +2694,7 @@ function App() {
             ['overview', 'Overview'],
             ['commercial', 'Commercial'],
             ['contracts', 'Contracts'],
+            ['quality', 'Quality'],
           ] as Array<[PropertyTab, string]>).map(([tab, label]) => (
             <button type="button" className={propertyTab === tab ? 'property-tab-active' : ''} key={tab} onClick={() => setPropertyTab(tab)}>
               {label}
@@ -3775,6 +3827,79 @@ function App() {
           <section className="detail-card property-tab-panel">
             <div className="card-header"><div><h2>Contracts</h2><p>Maintenance agreements created after an approved commercial proposal.</p></div><button className="secondary-button" type="button">+ Add contract</button></div>
             {approvedProposals === 0 ? <div className="property-tab-empty"><strong>No active maintenance contract</strong><p>When a maintenance proposal is approved, its contract stage will appear here.</p></div> : <div className="contract-summary"><div><span>Status</span><strong>Ready for contract</strong></div><div><span>Approved proposals</span><strong>{approvedProposals}</strong></div><div><span>SharePoint</span><strong>{selectedProperty.sharepointFolderUrl ? 'Folder ready' : 'Folder pending'}</strong></div></div>}
+          </section>
+        )}
+
+        {propertyTab === 'quality' && (
+          <section className="detail-card property-tab-panel property-quality-panel">
+            <div className="card-header">
+              <div>
+                <h2>Quality inspections</h2>
+                <p>Pool readings, chemical dosages and findings recorded for this property.</p>
+              </div>
+              <button className="secondary-button" type="button" onClick={() => navigateToArea('quality')}>
+                Open Quality
+              </button>
+            </div>
+            {propertyQualityLoading && <p className="property-tab-empty">Loading quality information...</p>}
+            {!propertyQualityLoading && propertyQualityError && <p className="property-tab-empty"><strong>{propertyQualityError}</strong></p>}
+            {!propertyQualityLoading && !propertyQualityError && propertyQualityInspections.length === 0 && (
+              <div className="property-tab-empty">
+                <strong>No quality inspections recorded</strong>
+                <p>Quality visits for this property will appear here once they are saved.</p>
+              </div>
+            )}
+            {!propertyQualityLoading && !propertyQualityError && propertyQualityInspections.length > 0 && (
+              <div className="property-quality-list">
+                {propertyQualityInspections.map((inspection) => (
+                  <article className="property-quality-visit" key={inspection.id}>
+                    <div className="property-quality-visit-header">
+                      <div>
+                        <span>{new Date(inspection.visitDate).toLocaleString('en-US', { timeZone: 'America/Bogota' })}</span>
+                        <h3>{inspection.waterBody?.name || 'Pool not specified'}</h3>
+                        <p>Technician: {inspection.technicianName}</p>
+                      </div>
+                      <strong>{inspection.findings.length} finding{inspection.findings.length === 1 ? '' : 's'}</strong>
+                    </div>
+                    <div className="property-quality-data-grid">
+                      <div>
+                        <h4>Readings</h4>
+                        <div className="property-quality-values">
+                          {Object.entries(inspection.readings || {}).filter(([, value]) => value).map(([key, value]) => (
+                            <span key={key}><small>{key}</small><b>{value}</b></span>
+                          ))}
+                          {Object.keys(inspection.readings || {}).length === 0 && <em>No readings recorded.</em>}
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Dosages</h4>
+                        <div className="property-quality-values">
+                          {Object.entries(inspection.dosages || {}).filter(([, value]) => value).map(([key, value]) => (
+                            <span key={key}><small>{key}</small><b>{value}</b></span>
+                          ))}
+                          {Object.keys(inspection.dosages || {}).length === 0 && <em>No dosages recorded.</em>}
+                        </div>
+                      </div>
+                    </div>
+                    {inspection.notes && <p className="property-quality-notes">{inspection.notes}</p>}
+                    {inspection.findings.length > 0 && (
+                      <div className="property-quality-findings">
+                        <h4>Findings</h4>
+                        {inspection.findings.map((finding, index) => (
+                          <div className={`property-quality-finding property-quality-finding-${finding.severity.toLowerCase()}`} key={finding.id || `${inspection.id}-${index}`}>
+                            {finding.photos?.[0]?.data && <img src={finding.photos[0].data} alt={finding.photos[0].name || 'Finding'} />}
+                            <div>
+                              <strong>{finding.description}</strong>
+                              <span>{finding.severity.charAt(0) + finding.severity.slice(1).toLowerCase()} · {finding.status === 'IN_PROGRESS' ? 'In progress' : finding.status.charAt(0) + finding.status.slice(1).toLowerCase()}{finding.requiresEstimate ? ' · Requires estimate' : ''}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
         )}
 
