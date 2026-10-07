@@ -213,6 +213,32 @@ function suggestedPricesForWaterBody(body: ProposalWaterBody) {
 
 const serviceBaseAddress = '811 E 131ST AVE, TAMPA, FL 33612-4424';
 
+function propertyNameKey(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function deduplicateProperties(rows: Property[]) {
+  const unique = new Map<string, Property>();
+  for (const row of rows) {
+    const key = propertyNameKey(row.name);
+    const existing = unique.get(key);
+    if (!existing) {
+      unique.set(key, row);
+      continue;
+    }
+    const completeness = (property: Property) => Number(Boolean(property.addressLine1)) + Number(Boolean(property.city)) + Number(Boolean(property.state)) + Number(Boolean(property.zipCode)) + Number(Boolean(property.managementCompany?.name)) + property.contacts.length + property.waterBodies.length + property.salesActivities.length;
+    const winner = completeness(row) > completeness(existing) ? row : existing;
+    const other = winner.id === row.id ? existing : row;
+    unique.set(key, {
+      ...winner,
+      contacts: [...winner.contacts, ...other.contacts.filter((contact) => !winner.contacts.some((current) => current.id === contact.id))],
+      waterBodies: [...winner.waterBodies, ...other.waterBodies.filter((body) => !winner.waterBodies.some((current) => current.id === body.id))],
+      salesActivities: [...winner.salesActivities, ...other.salesActivities.filter((activity) => !winner.salesActivities.some((current) => current.id === activity.id))],
+    });
+  }
+  return [...unique.values()];
+}
+
 type Property = {
   id: string;
   name: string;
@@ -966,7 +992,7 @@ function App() {
         const data =
           await response.json();
 
-        setProperties(data);
+        setProperties(deduplicateProperties(data as Property[]));
 
         if (deletedResponse?.ok) {
           setDeletedProperties(await deletedResponse.json());
