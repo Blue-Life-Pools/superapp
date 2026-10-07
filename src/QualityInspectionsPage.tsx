@@ -212,16 +212,12 @@ export function QualityInspectionsPage({
   }, []);
   useEffect(() => {
     async function loadTechnicians() {
-      const [technicianResponse, reportsResponse] = await Promise.all([
-        fetch(`${API_URL}/chemicals/technicians`),
-        fetch(`${API_URL}/reports`),
-      ]);
+      const reportsResponse = await fetch(`${API_URL}/reports`);
       const names = new Set<string>();
       const addTechnicianName = (value?: string) => {
         const name = value?.trim();
         if (name && !/^\d/.test(name)) names.add(name);
       };
-      if (technicianResponse.ok) (await technicianResponse.json() as Array<{ name?: string }>).forEach((item) => addTechnicianName(item.name));
       if (reportsResponse.ok) {
         const payload = await reportsResponse.json() as { incidents?: Array<{ technician?: { name?: string } }> } | Array<{ technician?: { name?: string } }>;
         const reports = Array.isArray(payload) ? payload : payload.incidents || [];
