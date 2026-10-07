@@ -2905,6 +2905,7 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
 .history-tabs .history-tab-active { border-bottom-color: #0c71c3; color: #075477; font-weight: 800; }
 .history-tabs button span { margin-left: 6px; padding: 2px 6px; border-radius: 5px; background: #eaf7fb; font-size: 10px; }
 .history-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.property-history-page .history-metrics { display: none; }
 .history-metrics article { display: grid; gap: 8px; padding: 16px; background: white; border: 1px solid var(--bluelife-border); border-radius: 12px; }
 .history-metrics span { font-size: 11px; color: #667085; }
 .history-metrics strong { font-size: 24px; color: #075477; }
