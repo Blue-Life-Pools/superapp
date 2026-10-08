@@ -13,7 +13,7 @@ import { QualityInspectionsPage } from './QualityInspectionsPage';
 import './App.css';
 
 type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports' | 'complaints' | 'quality';
-type PropertyTab = 'overview' | 'commercial' | 'contracts' | 'quality';
+type PropertyTab = 'overview' | 'commercial' | 'estimates' | 'contracts' | 'quality';
 
 function initialAppArea(): AppArea {
   const query = new URLSearchParams(window.location.search);
@@ -46,6 +46,31 @@ type WaterBody = {
   size: string | null;
   gallons: number | null;
   active: boolean;
+};
+
+type QuickBooksEstimateLine = {
+  id: string;
+  lineNumber: number;
+  itemRefId: string | null;
+  itemName: string | null;
+  description: string | null;
+  quantity: string | number | null;
+  unitPrice: string | number | null;
+  amount: string | number | null;
+  taxCode: string | null;
+};
+
+type QuickBooksEstimate = {
+  id: string;
+  estimateNumber: string;
+  status: string;
+  estimateDate: string | null;
+  totalAmount: string | number | null;
+  subtotalAmount: string | number | null;
+  taxAmount: string | number | null;
+  customerMemo: string | null;
+  lastSyncedAt: string | null;
+  lines: QuickBooksEstimateLine[];
 };
 
 type SalesActivityStatus = 'CREATED' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
@@ -268,6 +293,7 @@ type Property = {
   contacts: ContactRelation[];
   waterBodies: WaterBody[];
   salesActivities: SalesActivity[];
+  quickbooksEstimates: QuickBooksEstimate[];
 };
 
 type PropertyQualityInspection = {
@@ -2695,6 +2721,7 @@ function App() {
           {([
             ['overview', 'Overview'],
             ['commercial', 'Commercial'],
+            ['estimates', 'Estimates'],
             ['contracts', 'Contracts'],
             ['quality', 'Quality'],
           ] as Array<[PropertyTab, string]>).map(([tab, label]) => (
@@ -3824,6 +3851,59 @@ function App() {
             </section>
           </div>
         ))}
+
+        {propertyTab === 'estimates' && (
+          <section className="detail-card property-tab-panel qb-estimates-panel">
+            <div className="card-header">
+              <div>
+                <h2>QuickBooks estimates</h2>
+                <p>Estimate status and financial details synchronized from QuickBooks.</p>
+              </div>
+              <span className="qb-sync-badge">Automatic sync</span>
+            </div>
+            {selectedProperty.quickbooksEstimates.length === 0 ? (
+              <div className="property-tab-empty">
+                <strong>No QuickBooks estimates linked</strong>
+                <p>Once an estimate is synchronized, its number, status and line-item details will appear here.</p>
+              </div>
+            ) : (
+              <div className="qb-estimate-list">
+                {selectedProperty.quickbooksEstimates.map((estimate) => (
+                  <details className="qb-estimate-card" key={estimate.id}>
+                    <summary>
+                      <span className="qb-estimate-summary-main">
+                        <strong>Estimate #{estimate.estimateNumber}</strong>
+                        <small>{estimate.estimateDate ? new Date(estimate.estimateDate).toLocaleDateString('en-US') : 'Date not available'}</small>
+                      </span>
+                      <span className={`qb-estimate-status qb-estimate-status-${estimate.status.toLowerCase().replace(/\s+/g, '-')}`}>{estimate.status}</span>
+                      <b>{formatDashboardCurrency(Number(estimate.totalAmount ?? 0))}</b>
+                    </summary>
+                    <div className="qb-estimate-details">
+                      <div className="qb-estimate-meta">
+                        <span><small>Subtotal</small><b>{formatDashboardCurrency(Number(estimate.subtotalAmount ?? 0))}</b></span>
+                        <span><small>Tax</small><b>{formatDashboardCurrency(Number(estimate.taxAmount ?? 0))}</b></span>
+                        <span><small>Last synced</small><b>{estimate.lastSyncedAt ? new Date(estimate.lastSyncedAt).toLocaleString('en-US') : 'Not synchronized'}</b></span>
+                      </div>
+                      <div className="qb-estimate-lines">
+                        <div className="qb-estimate-line qb-estimate-line-header"><span>Part / description</span><span>Qty</span><span>Unit price</span><span>Amount</span></div>
+                        {estimate.lines.map((line) => (
+                          <div className="qb-estimate-line" key={line.id}>
+                            <span><strong>{line.itemName || line.description || 'Line item'}</strong>{line.itemName && line.description && <small>{line.description}</small>}</span>
+                            <span>{line.quantity ?? '—'}</span>
+                            <span>{line.unitPrice == null ? '—' : formatDashboardCurrency(Number(line.unitPrice))}</span>
+                            <span>{line.amount == null ? '—' : formatDashboardCurrency(Number(line.amount))}</span>
+                          </div>
+                        ))}
+                        {estimate.lines.length === 0 && <p className="qb-estimate-empty-lines">No line-item details available.</p>}
+                      </div>
+                      {estimate.customerMemo && <p className="qb-estimate-memo">{estimate.customerMemo}</p>}
+                    </div>
+                  </details>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {propertyTab === 'contracts' && (
           <section className="detail-card property-tab-panel">

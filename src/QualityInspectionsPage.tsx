@@ -16,8 +16,12 @@ type Finding = {
   description: string;
   severity: string;
   status: string;
+  responsibleName?: string | null;
   requiresEstimate: boolean;
   resolution?: string | null;
+  resolvedAt?: string | null;
+  estimateNumber?: string | null;
+  estimateSentAt?: string | null;
   photos: Photo[];
 };
 type Inspection = {
@@ -243,6 +247,9 @@ export function QualityInspectionsPage({
   const [loadingFindingGroups, setLoadingFindingGroups] = useState<Set<string>>(new Set());
   const [loadedFindingGroups, setLoadedFindingGroups] = useState<Set<string>>(new Set());
   const [technicians, setTechnicians] = useState<string[]>([]);
+  const [resolvingFinding, setResolvingFinding] = useState<{ finding: Finding; inspection: Inspection } | null>(null);
+  const [resolveForm, setResolveForm] = useState({ resolution: "", resolvedAt: new Date().toISOString().slice(0, 10), responsibleName: "", requiresEstimate: false, estimateNumber: "", estimateSentAt: "" });
+  const [resolveConfirmed, setResolveConfirmed] = useState(false);
   async function load() {
     const response = await fetch(`${API_URL}/quality-inspections`);
     if (!response.ok) throw new Error("Could not load quality inspections.");
@@ -345,6 +352,18 @@ export function QualityInspectionsPage({
   function update(patch: Partial<Form>) {
     setEditing((current) => (current ? { ...current, ...patch } : current));
   }
+  function openResolveFinding(finding: Finding, inspection: Inspection) {
+    setResolvingFinding({ finding, inspection });
+    setResolveForm({
+      resolution: finding.resolution || "",
+      resolvedAt: finding.resolvedAt ? finding.resolvedAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      responsibleName: finding.responsibleName || "",
+      requiresEstimate: finding.requiresEstimate,
+      estimateNumber: finding.estimateNumber || "",
+      estimateSentAt: finding.estimateSentAt ? finding.estimateSentAt.slice(0, 10) : "",
+    });
+    setResolveConfirmed(false);
+  }
   async function addFindingPhotos(index: number, files: FileList | null) {
     if (!files) return;
     const photos = await Promise.all(
@@ -432,6 +451,11 @@ export function QualityInspectionsPage({
     }
   }
   async function updateFinding(id: string, status: string) {
+    if (status === "RESOLVED") {
+      const match = items.flatMap((inspection) => inspection.findings.map((finding) => ({ inspection, finding }))).find(({ finding }) => finding.id === id);
+      if (match) openResolveFinding(match.finding, match.inspection);
+      return;
+    }
     const response = await fetch(
       `${API_URL}/quality-inspections/findings/${id}`,
       {
@@ -452,6 +476,29 @@ export function QualityInspectionsPage({
         ),
       })),
     );
+  }
+  async function resolveFinding(event: FormEvent) {
+    event.preventDefault();
+    if (!resolvingFinding || !resolvingFinding.finding.id || !resolveConfirmed) return;
+    if (!resolveForm.resolution.trim()) { setMessage("Describe what was done before resolving the finding."); return; }
+    if (resolveForm.requiresEstimate && (!resolveForm.estimateNumber.trim() || !resolveForm.estimateSentAt)) { setMessage("Add the estimate number and sent date."); return; }
+    const response = await fetch(`${API_URL}/quality-inspections/findings/${resolvingFinding.finding.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: "RESOLVED",
+        resolution: resolveForm.resolution.trim(),
+        resolvedAt: new Date(`${resolveForm.resolvedAt}T12:00:00`).toISOString(),
+        responsibleName: resolveForm.responsibleName.trim() || null,
+        estimateNumber: resolveForm.requiresEstimate ? resolveForm.estimateNumber.trim() : null,
+        estimateSentAt: resolveForm.requiresEstimate && resolveForm.estimateSentAt ? new Date(`${resolveForm.estimateSentAt}T12:00:00`).toISOString() : null,
+      }),
+    });
+    if (!response.ok) { setMessage("Could not resolve finding."); return; }
+    const saved = await response.json() as Finding;
+    setItems((current) => current.map((inspection) => ({ ...inspection, findings: inspection.findings.map((finding) => finding.id === resolvingFinding.finding.id ? { ...finding, ...saved } : finding) })));
+    setResolvingFinding(null);
+    setMessage("Finding resolved.");
   }
   async function deleteFinding(id: string) {
     if (!isSuperAdmin || !window.confirm("Delete this finding?")) return;
@@ -571,9 +618,12 @@ export function QualityInspectionsPage({
                       key={findingKey}
                     >
                       <i className="quality-signal-dot" />
+                      {expanded && finding.responsibleName && <span className="quality-responsible-badge">{finding.responsibleName}</span>}
                       <button type="button" className="quality-finding-toggle" aria-expanded={expanded} onClick={() => void toggleFindingGroup(item.id)}><span><strong>{finding.description}</strong><small>{severityLabel(finding.severity)}{finding.requiresEstimate ? " · Requires estimate" : ""}</small></span><b aria-hidden="true">{expanded ? "⌃" : "⌄"}</b></button>
                       {expanded && <div className="quality-finding-details" aria-live="polite">
                         {loadingFindingGroups.has(item.id) ? <p className="quality-findings-loading">Loading finding details…</p> : <>{finding.photos?.length > 0 && <div className="quality-finding-photos">{finding.photos.map((photo) => <img key={photo.name + photo.data.slice(-12)} src={photo.data} alt={photo.name} />)}</div>}<p>{finding.description}</p></>}
+                        {finding.resolution && <p className="quality-resolution-note"><strong>Resolution:</strong> {finding.resolution}{finding.resolvedAt ? ` · ${dateLabel(finding.resolvedAt)}` : ""}</p>}
+                        {finding.estimateNumber && <p className="quality-resolution-note"><strong>Estimate:</strong> #{finding.estimateNumber}{finding.estimateSentAt ? ` · sent ${dateLabel(finding.estimateSentAt)}` : ""}</p>}
                       </div>}
                       {expanded && <span className="quality-severity">{severityLabel(finding.severity)}</span>}
                       {expanded && finding.requiresEstimate && <span className="quality-estimate-badge">Estimate</span>}
@@ -810,6 +860,16 @@ export function QualityInspectionsPage({
                         update({ findings });
                       }}
                     />
+                    <input
+                      type="text"
+                      placeholder="Responsible person"
+                      value={finding.responsibleName || ""}
+                      onChange={(event) => {
+                        const findings = [...editing.findings];
+                        findings[index] = { ...finding, responsibleName: event.target.value };
+                        update({ findings });
+                      }}
+                    />
                     <select
                       aria-label="Finding importance"
                       value={finding.severity}
@@ -842,6 +902,31 @@ export function QualityInspectionsPage({
                   {busy ? "Saving..." : editingId ? "Save changes" : "Save inspection"}
                 </button>
               </div>
+            </form>
+          </section>
+        </div>
+      )}
+      {resolvingFinding && (
+        <div className="modal-backdrop">
+          <section role="dialog" aria-modal="true" className="property-modal quality-resolve-modal">
+            <div className="edit-panel-header">
+              <div><span className="area-eyebrow">RESOLVE FINDING</span><h2>{resolvingFinding.inspection.property.name}</h2></div>
+              <button className="modal-close" onClick={() => setResolvingFinding(null)} aria-label="Close">&times;</button>
+            </div>
+            <div className="quality-resolve-summary">
+              <strong>{severityLabel(resolvingFinding.finding.severity)}{resolvingFinding.finding.responsibleName ? ` · ${resolvingFinding.finding.responsibleName}` : ""}</strong>
+              <p>{resolvingFinding.finding.description}</p>
+              <small>{resolvingFinding.inspection.waterBody?.name || "Pool"} · Technician: {resolvingFinding.inspection.technicianName}</small>
+            </div>
+            <form onSubmit={(event) => void resolveFinding(event)} className="quality-resolve-form">
+              <label className="quality-wide"><span>What was done?</span><textarea required rows={5} value={resolveForm.resolution} onChange={(event) => setResolveForm((current) => ({ ...current, resolution: event.target.value }))} placeholder="Describe the completed work..." /></label>
+              <div className="quality-resolve-grid">
+                <label><span>Responsible</span><input value={resolveForm.responsibleName} onChange={(event) => setResolveForm((current) => ({ ...current, responsibleName: event.target.value }))} placeholder="Person responsible" /></label>
+                <label><span>Resolved date</span><input required type="date" value={resolveForm.resolvedAt} onChange={(event) => setResolveForm((current) => ({ ...current, resolvedAt: event.target.value }))} /></label>
+              </div>
+              <fieldset className="quality-resolve-estimate"><legend>Requires estimate?</legend><div className="quality-radio-row"><label><input type="radio" checked={!resolveForm.requiresEstimate} onChange={() => setResolveForm((current) => ({ ...current, requiresEstimate: false }))} /> No</label><label><input type="radio" checked={resolveForm.requiresEstimate} onChange={() => setResolveForm((current) => ({ ...current, requiresEstimate: true }))} /> Yes</label></div>{resolveForm.requiresEstimate && <div className="quality-resolve-grid"><label><span>Estimate number sent</span><input required value={resolveForm.estimateNumber} onChange={(event) => setResolveForm((current) => ({ ...current, estimateNumber: event.target.value }))} placeholder="e.g. 6761" /></label><label><span>Estimate sent date</span><input required type="date" value={resolveForm.estimateSentAt} onChange={(event) => setResolveForm((current) => ({ ...current, estimateSentAt: event.target.value }))} /></label></div>}</fieldset>
+              <label className="quality-confirm"><input type="checkbox" checked={resolveConfirmed} onChange={(event) => setResolveConfirmed(event.target.checked)} /> I confirm that this finding has been resolved.</label>
+              <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setResolvingFinding(null)}>Cancel</button><button className="primary-button" disabled={!resolveConfirmed}>Mark as solved</button></div>
             </form>
           </section>
         </div>
