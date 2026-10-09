@@ -2426,7 +2426,7 @@ function App() {
     if (!sharedChemicalAccess && area !== 'home') {
       const role = appSession?.user.role;
       const assignedArea = role?.toLowerCase();
-      const sharedAreas: AppArea[] = role === 'QUALITY' ? ['home', 'quality'] : isNathalia ? ['home', 'quality'] : ['home', 'complaints', 'quality'];
+      const sharedAreas: AppArea[] = role === 'QUALITY' ? ['quality'] : isNathalia ? ['home', 'quality'] : ['home', 'complaints', 'quality'];
       if (!['SUPER_ADMIN', 'OPERATIONS_DIRECTOR'].includes(role || '') && !sharedAreas.includes(area) && area !== assignedArea) area = 'home';
     }
     setActiveArea(area);
@@ -2453,7 +2453,7 @@ function App() {
     const areas = ['SUPER_ADMIN', 'OPERATIONS_DIRECTOR'].includes(role || '')
       ? allAreas
       : role === 'QUALITY'
-        ? allAreas.filter((area) => area.id === 'home' || area.id === 'quality')
+        ? allAreas.filter((area) => area.id === 'quality')
       : allAreas.filter((area) => isNathalia
         ? area.id === 'home' || area.id === 'reports' || area.id === 'quality'
         : area.id === 'home' || area.id === 'complaints' || area.id === 'quality' || area.id === assignedArea);
@@ -2642,7 +2642,7 @@ function App() {
   }
 
   if (!sharedChemicalAccess && !appSession) {
-    return <LoginPage onLogin={(session) => { setAppSession(session); setActiveArea('home'); setLoading(true); }} />;
+    return <LoginPage onLogin={(session) => { setAppSession(session); setActiveArea(session.user.role === 'QUALITY' ? 'quality' : 'home'); setLoading(true); }} />;
   }
 
   if (activeArea === 'health') return <HealthDepartmentPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} unassignedOnly={healthUnassignedOnly} onClearUnassignedFilter={() => setHealthUnassignedOnly(false)} />;
