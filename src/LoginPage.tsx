@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { API_URL, setAppToken } from './api';
 
-export type AppRole = 'COMMERCIAL' | 'CHEMICALS' | 'HEALTH' | 'REPORTS' | 'SUPER_ADMIN';
+export type AppRole = 'COMMERCIAL' | 'CHEMICALS' | 'HEALTH' | 'REPORTS' | 'QUALITY' | 'OPERATIONS_DIRECTOR' | 'SUPER_ADMIN';
 
 export type AppUser = {
   id: string;

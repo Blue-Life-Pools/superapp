@@ -1056,7 +1056,7 @@ function App() {
       try {
         const [response, deletedResponse] = await Promise.all([
           fetch(`${API_URL}/properties`),
-          ['COMMERCIAL', 'SUPER_ADMIN'].includes(userRole)
+          ['COMMERCIAL', 'OPERATIONS_DIRECTOR', 'SUPER_ADMIN'].includes(userRole)
             ? fetch(`${API_URL}/properties/deleted`)
             : Promise.resolve(null),
         ]);
@@ -2426,8 +2426,8 @@ function App() {
     if (!sharedChemicalAccess && area !== 'home') {
       const role = appSession?.user.role;
       const assignedArea = role?.toLowerCase();
-      const sharedAreas: AppArea[] = isNathalia ? ['home', 'quality'] : ['home', 'complaints', 'quality'];
-      if (role !== 'SUPER_ADMIN' && !sharedAreas.includes(area) && area !== assignedArea) area = 'home';
+      const sharedAreas: AppArea[] = role === 'QUALITY' ? ['home', 'quality'] : isNathalia ? ['home', 'quality'] : ['home', 'complaints', 'quality'];
+      if (!['SUPER_ADMIN', 'OPERATIONS_DIRECTOR'].includes(role || '') && !sharedAreas.includes(area) && area !== assignedArea) area = 'home';
     }
     setActiveArea(area);
     setHealthUnassignedOnly(area === 'health' && Boolean(options?.healthUnassignedOnly));
@@ -2450,8 +2450,10 @@ function App() {
     const role = appSession?.user.role;
     const assignedArea = role?.toLowerCase();
     const isNathalia = appSession?.user.name?.toLowerCase().includes('nathalia') || appSession?.user.email?.toLowerCase().includes('nathalia');
-    const areas = role === 'SUPER_ADMIN'
+    const areas = ['SUPER_ADMIN', 'OPERATIONS_DIRECTOR'].includes(role || '')
       ? allAreas
+      : role === 'QUALITY'
+        ? allAreas.filter((area) => area.id === 'home' || area.id === 'quality')
       : allAreas.filter((area) => isNathalia
         ? area.id === 'home' || area.id === 'reports' || area.id === 'quality'
         : area.id === 'home' || area.id === 'complaints' || area.id === 'quality' || area.id === assignedArea);
@@ -2649,8 +2651,8 @@ function App() {
     return <ChemicalsPage sidebar={renderAppSidebar()} />;
   }
   if (activeArea === 'complaints') return <ComplaintsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} />;
-  if (activeArea === 'quality') return <QualityInspectionsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name, waterBodies: property.waterBodies }))} isSuperAdmin={appSession?.user.role === 'SUPER_ADMIN'} />;
-  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} canEdit={appSession?.user.role === 'COMMERCIAL' || appSession?.user.role === 'SUPER_ADMIN'} onOpenHealth={appSession?.user.role === 'HEALTH' || appSession?.user.role === 'SUPER_ADMIN' ? () => navigateToArea('health', { healthUnassignedOnly: true }) : undefined} onOpenReports={() => navigateToArea('reports', { reportsUnassignedOnly: true })} onNewProperty={() => openCreateForm('home')} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
+  if (activeArea === 'quality') return <QualityInspectionsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name, waterBodies: property.waterBodies }))} isSuperAdmin={appSession?.user.role === 'SUPER_ADMIN' || appSession?.user.role === 'OPERATIONS_DIRECTOR'} />;
+  if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} canEdit={appSession?.user.role === 'COMMERCIAL' || appSession?.user.role === 'OPERATIONS_DIRECTOR' || appSession?.user.role === 'SUPER_ADMIN'} onOpenHealth={appSession?.user.role === 'HEALTH' || appSession?.user.role === 'OPERATIONS_DIRECTOR' || appSession?.user.role === 'SUPER_ADMIN' ? () => navigateToArea('health', { healthUnassignedOnly: true }) : undefined} onOpenReports={() => navigateToArea('reports', { reportsUnassignedOnly: true })} onNewProperty={() => openCreateForm('home')} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
   if (
     selectedProperty
   ) {
