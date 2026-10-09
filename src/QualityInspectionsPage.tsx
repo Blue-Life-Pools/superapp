@@ -192,6 +192,9 @@ function dateLabel(value: string) {
     timeZone: "America/Bogota",
   });
 }
+function bogotaDateKey(value: string) {
+  return new Date(value).toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+}
 async function fileData(file: File): Promise<Photo> {
   const source = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -243,6 +246,10 @@ export function QualityInspectionsPage({
   const [findingStatusFilter, setFindingStatusFilter] = useState("ALL");
   const [severityFilter, setSeverityFilter] = useState("ALL");
   const [estimateFilter, setEstimateFilter] = useState("ALL");
+  const [dateFilterMode, setDateFilterMode] = useState("ALL");
+  const [dateFilterDay, setDateFilterDay] = useState("");
+  const [dateFilterFrom, setDateFilterFrom] = useState("");
+  const [dateFilterTo, setDateFilterTo] = useState("");
   const [expandedFindingGroups, setExpandedFindingGroups] = useState<Set<string>>(new Set());
   const [loadingFindingGroups, setLoadingFindingGroups] = useState<Set<string>>(new Set());
   const [loadedFindingGroups, setLoadedFindingGroups] = useState<Set<string>>(new Set());
@@ -277,6 +284,10 @@ export function QualityInspectionsPage({
   }, []);
   const qualityFilteredItems = useMemo(
     () => items.filter((inspection) => {
+      const inspectionDate = bogotaDateKey(inspection.visitDate);
+      if (dateFilterMode === "DAY" && dateFilterDay && inspectionDate !== dateFilterDay) return false;
+      if (dateFilterMode === "RANGE" && dateFilterFrom && inspectionDate < dateFilterFrom) return false;
+      if (dateFilterMode === "RANGE" && dateFilterTo && inspectionDate > dateFilterTo) return false;
       if (propertyFilter !== "ALL" && inspection.propertyId !== propertyFilter) return false;
       if (technicianFilter !== "ALL" && inspection.technicianName !== technicianFilter) return false;
       if (findingStatusFilter === "ALL" && severityFilter === "ALL" && estimateFilter === "ALL") return true;
@@ -286,7 +297,7 @@ export function QualityInspectionsPage({
         (estimateFilter === "ALL" || (estimateFilter === "REQUIRED" ? finding.requiresEstimate : !finding.requiresEstimate)),
       );
     }),
-    [estimateFilter, findingStatusFilter, items, propertyFilter, severityFilter, technicianFilter],
+    [dateFilterDay, dateFilterFrom, dateFilterMode, dateFilterTo, estimateFilter, findingStatusFilter, items, propertyFilter, severityFilter, technicianFilter],
   );
   const openFindings = useMemo(
     () =>
@@ -545,7 +556,7 @@ export function QualityInspectionsPage({
       <section className="quality-filter-panel" aria-label="Quality filters">
         <div className="quality-filter-heading">
           <div><h2>Filters</h2><p>Filter inspections, readings and findings by Quality information.</p></div>
-          <button type="button" onClick={() => { setPropertyFilter("ALL"); setTechnicianFilter("ALL"); setFindingStatusFilter("ALL"); setSeverityFilter("ALL"); setEstimateFilter("ALL"); setDashboardFilter("ALL"); }}>Clear filters</button>
+          <button type="button" onClick={() => { setPropertyFilter("ALL"); setTechnicianFilter("ALL"); setFindingStatusFilter("ALL"); setSeverityFilter("ALL"); setEstimateFilter("ALL"); setDashboardFilter("ALL"); setDateFilterMode("ALL"); setDateFilterDay(""); setDateFilterFrom(""); setDateFilterTo(""); }}>Clear filters</button>
         </div>
         <div className="quality-filter-grid">
           <label><span>Property</span><select value={propertyFilter} onChange={(event) => setPropertyFilter(event.target.value)}><option value="ALL">All properties</option>{properties.map((property) => <option value={property.id} key={property.id}>{property.name}</option>)}</select></label>
@@ -553,6 +564,9 @@ export function QualityInspectionsPage({
           <label><span>Finding status</span><select value={findingStatusFilter} onChange={(event) => setFindingStatusFilter(event.target.value)}><option value="ALL">All statuses</option><option value="OPEN">Open</option><option value="IN_PROGRESS">In progress</option><option value="RESOLVED">Resolved</option></select></label>
           <label><span>Importance</span><select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)}><option value="ALL">All levels</option><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></select></label>
           <label><span>Estimate</span><select value={estimateFilter} onChange={(event) => setEstimateFilter(event.target.value)}><option value="ALL">All findings</option><option value="REQUIRED">Requires estimate</option><option value="NOT_REQUIRED">No estimate required</option></select></label>
+          <label><span>Date filter</span><select value={dateFilterMode} onChange={(event) => setDateFilterMode(event.target.value)}><option value="ALL">All dates</option><option value="DAY">Specific date</option><option value="RANGE">Date range</option></select></label>
+          {dateFilterMode === "DAY" && <label><span>Date</span><input type="date" value={dateFilterDay} onChange={(event) => setDateFilterDay(event.target.value)} /></label>}
+          {dateFilterMode === "RANGE" && <><label><span>From</span><input type="date" value={dateFilterFrom} onChange={(event) => setDateFilterFrom(event.target.value)} /></label><label><span>To</span><input type="date" value={dateFilterTo} min={dateFilterFrom || undefined} onChange={(event) => setDateFilterTo(event.target.value)} /></label></>}
         </div>
       </section>
       <div className="quality-main-grid">
