@@ -362,13 +362,17 @@ export function QualityInspectionsPage({
   }
   async function startEdit(item: Inspection) {
     setEditingId(item.id);
-    setEditing(formFromInspection(item));
-    setMessage("");
+    // Do not show the list version while the detail request is pending. The
+    // detail response contains the current technician and findings; showing
+    // the modal before it arrives can overwrite a change made by the user.
+    setEditing(null);
+    setMessage("Loading inspection...");
     try {
       const response = await fetch(`${API_URL}/quality-inspections/${item.id}`);
       if (!response.ok) throw new Error("Could not load the inspection for editing.");
       const detail = await response.json() as Inspection;
       setEditing(formFromInspection(detail));
+      setMessage("");
     } catch (error) {
       setEditingId(null);
       setEditing(null);
@@ -463,10 +467,20 @@ export function QualityInspectionsPage({
           ...(editingId ? {} : { photos: editing.photos }),
         }),
       });
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.message || "Could not save inspection.");
-      setItems((current) => editingId ? current.map((item) => item.id === editingId ? data : item) : [data, ...current]);
+      const responseText = await response.text();
+      let data: { message?: string } = {};
+      try {
+        data = responseText ? JSON.parse(responseText) as { message?: string } : {};
+      } catch {
+        // Keep the raw response below so deployment/proxy errors are visible.
+      }
+      if (!response.ok) {
+        throw new Error(
+          data.message || responseText || `Could not save inspection (${response.status}).`,
+        );
+      }
+      const saved = data as Inspection;
+      setItems((current) => editingId ? current.map((item) => item.id === editingId ? saved : item) : [saved, ...current]);
       setEditingId(null);
       setEditing(null);
       setMessage("Quality inspection saved.");
