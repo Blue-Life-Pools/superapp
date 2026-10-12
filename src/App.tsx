@@ -2465,6 +2465,10 @@ function App() {
           <img className="sidebar-logo" src="/blue-life-logo.png" alt="Blue Life Pool Service" decoding="async" />
           <div><strong>BlueLife</strong><small>Internal App</small></div>
         </div>
+        <div className="mobile-sidebar-session">
+          <div><strong>{appSession?.user.name}</strong><small>{appSession?.user.role.toLowerCase()}</small></div>
+          <button type="button" onClick={() => void logoutApp()}>Log out</button>
+        </div>
         <nav>
           {areas.map((area) => (
             <button

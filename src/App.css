@@ -5168,3 +5168,59 @@ tbody tr:hover,
 @media (max-width: 420px) { .quality-dashboard-filters, .quality-dashboard-kpis { grid-template-columns: 1fr; } }
 @media (max-width: 680px) { .property-quality-data-grid { grid-template-columns: 1fr; }.property-quality-visit-header { flex-direction: column; }.property-quality-visit-header strong { align-self: flex-start; } }
 .quality-reading-card { position: relative; overflow: hidden; transition: background .2s ease, border-color .2s ease, box-shadow .2s ease; }.quality-reading-card em { color: #667085; font-size: 9px; font-style: normal; font-weight: 800; }.quality-reading-warning { border: 1px solid #f2c94c; background: #fff9e6 !important; box-shadow: inset 0 3px 0 #f2c94c; }.quality-reading-warning em { color: #9a6700; }.quality-reading-alert { border: 1px solid #ef9a96; background: #fff1f0 !important; box-shadow: inset 0 3px 0 #d92d20; }.quality-reading-alert em { color: #b42318; }.quality-reading-scale { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--bluelife-border); border-radius: 12px; background: #fff; color: var(--bluelife-navy); font-size: 11px; }.quality-reading-scale strong { margin-right: 4px; }.quality-reading-scale span { display: inline-flex; align-items: center; gap: 5px; }.quality-reading-scale i { width: 9px; height: 9px; border-radius: 50%; background: #e7eef2; }.quality-reading-scale p { flex-basis: 100%; margin: 0; color: var(--bluelife-muted); font-size: 10px; }.quality-scale-warning i { background: #f2c94c; }.quality-scale-alert i { background: #d92d20; }
+
+/* Mobile navigation and Quality workspace */
+.mobile-sidebar-session { display: none; }
+@media (max-width: 800px) {
+  .app-page { padding-bottom: calc(132px + env(safe-area-inset-bottom)); }
+  body.sidebar-collapsed .app-page { padding-bottom: calc(132px + env(safe-area-inset-bottom)); }
+  .app-sidebar, .app-sidebar.app-sidebar-collapsed { height: calc(116px + env(safe-area-inset-bottom)); padding-top: 44px; }
+  .mobile-sidebar-session { position: absolute; inset: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 40px; padding: 0 12px; border-bottom: 1px solid #d7e7ee; background: #f8fcfd; }
+  .mobile-sidebar-session div { display: grid; min-width: 0; gap: 1px; text-align: left; }
+  .mobile-sidebar-session strong { overflow: hidden; color: #075477; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-sidebar-session small { color: #688493; font-size: 8px; text-transform: uppercase; }
+  .mobile-sidebar-session button { min-height: 28px; border: 1px solid #b9dcea; border-radius: 7px; padding: 0 10px; background: #fff; color: #00658e; cursor: pointer; font: inherit; font-size: 10px; font-weight: 800; }
+  .quality-page { width: 100%; overflow-x: hidden; }
+  .quality-page .area-page-header { gap: 10px; margin-bottom: 14px; }
+  .quality-page .area-page-header h1 { font-size: 24px; line-height: 1.1; }
+  .quality-page .area-page-header p { font-size: 11px; line-height: 1.4; }
+  .quality-dashboard-filters { gap: 7px; margin-bottom: 12px; }
+  .quality-dashboard-filter { min-height: 52px; gap: 6px; border-radius: 10px; padding: 7px 5px; font-size: 10px; text-align: center; }
+  .quality-dashboard-filter span { min-width: 27px; height: 27px; border-radius: 8px; }
+  .quality-dashboard-kpis { gap: 7px; margin-bottom: 12px; }
+  .quality-dashboard-kpis article { min-height: 78px; border-radius: 10px; padding: 9px 5px; }
+  .quality-dashboard-kpis span { font-size: 8px; }
+  .quality-dashboard-kpis strong { font-size: 22px; }
+  .quality-dashboard-kpis small { font-size: 8px; }
+  .quality-reading-scale { align-items: flex-start; gap: 8px; margin-bottom: 12px; padding: 10px; font-size: 10px; }
+  .quality-reading-scale strong { flex-basis: 100%; }
+  .quality-reading-scale p { font-size: 9px; line-height: 1.35; }
+  .quality-filter-panel { margin-bottom: 12px; padding: 12px; border-radius: 11px; }
+  .quality-filter-heading { gap: 8px; margin-bottom: 10px; }
+  .quality-filter-heading h2 { font-size: 13px; }
+  .quality-filter-heading p { font-size: 9px; line-height: 1.3; }
+  .quality-filter-heading button { min-height: 34px; }
+  .quality-main-grid { gap: 12px; }
+  .quality-visit-card { gap: 10px; padding: 13px 11px; }
+  .quality-visit-heading { flex-direction: column; gap: 9px; }
+  .quality-visit-heading h3 { font-size: 16px; overflow-wrap: anywhere; }
+  .quality-visit-heading p { font-size: 10px; line-height: 1.35; }
+  .quality-visit-actions { width: 100%; align-items: stretch; flex-direction: row; }
+  .quality-edit-button, .quality-visit-actions .quality-delete-button { width: auto; min-width: 0; flex: 1; height: 42px; }
+  .quality-reading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .quality-reading-grid span { min-height: 64px; padding: 8px; }
+  .quality-reading-grid strong { font-size: 12px; }
+  .quality-finding { min-height: 0; padding: 9px; }
+  .quality-finding-expanded { display: grid !important; grid-template-columns: 8px minmax(0, 1fr) !important; gap: 8px; }
+  .quality-finding-expanded .quality-finding-details { grid-column: 2 !important; min-height: 0 !important; }
+  .quality-finding-expanded .quality-severity, .quality-finding-expanded .quality-estimate-badge, .quality-finding-expanded select, .quality-finding-expanded .quality-delete-button { grid-column: 2 !important; justify-self: stretch; width: 100%; min-width: 0; }
+  .quality-finding-photos img { width: 82px; height: 62px; }
+  .quality-editor-modal, .quality-resolve-modal { width: calc(100vw - 16px); max-height: calc(100vh - 16px); padding: 14px; }
+  .quality-editor-modal .modal-actions, .quality-resolve-modal .modal-actions { position: sticky; bottom: -14px; margin: 0 -14px -14px; padding: 11px 14px; background: rgba(255,255,255,.96); }
+  .quality-editor-modal .modal-actions button, .quality-resolve-modal .modal-actions button { min-height: 42px; flex: 1; }
+}
+@media (max-width: 420px) {
+  .quality-dashboard-filters, .quality-dashboard-kpis { grid-template-columns: 1fr 1fr; }
+  .quality-dashboard-filter { flex-direction: column; }
+  .quality-dashboard-filter span { min-width: 25px; height: 25px; }
+}
