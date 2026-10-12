@@ -274,9 +274,13 @@ export function QualityInspectionsPage({
         if (name && !/^\d/.test(name)) names.add(name);
       };
       if (reportsResponse.ok) {
-        const payload = await reportsResponse.json() as { incidents?: Array<{ technician?: { name?: string } }> } | Array<{ technician?: { name?: string } }>;
-        const reports = Array.isArray(payload) ? payload : payload.incidents || [];
-        reports.forEach((item) => addTechnicianName(item.technician?.name));
+        const payload = await reportsResponse.json() as { people?: Array<{ name?: string; role?: string }>; incidents?: Array<{ technician?: { name?: string } }> } | Array<{ technician?: { name?: string } }>;
+        if (!Array.isArray(payload) && Array.isArray(payload.people)) {
+          payload.people.filter((person) => person.role === "TECHNICIAN").forEach((person) => addTechnicianName(person.name));
+        } else {
+          const reports = Array.isArray(payload) ? payload : payload.incidents || [];
+          reports.forEach((item) => addTechnicianName(item.technician?.name));
+        }
       }
       setTechnicians([...names].sort((a, b) => a.localeCompare(b)));
     }
