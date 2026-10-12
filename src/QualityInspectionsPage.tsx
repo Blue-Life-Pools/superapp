@@ -257,6 +257,7 @@ export function QualityInspectionsPage({
   const [resolvingFinding, setResolvingFinding] = useState<{ finding: Finding; inspection: Inspection } | null>(null);
   const [resolveForm, setResolveForm] = useState({ resolution: "", resolvedAt: new Date().toISOString().slice(0, 10), responsibleName: "", requiresEstimate: false, estimateNumber: "", estimateSentAt: "" });
   const [resolveConfirmed, setResolveConfirmed] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
   async function load() {
     const response = await fetch(`${API_URL}/quality-inspections`);
     if (!response.ok) throw new Error("Could not load quality inspections.");
@@ -649,7 +650,7 @@ export function QualityInspectionsPage({
                       {expanded && finding.responsibleName && <span className="quality-responsible-badge">{finding.responsibleName}</span>}
                       <button type="button" className="quality-finding-toggle" aria-expanded={expanded} onClick={() => void toggleFindingGroup(item.id)}><span><strong>{finding.description}</strong><small>{severityLabel(finding.severity)}{finding.requiresEstimate ? " · Requires estimate" : ""}</small></span><b aria-hidden="true">{expanded ? "⌃" : "⌄"}</b></button>
                       {expanded && <div className="quality-finding-details" aria-live="polite">
-                        {loadingFindingGroups.has(item.id) ? <p className="quality-findings-loading">Loading finding details…</p> : <>{finding.photos?.length > 0 && <div className="quality-finding-photos">{finding.photos.map((photo) => <img key={photo.name + photo.data.slice(-12)} src={photo.data} alt={photo.name} />)}</div>}<p>{finding.description}</p></>}
+                        {loadingFindingGroups.has(item.id) ? <p className="quality-findings-loading">Loading finding details…</p> : <>{finding.photos?.length > 0 && <div className="quality-finding-photos">{finding.photos.map((photo) => <button type="button" className="quality-finding-photo-button" key={photo.name + photo.data.slice(-12)} onClick={() => setPreviewPhoto(photo)} aria-label={`View ${photo.name}`}><img src={photo.data} alt={photo.name} /></button>)}</div>}<p>{finding.description}</p></>}
                         {finding.resolution && <p className="quality-resolution-note"><strong>Resolution:</strong> {finding.resolution}{finding.resolvedAt ? ` · ${dateLabel(finding.resolvedAt)}` : ""}</p>}
                         {finding.estimateNumber && <p className="quality-resolution-note"><strong>Estimate:</strong> #{finding.estimateNumber}{finding.estimateSentAt ? ` · sent ${dateLabel(finding.estimateSentAt)}` : ""}</p>}
                       </div>}
@@ -957,6 +958,12 @@ export function QualityInspectionsPage({
               <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setResolvingFinding(null)}>Cancel</button><button className="primary-button" disabled={!resolveConfirmed}>Mark as solved</button></div>
             </form>
           </section>
+        </div>
+      )}
+      {previewPhoto && (
+        <div className="quality-photo-lightbox" role="presentation" onClick={() => setPreviewPhoto(null)}>
+          <button type="button" className="quality-photo-lightbox-close" onClick={() => setPreviewPhoto(null)} aria-label="Close image">&times;</button>
+          <img src={previewPhoto.data} alt={previewPhoto.name} onClick={(event) => event.stopPropagation()} />
         </div>
       )}
     </div>
