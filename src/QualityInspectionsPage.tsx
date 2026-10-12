@@ -635,7 +635,7 @@ export function QualityInspectionsPage({
                   </div></div>
                   {item.notes && <p className="quality-notes">{item.notes}</p>}
                   <div className="quality-findings-section">
-                    <div className="quality-findings-heading"><strong>Findings</strong><button type="button" aria-expanded={expandedFindingGroups.has(item.id)} onClick={() => setExpandedFindingGroups((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; })}>{item.findings.filter((finding) => matchesFindingFilters(finding) && matchesDashboardFilter(finding)).length} finding{item.findings.filter((finding) => matchesFindingFilters(finding) && matchesDashboardFilter(finding)).length === 1 ? "" : "s"}<span className="quality-chevron" aria-hidden="true"><i /></span></button></div>
+                    <div className="quality-findings-heading"><strong>Findings</strong><button type="button" aria-expanded={expandedFindingGroups.has(item.id)} onClick={() => void toggleFindingGroup(item.id)}>{item.findings.filter((finding) => matchesFindingFilters(finding) && matchesDashboardFilter(finding)).length} finding{item.findings.filter((finding) => matchesFindingFilters(finding) && matchesDashboardFilter(finding)).length === 1 ? "" : "s"}<span className="quality-chevron" aria-hidden="true"><i /></span></button></div>
                     {expandedFindingGroups.has(item.id) && item.findings.filter((finding) => matchesFindingFilters(finding) && matchesDashboardFilter(finding)).map((finding, findingIndex) => {
                     const findingKey = finding.id || `${item.id}-${findingIndex}`;
                     const expanded = expandedFindingGroups.has(item.id);
