@@ -444,6 +444,9 @@ export function QualityInspectionsPage({
             photos: [],
           }]
         : [];
+      const findingsToSave = [...manualFindings, ...automaticFinding]
+        .filter((finding) => (finding.title || "Finding").trim() && finding.description.trim())
+        .map((finding) => editingId && finding.id ? { ...finding, photos: undefined } : finding);
       const response = await fetch(`${API_URL}/quality-inspections${editingId ? `/${editingId}` : ""}`, {
         method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -455,11 +458,8 @@ export function QualityInspectionsPage({
           readings,
           dosages,
           notes: editing.notes,
-          findings: [...manualFindings, ...automaticFinding].filter(
-            (finding) =>
-              (finding.title || "Finding").trim() && finding.description.trim(),
-          ),
-          photos: editing.photos,
+          findings: findingsToSave,
+          ...(editingId ? {} : { photos: editing.photos }),
         }),
       });
       const data = await response.json();
