@@ -359,10 +359,20 @@ export function QualityInspectionsPage({
     setEditing(emptyForm());
     setMessage("");
   }
-  function startEdit(item: Inspection) {
+  async function startEdit(item: Inspection) {
     setEditingId(item.id);
     setEditing(formFromInspection(item));
     setMessage("");
+    try {
+      const response = await fetch(`${API_URL}/quality-inspections/${item.id}`);
+      if (!response.ok) throw new Error("Could not load the inspection for editing.");
+      const detail = await response.json() as Inspection;
+      setEditing(formFromInspection(detail));
+    } catch (error) {
+      setEditingId(null);
+      setEditing(null);
+      setMessage((error as Error).message);
+    }
   }
   function update(patch: Partial<Form>) {
     setEditing((current) => (current ? { ...current, ...patch } : current));
