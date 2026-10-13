@@ -5279,3 +5279,11 @@ tbody tr:hover,
   body:has(.app-sidebar[data-area-count="6"]) .app-sidebar,
   body:has(.app-sidebar[data-area-count="7"]) .app-sidebar { height: calc(180px + env(safe-area-inset-bottom)); }
 }
+
+@media (max-width: 800px) {
+  /* Finding photos remain visible and touch-scrollable on phones. */
+  .quality-finding-expanded .quality-finding-details { width: 100%; max-width: 100%; overflow: visible; }
+  .quality-finding-expanded .quality-finding-photos { display: flex !important; width: 100%; max-width: 100%; min-height: 76px; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 2px 0 5px; }
+  .quality-finding-expanded .quality-finding-photo-button { flex: 0 0 88px; width: 88px; height: 68px; }
+  .quality-finding-expanded .quality-finding-photo-button img { display: block; width: 88px; height: 68px; object-fit: cover; border-radius: 7px; }
+}
