@@ -4080,7 +4080,7 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   .sidebar-expand-button { display: none; }
   .sidebar-brand,
   .sidebar-footer { display: none; }
-  .app-sidebar nav { display: grid; width: 100%; margin: 0; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; }
+  .app-sidebar nav { display: grid; width: 100%; max-width: 520px; margin: 0 auto; grid-template-columns: repeat(auto-fit, minmax(62px, 1fr)); gap: 3px; }
   .app-sidebar nav button { min-width: 0; min-height: 62px; justify-content: center; flex-direction: column; gap: 2px; padding: 3px 1px; font-size: 7px; line-height: 1.1; text-align: center; }
   .app-sidebar nav button > span { width: 27px; height: 27px; }
   .area-page-header { margin-bottom: 20px; }
@@ -5223,4 +5223,20 @@ tbody tr:hover,
   .quality-dashboard-filters, .quality-dashboard-kpis { grid-template-columns: 1fr 1fr; }
   .quality-dashboard-filter { flex-direction: column; }
   .quality-dashboard-filter span { min-width: 25px; height: 25px; }
+}
+
+@media (max-width: 800px) {
+  /* Keep the Home notification shortcuts inside their own row. */
+  .property-history-page .history-directory-heading { gap: 14px; }
+  .property-history-page .history-directory-tools { width: 100%; gap: 12px; }
+  .property-history-page .history-alert-filters { display: grid; width: 100%; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; align-items: start; }
+  .property-history-page .history-alert-filter { width: 100%; height: 58px; min-width: 0; border-width: 2px; border-radius: 14px; }
+  .property-history-page .history-alert-filter small { position: static; transform: none; margin-top: 3px; font-size: 9px; line-height: 1; white-space: normal; text-align: center; }
+  .property-history-page .history-directory-tools > input { width: 100%; max-width: none; min-height: 46px; box-sizing: border-box; }
+}
+
+@media (max-width: 420px) {
+  .property-history-page .history-alert-filters { gap: 5px; }
+  .property-history-page .history-alert-filter { height: 55px; padding: 0 2px; }
+  .property-history-page .history-alert-filter small { font-size: 8px; }
 }
