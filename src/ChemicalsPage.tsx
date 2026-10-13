@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 
 import { API_URL, apiFetch as fetch, getAppToken } from './api';
+import { ChemicalConsumptionPanel } from './ChemicalConsumptionPanel';
 
 type QuantityKey =
   | 'tabsQuantity'
@@ -224,7 +225,7 @@ export function ChemicalsPage({
   const [initialTechnicianToken] = useState(technicianTokenFromSharedLink);
   const [technicianToken, setTechnicianToken] = useState(initialTechnicianToken);
   const [technicianAccessMode] = useState(technicianAccessModeFromLink);
-  const [activeTab, setActiveTab] = useState<'register' | 'technicians'>('register');
+  const [activeTab, setActiveTab] = useState<'register' | 'technicians' | 'consumption'>('register');
   const [lockedTechnician, setLockedTechnician] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [accessing, setAccessing] = useState(false);
@@ -651,11 +652,12 @@ export function ChemicalsPage({
       {!isSharedForm && (
         <>
           <nav className="chemicals-tabs" aria-label="Módulos de químicos">
+            <button className={activeTab === 'consumption' ? 'chemicals-tab-active' : ''} type="button" onClick={() => setActiveTab('consumption')}>Consumo por propiedad</button>
             <button className={activeTab === 'register' ? 'chemicals-tab-active' : ''} type="button" onClick={() => setActiveTab('register')}>Registro</button>
             <button className={activeTab === 'technicians' ? 'chemicals-tab-active' : ''} type="button" onClick={() => { setActiveTab('technicians'); if (ownerToken) void loadManagedTechnicians().catch((error) => setTechnicianMessage(error instanceof Error ? error.message : 'No se pudo cargar la lista.')); }}>Técnicos</button>
           </nav>
 
-          <section className="chemicals-kpis">
+          {activeTab !== 'consumption' && <><section className="chemicals-kpis">
             <article><span>Registros de hoy</span><strong>{reportsToday}</strong><small>Retiros informados por el equipo</small></article>
             <article><span>Técnicos con registros</span><strong>{techniciansReported}</strong><small>En el historial disponible</small></article>
           </section>
@@ -676,8 +678,11 @@ export function ChemicalsPage({
               </button>
             </div>
           </section>
+          </>}
         </>
       )}
+
+      {!isSharedForm && activeTab === 'consumption' && <ChemicalConsumptionPanel />}
 
       {(isSharedForm || activeTab === 'register') && <div className={`chemicals-workspace ${isSharedForm ? 'chemicals-shared-workspace' : ''}`}>
         <section className="chemicals-form-card">
