@@ -76,5 +76,5 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
   for (const code of duplicates) warnings.push(`${rows.find((row) => row.code === code)!.propertyName}: aparecen varios totales con el mismo código. Se excluyó para revisar el alcance de esos registros.`);
   const accepted = rows.filter((row) => !duplicates.has(row.code!));
   if (!accepted.length) throw new Error('No quedaron propiedades sin duplicados para importar.');
-  return { month, sourceName, rows: accepted, warnings };
+  return { month, sourceName, rows: accepted, warnings: [...new Set(warnings)] };
 }
