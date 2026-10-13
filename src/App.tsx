@@ -315,6 +315,23 @@ type PropertyQualityInspection = {
   }>;
 };
 
+type PropertyReadingLevel = 'normal' | 'warning' | 'alert';
+
+function propertyReadingLevel(key: string, rawValue: string): PropertyReadingLevel {
+  const value = Number(rawValue);
+  if (!Number.isFinite(value)) return 'normal';
+  if (key === 'pH') return value < 7 || value > 7.8 ? 'alert' : value < 7.1 || value > 7.7 ? 'warning' : 'normal';
+  if (key === 'Chlorine') return value === 0 || value > 7 ? 'alert' : value <= 1 || value >= 6 ? 'warning' : 'normal';
+  if (key === 'Salt') return value > 4500 ? 'alert' : value >= 4000 ? 'warning' : 'normal';
+  if (key === 'Calcium') return value > 500 ? 'alert' : value >= 450 ? 'warning' : 'normal';
+  if (key === 'Alkalinity') return value < 80 || value > 120 ? 'alert' : value < 90 || value > 110 ? 'warning' : 'normal';
+  if (key === 'Phosphates') return value > 300 ? 'alert' : value >= 200 ? 'warning' : 'normal';
+  if (key === 'Stabilizer') return value < 30 || value > 60 ? 'alert' : value < 40 || value > 50 ? 'warning' : 'normal';
+  if (key === 'Saturation index') return value < -0.3 || value > 0.3 ? 'alert' : value <= -0.25 || value >= 0.25 ? 'warning' : 'normal';
+  if (key === 'Temperature') return value > 104 ? 'alert' : value >= 101 ? 'warning' : 'normal';
+  return 'normal';
+}
+
 type EditPropertyForm = {
   name: string;
   leadSource: string;
@@ -3954,9 +3971,10 @@ function App() {
                       <div>
                         <h4>Readings</h4>
                         <div className="property-quality-values">
-                          {Object.entries(inspection.readings || {}).filter(([, value]) => value).map(([key, value]) => (
-                            <span key={key}><small>{key}</small><b>{value}</b></span>
-                          ))}
+                          {Object.entries(inspection.readings || {}).filter(([, value]) => value).map(([key, value]) => {
+                            const level = propertyReadingLevel(key, String(value));
+                            return <span key={key} className={`property-quality-reading property-quality-reading-${level}`}><small>{key}</small><b>{value}</b>{level !== 'normal' && <em>{level === 'alert' ? 'Alert' : 'Review'}</em>}</span>;
+                          })}
                           {Object.keys(inspection.readings || {}).length === 0 && <em>No readings recorded.</em>}
                         </div>
                       </div>

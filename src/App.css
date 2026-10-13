@@ -5290,5 +5290,12 @@ tbody tr:hover,
   .quality-reading-card.quality-reading-warning { border: 1px solid #f2c94c; background: #fff9e6 !important; box-shadow: inset 0 3px 0 #f2c94c; }
   .quality-reading-card.quality-reading-warning em { color: #9a6700; }
   .quality-reading-card.quality-reading-alert { border: 1px solid #ef9a96; background: #fff1f0 !important; box-shadow: inset 0 3px 0 #d92d20; }
-  .quality-reading-card.quality-reading-alert em { color: #b42318; }
+.quality-reading-card.quality-reading-alert em { color: #b42318; }
 }
+
+.property-quality-reading { border: 1px solid #e2ebef; }
+.property-quality-reading-normal { background: #f4f8fa !important; }
+.property-quality-reading-warning { border-color: #f2c94c; background: #fff9e6 !important; box-shadow: inset 0 3px 0 #f2c94c; }
+.property-quality-reading-warning em { color: #9a6700; font-size: 9px; font-style: normal; font-weight: 800; }
+.property-quality-reading-alert { border-color: #ef9a96; background: #fff1f0 !important; box-shadow: inset 0 3px 0 #d92d20; }
+.property-quality-reading-alert em { color: #b42318; font-size: 9px; font-style: normal; font-weight: 800; }
