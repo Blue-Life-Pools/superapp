@@ -65,7 +65,7 @@ export function ChemicalConsumptionPanel() {
     try {
       const reader = await import('./chemicalConsumptionFiles');
       const data = kind === 'pdf' ? await reader.readConsumptionPdf(file, setMessage) : await reader.readMonthlyFees(file, month);
-      const matches = await request<Preview[]>('/preview', post(data));
+      const matches = await request<Preview[]>('/preview', post({ month: data.month, sourceName: data.sourceName, rows: data.rows }));
       setPending(data); setPreview(matches); setMessage('Revisa las coincidencias antes de confirmar la carga.');
     } catch (cause) { setError((cause as Error).message); setMessage(''); }
     finally { setBusy(false); }
