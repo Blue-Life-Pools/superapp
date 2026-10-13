@@ -241,7 +241,6 @@ export function QualityInspectionsPage({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [findingFilter, setFindingFilter] = useState("ALL");
   const [dashboardFilter, setDashboardFilter] = useState("ALL");
   const [propertyFilter, setPropertyFilter] = useState("ALL");
   const [technicianFilter, setTechnicianFilter] = useState("ALL");
@@ -306,22 +305,6 @@ export function QualityInspectionsPage({
     }),
     [dateFilterDay, dateFilterFrom, dateFilterMode, dateFilterTo, estimateFilter, findingStatusFilter, items, propertyFilter, severityFilter, technicianFilter],
   );
-  const openFindings = useMemo(
-    () =>
-      qualityFilteredItems.flatMap((inspection) =>
-        inspection.findings
-          .filter((finding) => finding.status !== "RESOLVED" &&
-            (findingStatusFilter === "ALL" || finding.status === findingStatusFilter) &&
-            (severityFilter === "ALL" || finding.severity === severityFilter) &&
-            (estimateFilter === "ALL" || (estimateFilter === "REQUIRED" ? finding.requiresEstimate : !finding.requiresEstimate)))
-          .map((finding) => ({ inspection, finding })),
-      ),
-    [estimateFilter, findingStatusFilter, qualityFilteredItems, severityFilter],
-  );
-  const filteredFindings =
-    findingFilter === "ALL"
-      ? openFindings
-      : openFindings.filter(({ finding }) => finding.status === findingFilter);
   const allFindings = useMemo(() => qualityFilteredItems.flatMap((inspection) => inspection.findings), [qualityFilteredItems]);
   const dashboardCounts = { all: allFindings.length, pending: allFindings.filter((finding) => finding.status !== "RESOLVED").length, solved: allFindings.filter((finding) => finding.status === "RESOLVED").length, estimate: allFindings.filter((finding) => finding.requiresEstimate).length };
   const dashboardItems = dashboardFilter === "ALL" ? qualityFilteredItems : qualityFilteredItems.filter((inspection) => inspection.findings.some((finding) => dashboardFilter === "ESTIMATE" ? finding.requiresEstimate : dashboardFilter === "PENDING" ? finding.status !== "RESOLVED" : finding.status === "RESOLVED"));
@@ -686,49 +669,6 @@ export function QualityInspectionsPage({
             </div>
           )}
         </section>
-        <aside className="health-card quality-findings-card">
-          <div className="health-card-heading">
-            <div>
-              <h2>Open findings</h2>
-              <p>Quality alerts by priority.</p>
-            </div>
-          </div>
-          <div className="quality-filter-row">
-            <select
-              aria-label="Filter findings"
-              value={findingFilter}
-              onChange={(event) => setFindingFilter(event.target.value)}
-            >
-              <option value="ALL">All findings</option>
-              <option value="OPEN">Open</option>
-              <option value="IN_PROGRESS">In progress</option>
-            </select>
-          </div>
-          {filteredFindings.length === 0 ? (
-            <p className="health-empty">No open findings.</p>
-          ) : (
-            filteredFindings.map(({ inspection, finding }) => (
-              <button
-                type="button"
-                className={"quality-alert-row quality-alert-" + signal(finding)}
-                key={finding.id}
-              >
-                <i className="quality-signal-dot" />
-                <span>
-                  <strong>{finding.description}</strong>
-                  <small>
-                    {inspection.property.name} -{" "}
-                    {inspection.waterBody?.name || "Pool"}
-                  </small>
-                  <em>
-                    {finding.status === "IN_PROGRESS" ? "In progress" : "Open"}{" "}
-                    - {severityLabel(finding.severity)}
-                  </em>
-                </span>
-              </button>
-            ))
-          )}
-        </aside>
       </div>
       {editing && (
         <div className="modal-backdrop">
