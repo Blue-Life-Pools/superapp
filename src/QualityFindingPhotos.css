@@ -1,0 +1,4 @@
+.quality-lazy-photos { display: flex; flex-wrap: wrap; gap: 8px; min-height: 1px; min-width: 1px; max-width: 100%; }
+.history-quality-finding > .quality-lazy-photos, .property-quality-finding > .quality-lazy-photos { display: flex; flex: 0 1 auto; }
+.quality-photo-preview { display: inline-flex; align-items: center; justify-content: center; width: auto; max-width: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
+.quality-photo-preview img { max-width: 100%; object-fit: cover; }

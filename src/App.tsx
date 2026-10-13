@@ -10,6 +10,7 @@ import { ReportsPage } from './ReportsPage';
 import { LoginPage, type AppSession } from './LoginPage';
 import { ComplaintsPage } from './ComplaintsPage';
 import { QualityInspectionsPage } from './QualityInspectionsPage';
+import { QualityFindingPhotos } from './QualityFindingPhotos';
 import './App.css';
 
 type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports' | 'complaints' | 'quality';
@@ -300,6 +301,7 @@ type PropertyQualityInspection = {
   id: string;
   propertyId: string;
   visitDate: string;
+  updatedAt?: string;
   technicianName: string;
   waterBody?: { name: string } | null;
   readings: Record<string, string> | null;
@@ -788,17 +790,6 @@ function App() {
   const [propertyQualityLoading, setPropertyQualityLoading] = useState(false);
   const [propertyQualityError, setPropertyQualityError] = useState('');
   const [previewQualityPhoto, setPreviewQualityPhoto] = useState<{ name: string; data: string } | null>(null);
-  useEffect(() => {
-    const handlers = new Map<HTMLImageElement, () => void>();
-    document.querySelectorAll<HTMLImageElement>('.property-quality-finding img').forEach((image) => {
-      const photo = propertyQualityInspections.flatMap((inspection) => inspection.findings.flatMap((finding) => finding.photos || [])).find((candidate) => candidate.data === image.src);
-      if (!photo) return;
-      const handler = () => setPreviewQualityPhoto(photo);
-      image.addEventListener('click', handler);
-      handlers.set(image, handler);
-    });
-    return () => handlers.forEach((handler, image) => image.removeEventListener('click', handler));
-  }, [propertyQualityInspections]);
 
   const [
     isEditing,
@@ -844,7 +835,7 @@ function App() {
     let cancelled = false;
     setPropertyQualityLoading(true);
     setPropertyQualityError('');
-    void fetch(`${API_URL}/quality-inspections`)
+    void fetch(`${API_URL}/quality-inspections?propertyId=${encodeURIComponent(selectedProperty.id)}`)
       .then(async (response) => {
         if (!response.ok) throw new Error('Could not load quality inspections.');
         return response.json() as Promise<PropertyQualityInspection[]>;
@@ -4008,7 +3999,7 @@ function App() {
                         <h4>Findings</h4>
                         {inspection.findings.map((finding, index) => (
                           <div className={`property-quality-finding property-quality-finding-${finding.severity.toLowerCase()}`} key={finding.id || `${inspection.id}-${index}`}>
-                            {finding.photos?.[0]?.data && <img src={finding.photos[0].data} alt={finding.photos[0].name || 'Finding'} />}
+                            <QualityFindingPhotos inspectionId={inspection.id} findingId={finding.id} revision={inspection.updatedAt || inspection.visitDate} onPreview={setPreviewQualityPhoto} />
                             <div>
                               <strong>{finding.description}</strong>
                               <span>{finding.severity.charAt(0) + finding.severity.slice(1).toLowerCase()} · {finding.status === 'IN_PROGRESS' ? 'In progress' : finding.status.charAt(0) + finding.status.slice(1).toLowerCase()}{finding.requiresEstimate ? ' · Requires estimate' : ''}</span>

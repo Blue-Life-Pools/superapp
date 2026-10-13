@@ -269,20 +269,15 @@ export function QualityInspectionsPage({
   }, []);
   useEffect(() => {
     async function loadTechnicians() {
-      const reportsResponse = await fetch(`${API_URL}/reports`);
+      const reportsResponse = await fetch(`${API_URL}/reports/people`);
       const names = new Set<string>();
       const addTechnicianName = (value?: string) => {
         const name = value?.trim();
         if (name && !/^\d/.test(name)) names.add(name);
       };
       if (reportsResponse.ok) {
-        const payload = await reportsResponse.json() as { people?: Array<{ name?: string; role?: string }>; incidents?: Array<{ technician?: { name?: string } }> } | Array<{ technician?: { name?: string } }>;
-        if (!Array.isArray(payload) && Array.isArray(payload.people)) {
-          payload.people.filter((person) => person.role === "TECHNICIAN").forEach((person) => addTechnicianName(person.name));
-        } else {
-          const reports = Array.isArray(payload) ? payload : payload.incidents || [];
-          reports.forEach((item) => addTechnicianName(item.technician?.name));
-        }
+        const people = await reportsResponse.json() as Array<{ name?: string; role?: string }>;
+        people.filter((person) => person.role === "TECHNICIAN").forEach((person) => addTechnicianName(person.name));
       }
       setTechnicians([...names].sort((a, b) => a.localeCompare(b)));
     }

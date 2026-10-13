@@ -19,6 +19,9 @@ try {
 export const API_URL = parsedApiUrl.toString().replace(/\/+$/, '');
 
 const appTokenKey = 'bluelife-app-token';
+let cacheVersion = 0;
+
+export function getApiCacheVersion() { return cacheVersion; }
 
 export function getAppToken() {
   try {
@@ -29,6 +32,7 @@ export function getAppToken() {
 }
 
 export function setAppToken(token: string) {
+  cacheVersion += 1;
   try {
     if (token) window.localStorage.setItem(appTokenKey, token);
     else window.localStorage.removeItem(appTokenKey);
@@ -44,5 +48,8 @@ export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   if (token && url.startsWith(API_URL) && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }
-  return fetch(input, { ...init, headers });
+  return fetch(input, { ...init, headers }).then((response) => {
+    if (response.ok && !['GET', 'HEAD'].includes((init.method || 'GET').toUpperCase())) cacheVersion += 1;
+    return response;
+  });
 }
