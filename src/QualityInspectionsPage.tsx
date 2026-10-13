@@ -444,7 +444,9 @@ export function QualityInspectionsPage({
             description: `Automatic chemical alert: ${alerts.map((alert) => alert.message).join("; ")}`,
             severity: alerts.some((alert) => alert.level === "alert") ? "HIGH" : "MEDIUM",
             status: "OPEN",
-            requiresEstimate: alerts.some((alert) => alert.level === "alert"),
+            // Chemical readings outside the target range require attention,
+            // but they do not automatically imply that an estimate is needed.
+            requiresEstimate: false,
             resolution: "",
             photos: [],
           }]
