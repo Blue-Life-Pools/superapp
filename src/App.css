@@ -5290,7 +5290,22 @@ tbody tr:hover,
   .quality-reading-card.quality-reading-warning { border: 1px solid #f2c94c; background: #fff9e6 !important; box-shadow: inset 0 3px 0 #f2c94c; }
   .quality-reading-card.quality-reading-warning em { color: #9a6700; }
   .quality-reading-card.quality-reading-alert { border: 1px solid #ef9a96; background: #fff1f0 !important; box-shadow: inset 0 3px 0 #d92d20; }
-.quality-reading-card.quality-reading-alert em { color: #b42318; }
+  .quality-reading-card.quality-reading-alert em { color: #b42318; }
+  .quality-finding-expanded select { width: 100%; min-width: 0; justify-self: stretch; box-sizing: border-box; text-align: center; font-weight: 800; color: var(--bluelife-blue-dark); border-color: #c5dcf1; background: #fff; }
+}
+
+@media (max-width: 800px) {
+  /* Mobile uses the same collapse/expand control as the desktop sidebar. */
+  .sidebar-collapse-button { position: absolute; z-index: 2; top: 6px; left: 7px; display: grid !important; width: 28px; height: 28px; border-radius: 8px; font-size: 18px; }
+  .mobile-sidebar-session { padding-left: 43px; }
+  .app-sidebar.app-sidebar-collapsed { height: calc(44px + env(safe-area-inset-bottom)); padding: 0; }
+  .app-sidebar.app-sidebar-collapsed .mobile-sidebar-session,
+  .app-sidebar.app-sidebar-collapsed nav { display: none; }
+  .sidebar-expand-button { position: fixed; z-index: 50; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); display: grid !important; width: 34px; height: 34px; border-radius: 9px; }
+  body:has(.app-sidebar.app-sidebar-collapsed) .app-page { padding-bottom: calc(58px + env(safe-area-inset-bottom)); }
+  body:has(.app-sidebar.app-sidebar-collapsed[data-area-count="5"]) .app-page,
+  body:has(.app-sidebar.app-sidebar-collapsed[data-area-count="6"]) .app-page,
+  body:has(.app-sidebar.app-sidebar-collapsed[data-area-count="7"]) .app-page { padding-bottom: calc(58px + env(safe-area-inset-bottom)); }
 }
 
 .property-quality-reading { border: 1px solid #e2ebef; }
@@ -5299,3 +5314,4 @@ tbody tr:hover,
 .property-quality-reading-warning em { color: #9a6700; font-size: 9px; font-style: normal; font-weight: 800; }
 .property-quality-reading-alert { border-color: #ef9a96; background: #fff1f0 !important; box-shadow: inset 0 3px 0 #d92d20; }
 .property-quality-reading-alert em { color: #b42318; font-size: 9px; font-style: normal; font-weight: 800; }
+.quality-audit-note { grid-column: 2 / -1; color: var(--bluelife-muted); font-size: 10px; font-weight: 700; }

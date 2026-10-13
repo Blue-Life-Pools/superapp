@@ -311,6 +311,8 @@ type PropertyQualityInspection = {
     severity: string;
     status: string;
     requiresEstimate: boolean;
+    resolvedByName?: string | null;
+    resolutionUpdatedByName?: string | null;
     photos?: Array<{ name: string; data: string }>;
   }>;
 };

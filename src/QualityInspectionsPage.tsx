@@ -20,6 +20,8 @@ type Finding = {
   requiresEstimate: boolean;
   resolution?: string | null;
   resolvedAt?: string | null;
+  resolvedByName?: string | null;
+  resolutionUpdatedByName?: string | null;
   estimateNumber?: string | null;
   estimateSentAt?: string | null;
   photos: Photo[];
@@ -670,6 +672,7 @@ export function QualityInspectionsPage({
                         {finding.resolution && <p className="quality-resolution-note"><strong>Resolution:</strong> {finding.resolution}{finding.resolvedAt ? ` · ${dateLabel(finding.resolvedAt)}` : ""}</p>}
                         {finding.estimateNumber && <p className="quality-resolution-note"><strong>Estimate:</strong> #{finding.estimateNumber}{finding.estimateSentAt ? ` · sent ${dateLabel(finding.estimateSentAt)}` : ""}</p>}
                       </div>}
+                      {expanded && (finding.resolutionUpdatedByName || finding.resolvedByName) && <span className="quality-audit-note">{finding.resolutionUpdatedByName ? `Written by ${finding.resolutionUpdatedByName}` : ""}{finding.resolutionUpdatedByName && finding.resolvedByName ? " · " : ""}{finding.resolvedByName ? `Resolved by ${finding.resolvedByName}` : ""}</span>}
                       {expanded && <span className="quality-severity">{severityLabel(finding.severity)}</span>}
                       {expanded && finding.requiresEstimate && <span className="quality-estimate-badge">Estimate</span>}
                       {expanded && <select aria-label="Update finding" value={finding.status} onChange={(event) => finding.id && void updateFinding(finding.id, event.target.value)}><option value="OPEN">Open</option><option value="IN_PROGRESS">In progress</option><option value="RESOLVED">Resolved</option></select>}
