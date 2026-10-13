@@ -5315,6 +5315,16 @@ tbody tr:hover,
   .quality-finding-expanded select { text-align: center; text-align-last: center; font-weight: 800; }
 }
 
+/* Quality uses a quieter delete action so the inspection cards do not become saturated. */
+.quality-page .quality-delete-button { border-color: #cbd5db; background: #eef2f4; color: #475467; }
+.quality-page .quality-delete-button:hover { border-color: #aebdc5; background: #e3e9ec; color: #344054; }
+
+@media (max-width: 800px) {
+  /* The collapse control belongs to the top edge of the bottom navigation. */
+  .sidebar-collapse-button { top: -12px; bottom: auto; }
+  .app-sidebar.app-sidebar-collapsed { display: none; height: 0; min-height: 0; border: 0; padding: 0; }
+}
+
 .property-quality-reading { border: 1px solid #e2ebef; }
 .property-quality-reading-normal { background: #f4f8fa !important; }
 .property-quality-reading-warning { border-color: #f2c94c; background: #fff9e6 !important; box-shadow: inset 0 3px 0 #f2c94c; }
