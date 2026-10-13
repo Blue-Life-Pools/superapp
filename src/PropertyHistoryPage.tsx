@@ -52,7 +52,8 @@ type PropertyComplaint = {
   id: string; propertyId: string; complaint: string; createdAt: string; requiresEstimate: boolean; typeOfCall?: 'CALL' | 'COMPLAINT'; status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
   property?: { id: string; name: string };
 };
-type PropertyQualityInspection = { id: string; propertyId: string; visitDate: string; technicianName: string; waterBody?: { name: string } | null; readings?: Record<string, string> | null; dosages?: Record<string, string> | null; notes?: string | null; findings: Array<{ id?: string; description: string; severity: string; status: string; requiresEstimate?: boolean; photos?: Array<{ name: string; data: string }> }> };
+type QualityPhoto = { name: string; data: string };
+type PropertyQualityInspection = { id: string; propertyId: string; visitDate: string; technicianName: string; waterBody?: { name: string } | null; readings?: Record<string, string> | null; dosages?: Record<string, string> | null; notes?: string | null; findings: Array<{ id?: string; description: string; severity: string; status: string; requiresEstimate?: boolean; photos?: QualityPhoto[] }> };
 type Tab = 'overview' | 'general' | 'reports' | 'health' | 'complaints' | 'quality';
 type AlertFilter = 'all' | 'reports' | 'health' | 'complaints' | 'quality';
 const tabs: Array<[Tab, string]> = [['overview', 'Overview'], ['general', 'General information'], ['reports', 'Reports'], ['health', 'Health Department'], ['complaints', 'Complaints'], ['quality', 'Quality']];
@@ -69,6 +70,21 @@ function checklist(value: string, chemical: boolean) {
 }
 function info(title: string, value: string | null | undefined, accent = '') { return <div className={'history-info-item' + (accent ? ' ' + accent : '')} key={title}><dt>{title}</dt><dd>{value || 'Not assigned'}</dd></div>; }
 function reportDate(value: string) { return new Date(value).toLocaleDateString('en-US', { timeZone: 'UTC' }); }
+const propertyReadingLabels: Record<string, string> = { pH: 'pH', Chlorine: 'Chlorine (ppm)', Alkalinity: 'Alkalinity (ppm)', Phosphates: 'Phosphates (ppb)', Stabilizer: 'Stabilizer (ppm)', Salt: 'Salt (ppm)', Calcium: 'Calcium (ppm)', Temperature: 'Water temperature (°F)', 'Saturation index': 'Saturation index' };
+function propertyReadingLevel(key: string, rawValue: string) {
+  const value = Number(rawValue);
+  if (!Number.isFinite(value)) return 'normal';
+  if (key === 'pH') return value < 7 || value > 7.8 ? 'alert' : value < 7.1 || value > 7.7 ? 'warning' : 'normal';
+  if (key === 'Chlorine') return value === 0 || value > 7 ? 'alert' : value <= 1 || value >= 6 ? 'warning' : 'normal';
+  if (key === 'Salt') return value > 4500 ? 'alert' : value >= 4000 ? 'warning' : 'normal';
+  if (key === 'Calcium') return value > 500 ? 'alert' : value >= 450 ? 'warning' : 'normal';
+  if (key === 'Alkalinity') return value < 80 || value > 120 ? 'alert' : value < 90 || value > 110 ? 'warning' : 'normal';
+  if (key === 'Phosphates') return value > 300 ? 'alert' : value >= 200 ? 'warning' : 'normal';
+  if (key === 'Stabilizer') return value < 30 || value > 60 ? 'alert' : value < 40 || value > 50 ? 'warning' : 'normal';
+  if (key === 'Saturation index') return value < -0.3 || value > 0.3 ? 'alert' : value <= -0.25 || value >= 0.25 ? 'warning' : 'normal';
+  if (key === 'Temperature') return value > 104 ? 'alert' : value >= 101 ? 'warning' : 'normal';
+  return 'normal';
+}
 function reportStatus(value: PropertyReport['status']) { return value === 'SOLVED' ? 'Solved' : 'Pending'; }
 function reportImportance(value: PropertyReport['importance']) { return value === 'HIGH' ? 'High' : value === 'LOW' ? 'Low' : 'Medium'; }
 function isValidHttpUrl(value: string) {
@@ -144,6 +160,7 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
   const [savingWaterBodies, setSavingWaterBodies] = useState(false);
   const [waterBodiesMessage, setWaterBodiesMessage] = useState('');
   const [savingLifecycleStatus, setSavingLifecycleStatus] = useState(false);
+  const [previewQualityPhoto, setPreviewQualityPhoto] = useState<QualityPhoto | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     let pending = false;
@@ -262,6 +279,28 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
   const reportHistory = property ? reportIndex.byProperty.get(property.id) || [] : [];
   const complaintHistory = property ? complaintIndex.byProperty.get(property.id) || [] : [];
   const qualityHistory = property ? qualityInspections.filter((inspection) => inspection.propertyId === property.id) : [];
+  useEffect(() => {
+    if (tab !== 'quality') return;
+    document.querySelectorAll<HTMLElement>('.history-quality-values').forEach((group) => {
+      const isReadingGroup = group.previousElementSibling?.textContent?.trim() === 'Readings';
+      if (!isReadingGroup) return;
+      group.querySelectorAll<HTMLElement>(':scope > span').forEach((card) => {
+        const labelText = card.querySelector('small')?.textContent?.trim() || '';
+        const valueText = card.querySelector('b')?.textContent?.trim() || '';
+        const key = Object.entries(propertyReadingLabels).find(([, labelTextValue]) => labelTextValue === labelText)?.[0] || labelText;
+        card.classList.add(`history-quality-reading-${propertyReadingLevel(key, valueText)}`);
+      });
+    });
+    const imageHandlers = new Map<HTMLImageElement, () => void>();
+    document.querySelectorAll<HTMLImageElement>('.history-quality-finding img').forEach((image) => {
+      const photo = qualityHistory.flatMap((inspection) => inspection.findings.flatMap((finding) => finding.photos || [])).find((candidate) => candidate.data === image.src);
+      if (!photo) return;
+      const handler = () => setPreviewQualityPhoto(photo);
+      image.addEventListener('click', handler);
+      imageHandlers.set(image, handler);
+    });
+    return () => imageHandlers.forEach((handler, image) => image.removeEventListener('click', handler));
+  }, [qualityHistory, tab]);
   const qualityOpenFindings = qualityHistory.flatMap((inspection) => inspection.findings).filter((finding) => finding.status === 'OPEN').length;
   const qualityInProgressFindings = qualityHistory.flatMap((inspection) => inspection.findings).filter((finding) => finding.status === 'IN_PROGRESS').length;
   const deadlines = history.map((ticket) => ({ ticket, date: healthDate(ticket.healthData?.['Fecha Límite'] || '') })).filter(({ ticket, date }) => ticket.status !== 'CLOSED' && date && daysUntilInspection(date, clock) >= 0).sort((a, b) => a.date.localeCompare(b.date));
@@ -592,5 +631,6 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
       {tab === 'health' && <section className="history-panel"><div className="history-panel-heading"><div><h2>Health Department history</h2><p className="history-muted">Live records from Health Department, including closed tickets and comment history.</p></div><button className="secondary-button" onClick={onOpenHealth}>Open Health Department</button></div>{loading ? <p>Loading Health history…</p> : history.length === 0 ? <p className="history-empty">No Health tickets match this property's Commercial name.</p> : <div className="history-timeline">{history.map(healthCard)}</div>}</section>}
       {tab === 'complaints' && <section className="history-panel"><div className="history-panel-heading"><div><h2>Open complaints</h2><p className="history-muted">Only complaints with Open or In progress status are shown here.</p></div></div>{loading ? <p>Loading complaints history…</p> : complaintHistory.length === 0 ? <p className="history-empty">No open complaints for this property.</p> : <div className="history-timeline">{complaintHistory.map(complaintCard)}</div>}</section>}
     </>}
+    {previewQualityPhoto && <div className="history-quality-lightbox" role="dialog" aria-modal="true" aria-label="Finding photo preview" onClick={() => setPreviewQualityPhoto(null)}><button type="button" onClick={() => setPreviewQualityPhoto(null)} aria-label="Close photo">×</button><img src={previewQualityPhoto.data} alt={previewQualityPhoto.name || 'Finding'} /></div>}
   </div>;
 }

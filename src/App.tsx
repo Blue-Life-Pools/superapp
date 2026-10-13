@@ -787,6 +787,18 @@ function App() {
     useState<PropertyQualityInspection[]>([]);
   const [propertyQualityLoading, setPropertyQualityLoading] = useState(false);
   const [propertyQualityError, setPropertyQualityError] = useState('');
+  const [previewQualityPhoto, setPreviewQualityPhoto] = useState<{ name: string; data: string } | null>(null);
+  useEffect(() => {
+    const handlers = new Map<HTMLImageElement, () => void>();
+    document.querySelectorAll<HTMLImageElement>('.property-quality-finding img').forEach((image) => {
+      const photo = propertyQualityInspections.flatMap((inspection) => inspection.findings.flatMap((finding) => finding.photos || [])).find((candidate) => candidate.data === image.src);
+      if (!photo) return;
+      const handler = () => setPreviewQualityPhoto(photo);
+      image.addEventListener('click', handler);
+      handlers.set(image, handler);
+    });
+    return () => handlers.forEach((handler, image) => image.removeEventListener('click', handler));
+  }, [propertyQualityInspections]);
 
   const [
     isEditing,
@@ -5274,6 +5286,7 @@ function App() {
           Loading property...
         </div>
       )}
+      {previewQualityPhoto && <div className="history-quality-lightbox" role="dialog" aria-modal="true" aria-label="Finding photo preview" onClick={() => setPreviewQualityPhoto(null)}><button type="button" onClick={() => setPreviewQualityPhoto(null)} aria-label="Close photo">×</button><img src={previewQualityPhoto.data} alt={previewQualityPhoto.name || 'Finding'} /></div>}
     </div>
   );
 }
