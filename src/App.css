@@ -5286,4 +5286,9 @@ tbody tr:hover,
   .quality-finding-expanded .quality-finding-photos { display: flex !important; width: 100%; max-width: 100%; min-height: 76px; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 2px 0 5px; }
   .quality-finding-expanded .quality-finding-photo-button { flex: 0 0 88px; width: 88px; height: 68px; }
   .quality-finding-expanded .quality-finding-photo-button img { display: block; width: 88px; height: 68px; object-fit: cover; border-radius: 7px; }
+  .quality-reading-card.quality-reading-normal { border: 1px solid #e2ebef; background: #f4f8fa !important; }
+  .quality-reading-card.quality-reading-warning { border: 1px solid #f2c94c; background: #fff9e6 !important; box-shadow: inset 0 3px 0 #f2c94c; }
+  .quality-reading-card.quality-reading-warning em { color: #9a6700; }
+  .quality-reading-card.quality-reading-alert { border: 1px solid #ef9a96; background: #fff1f0 !important; box-shadow: inset 0 3px 0 #d92d20; }
+  .quality-reading-card.quality-reading-alert em { color: #b42318; }
 }
