@@ -2473,6 +2473,7 @@ function App() {
           {areas.map((area) => (
             <button
               type="button"
+              data-area={area.id}
               className={activeArea === area.id ? 'sidebar-active' : ''}
               key={area.id}
               onClick={() => navigateToArea(area.id)}
