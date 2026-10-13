@@ -14,7 +14,7 @@ type ReportUploadSession = { id: string; size: number; nextByte: number; expires
 type ReportChunkResult = { complete: boolean; nextByte?: number; attachment?: ReportAttachment };
 type Incident = {
   id: string; occurredAt: string; propertyId?: string; propertyName: string; importance: 'HIGH' | 'MEDIUM' | 'LOW';
-  description: string; requiresInspector: boolean; status: 'PENDING' | 'SOLVED'; resolution?: string;
+  description: string; requiresInspector: boolean; status: 'PENDING' | 'SOLVED'; resolution?: string; solvedByName?: string | null;
   solvedAt?: string; requiresEstimate?: boolean; estimateNumber?: string | null; type: IncidentType; technician: Person; supervisor: Person; inspector?: Person;
   typeId: string; technicianId: string; supervisorId: string; inspectorId?: string; attachments: ReportAttachment[];
 };
@@ -385,7 +385,7 @@ export function ReportsPage({ sidebar, properties, unassignedOnly = false, onCle
       <td>{displayDate(incident.occurredAt)}</td><td><strong>{incident.propertyName}</strong></td>
       <td><span className="reports-type"><i style={{ background: incident.type.color || '#72a7db' }} />{incident.type.name}</span></td>
       <td><span className={`reports-importance reports-importance-${incident.importance.toLowerCase()}`}>{importanceLabel(incident.importance)}</span></td>
-      <td className="reports-description">{incident.description}{incident.resolution && <small><b>DONE</b>{incident.resolution}</small>}{incident.attachments?.length > 0 && <AttachmentLinks attachments={incident.attachments} />}</td>
+      <td className="reports-description">{incident.description}{incident.resolution && <small><b>DONE</b> {incident.resolution}{incident.solvedByName && <span> · Solved by {incident.solvedByName}</span>}</small>}{incident.attachments?.length > 0 && <AttachmentLinks attachments={incident.attachments} />}</td>
       <td>{incident.inspector?.name ?? <span className="reports-muted">Not applicable</span>}</td><td>{incident.technician.name}</td><td>{incident.supervisor.name}</td>
       <td><span className={`reports-status reports-status-${incident.status.toLowerCase()}`}>{statusLabel(incident.status)}</span></td>
       <td className="reports-action-cell"><div className="reports-row-actions">{incident.status === 'PENDING' ? <button className="solve" onClick={() => { setSolving(incident); setResolution(incident.resolution ?? ''); setSolvedAt(today()); setRequiresEstimate(incident.requiresEstimate ?? false); setEstimateNumber(incident.estimateNumber ?? ''); setConfirmed(false); }}>✓ Solve</button> : <button onClick={() => void reopen(incident)}>Reopen</button>}</div></td>
@@ -412,7 +412,7 @@ function ReportSheet({ title, subtitle, items, distribution }: { title: string; 
       <div className="reports-print-record-heading"><div><span>{reportDate(item.occurredAt)}</span><h3>{item.propertyName}</h3></div><b className={`reports-print-record-status reports-print-record-status-${item.status.toLowerCase()}`}>{reportStatusLabel(item.status)}</b></div>
       <div className="reports-print-record-meta"><span><b>Tipo</b>{item.type.name}</span><span><b>Importancia</b>{reportImportanceLabel(item.importance)}</span><span><b>Técnico</b>{item.technician.name}</span><span><b>Supervisor</b>{item.supervisor.name}</span><span><b>Inspector</b>{item.inspector?.name ?? 'No aplica'}</span></div>
       <p>{item.description}</p>
-      {item.resolution && <small><b>HECHO:</b> {item.resolution}</small>}
+      {item.resolution && <small><b>HECHO:</b> {item.resolution}{item.solvedByName && <> · Solucionado por: {item.solvedByName}</>}</small>}
       {item.attachments?.length > 0 && <small><b>ARCHIVOS:</b> {item.attachments.map((file) => file.fileName).join(', ')}</small>}
     </article>)}</section>
     <section className="reports-print-pending"><h2>▲ Pendientes al cierre</h2>{pending.length === 0 ? <p>No hay novedades pendientes en este período.</p> : <ul>{pending.map((item) => <li key={item.id}><b>{reportDate(item.occurredAt)} · {item.propertyName}</b> — {item.type.name} · {reportImportanceLabel(item.importance)}: {item.description}</li>)}</ul>}</section>

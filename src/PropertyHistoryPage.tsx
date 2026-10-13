@@ -44,7 +44,7 @@ type WaterBodyInformationForm = {
 };
 type PropertyReport = {
   id: string; occurredAt: string; propertyId?: string | null; propertyName: string; importance: 'HIGH' | 'MEDIUM' | 'LOW';
-  description: string; requiresInspector: boolean; status: 'PENDING' | 'SOLVED'; resolution?: string | null;
+  description: string; requiresInspector: boolean; status: 'PENDING' | 'SOLVED'; resolution?: string | null; solvedByName?: string | null;
   type: { name: string; color?: string }; technician: { name: string; color?: string }; supervisor: { name: string };
   inspector?: { name: string } | null; attachments?: Array<{ id: string; fileName: string; sharepointWebUrl: string }>;
 };
@@ -538,7 +538,7 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
       <div className="history-record-header"><div><span className="history-record-date">{reportDate(report.occurredAt)}</span><h3>{report.type.name}</h3></div><span className={'history-report-status history-report-status-' + report.status.toLowerCase()}>{reportStatus(report.status)}</span></div>
       <p className="history-record-subject">{report.description}</p>
       <dl className="history-record-summary">{info('Importance', reportImportance(report.importance))}{info('Technician', report.technician.name)}{info('Supervisor', report.supervisor.name)}{info('Inspector', report.inspector?.name || 'Not applicable')}{info('Requires inspector', report.requiresInspector ? 'Yes' : 'No')}</dl>
-      {report.resolution && <div className="history-report-resolution"><strong>Resolution</strong><p>{report.resolution}</p></div>}
+      {report.resolution && <div className="history-report-resolution"><strong>Resolution</strong><p>{report.resolution}</p>{report.solvedByName && <small>Solved by {report.solvedByName}</small>}</div>}
       {report.attachments && report.attachments.length > 0 && <div className="history-report-files"><strong>Files</strong>{report.attachments.map((file) => <a key={file.id} href={file.sharepointWebUrl} target="_blank" rel="noreferrer">{file.fileName}</a>)}</div>}
     </article>;
   }
