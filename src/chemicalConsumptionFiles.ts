@@ -1,5 +1,5 @@
 import type { ConsumptionFile, ConsumptionImportRow } from './chemicalConsumptionImport';
-import { parseSkimmerDosages, pdfTextLines } from './chemicalConsumptionImport';
+import { parseQuickBooksMonthlyFees, parseSkimmerDosages, pdfTextLines } from './chemicalConsumptionImport';
 
 export async function readConsumptionPdf(file: File, onProgress: (value: string) => void) {
   const pdfjs = await import('pdfjs-dist');
@@ -50,12 +50,14 @@ export async function readMonthlyFees(file: File, month: string): Promise<Consum
     }
     return cells;
   });
+  const transactionReport = parseQuickBooksMonthlyFees(sheetRows, month, file.name);
+  if (transactionReport) return transactionReport;
   const headers = new Map<string, string>();
   sheetRows[0]?.forEach((value, column) => headers.set(value.trim().toLowerCase(), column));
   const propertyColumn = headers.get('propiedad');
   const feeColumn = headers.get('mensualidad');
   const codeColumn = headers.get('codigo') || headers.get('código');
-  if (!propertyColumn || !feeColumn) throw new Error('Usa la hoja Por Propiedad o un Excel con columnas Propiedad, Mensualidad y Código (opcional).');
+  if (!propertyColumn || !feeColumn) throw new Error('Usa el Transaction Report de QuickBooks, la hoja Por Propiedad o columnas Propiedad, Mensualidad y Código (opcional).');
   const rows: ConsumptionImportRow[] = [];
   const names = new Set<string>();
   sheetRows.forEach((row, index) => {

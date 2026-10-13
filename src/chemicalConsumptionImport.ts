@@ -2,6 +2,68 @@ export type ConsumptionChemical = { name: string; unit: string; quantity: number
 export type ConsumptionImportRow = { propertyName: string; code?: string; propertyId?: string; chemicals?: ConsumptionChemical[]; monthlyFee?: number };
 export type ConsumptionFile = { month: string; sourceName: string; rows: ConsumptionImportRow[]; warnings: string[] };
 
+function transactionMonth(value: string) {
+  const usDate = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (usDate) return `${usDate[3]}-${usDate[1].padStart(2, '0')}`;
+  const isoDate = value.match(/^(\d{4}-\d{2})-\d{2}/);
+  if (isoDate) return isoDate[1];
+  if (/^\d+(?:\.\d+)?$/.test(value)) {
+    const date = new Date(Date.UTC(1899, 11, 30) + Number(value) * 86400000);
+    if (Number.isFinite(date.getTime())) return date.toISOString().slice(0, 7);
+  }
+  return null;
+}
+
+export function parseQuickBooksMonthlyFees(sheetRows: Map<string, string>[], month: string, sourceName: string): ConsumptionFile | null {
+  const headerIndex = sheetRows.findIndex((row) => {
+    const values = [...row.values()].map((value) => value.trim().toLowerCase());
+    return ['transaction date', 'transaction type', 'name', 'account name', 'amount'].every((header) => values.includes(header));
+  });
+  if (headerIndex < 0) return null;
+  const headers = new Map<string, string>();
+  sheetRows[headerIndex].forEach((value, column) => headers.set(value.trim().toLowerCase(), column));
+  const field = (row: Map<string, string>, name: string) => (row.get(headers.get(name) || '') || '').trim();
+  const groups = new Map<string, { propertyName: string; cents: number; invoices: Set<string> }>();
+  const warnings: string[] = [];
+  let otherCharges = 0;
+  for (const row of sheetRows.slice(headerIndex + 1)) {
+    const date = field(row, 'transaction date');
+    if (!date || transactionMonth(date) !== month) continue;
+    const account = field(row, 'account name');
+    // Select only recurring maintenance accounts, excluding the sibling Extra Chemical account.
+    if (!/(?:COMMERCIAL|RESIDENTIAL) MAINTENANCE/i.test(account)) { otherCharges++; continue; }
+    const propertyName = field(row, 'name');
+    if (!propertyName) { warnings.push('Hay una línea de mantenimiento sin nombre de propiedad; se excluyó.'); continue; }
+    const type = field(row, 'transaction type');
+    const invoice = field(row, 'num');
+    const description = field(row, 'description');
+    if (type.toLowerCase() !== 'invoice') { warnings.push(`${propertyName}: transacción ${type} excluida; revisa su efecto en la mensualidad.`); continue; }
+    if (!invoice) { warnings.push(`${propertyName}: falta el número de invoice; se excluyó la línea.`); continue; }
+    if (/quarterly|trimestral|annual|anual|invoices\s*#/i.test(description)) {
+      warnings.push(`${propertyName}: cargo trimestral, anual o de varias facturas excluido de la mensualidad (${invoice}).`);
+      continue;
+    }
+    const amount = field(row, 'amount');
+    const parsed = Number(amount.replace(/[$,\s]/g, '').replace(/^\((.+)\)$/, '-$1'));
+    if (!amount || !Number.isFinite(parsed) || parsed < 0) { warnings.push(`${propertyName}: importe inválido o negativo en invoice ${invoice}; se excluyó.`); continue; }
+    if (/partial|parcial/i.test(description)) warnings.push(`${propertyName}: invoice ${invoice} tiene facturación parcial; se usa el importe facturado del mes, sin convertirlo en tarifa de un mes completo.`);
+    if (parsed === 0) warnings.push(`${propertyName}: invoice ${invoice} registra mantenimiento en $0; revisa antes de confirmar.`);
+    const key = propertyName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').toLowerCase();
+    const group = groups.get(key) || { propertyName, cents: 0, invoices: new Set<string>() };
+    group.cents += Math.round(parsed * 100);
+    group.invoices.add(invoice);
+    groups.set(key, group);
+  }
+  const rows: ConsumptionImportRow[] = [];
+  for (const group of groups.values()) {
+    if (group.invoices.size > 1) { warnings.push(`${group.propertyName}: tiene varias facturas de mantenimiento en ${month}. Se excluyó para comprobar que no se sumen mensualidades distintas.`); continue; }
+    rows.push({ propertyName: group.propertyName, monthlyFee: group.cents / 100 });
+  }
+  if (otherCharges) warnings.unshift(`Se omitieron ${otherCharges} líneas de otras cuentas del mes: reparaciones, químicos extra y otros ingresos no se incluyen en la mensualidad.`);
+  if (!rows.length) throw new Error(`No se encontraron invoices de mantenimiento importables para ${month}. Selecciona un mes incluido en el reporte.`);
+  return { month, sourceName, rows, warnings: [...new Set(warnings)] };
+}
+
 export function pdfTextLines(items: Array<{ str: string; transform: number[] }>) {
   const groups: Array<{ y: number; items: Array<{ x: number; text: string }> }> = [];
   for (const item of items) {
