@@ -5261,3 +5261,21 @@ tbody tr:hover,
 @media (max-width: 420px) {
   .property-history-page .history-alert-filter { height: 40px; }
 }
+
+@media (max-width: 800px) {
+  /* Show every panel available to the user in the bottom navigation. */
+  .app-sidebar nav { display: grid; flex: 1; flex-direction: initial; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 62px; align-content: center; gap: 3px; overflow: visible; }
+  .app-sidebar nav button { width: auto; min-width: 0; flex: none; }
+  .app-sidebar[data-area-count="2"] nav { grid-template-columns: repeat(2, minmax(0, 120px)); justify-content: center; }
+  .app-sidebar[data-area-count="3"] nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .app-sidebar[data-area-count="4"] nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .app-sidebar[data-area-count="5"] nav,
+  .app-sidebar[data-area-count="6"] nav,
+  .app-sidebar[data-area-count="7"] nav { align-content: start; }
+  body:has(.app-sidebar[data-area-count="5"]) .app-page,
+  body:has(.app-sidebar[data-area-count="6"]) .app-page,
+  body:has(.app-sidebar[data-area-count="7"]) .app-page { padding-bottom: calc(198px + env(safe-area-inset-bottom)); }
+  body:has(.app-sidebar[data-area-count="5"]) .app-sidebar,
+  body:has(.app-sidebar[data-area-count="6"]) .app-sidebar,
+  body:has(.app-sidebar[data-area-count="7"]) .app-sidebar { height: calc(180px + env(safe-area-inset-bottom)); }
+}

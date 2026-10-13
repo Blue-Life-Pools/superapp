@@ -2459,7 +2459,7 @@ function App() {
         : area.id === 'home' || area.id === 'complaints' || area.id === 'quality' || area.id === assignedArea);
 
     return (<>
-      <aside className={`app-sidebar${sidebarCollapsed ? ' app-sidebar-collapsed' : ''}`} aria-label="BlueLife areas">
+      <aside className={`app-sidebar${sidebarCollapsed ? ' app-sidebar-collapsed' : ''}`} data-area-count={areas.length} aria-label="BlueLife areas">
         <button className="sidebar-collapse-button" type="button" onClick={() => setSidebarCollapsed(true)} aria-label="Hide navigation and use full screen" title="Hide navigation">‹</button>
         <div className="sidebar-brand">
           <img className="sidebar-logo" src="/blue-life-logo.png" alt="Blue Life Pool Service" decoding="async" />
