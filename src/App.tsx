@@ -2448,7 +2448,13 @@ function App() {
     if (!sharedChemicalAccess && area !== 'home') {
       const role = appSession?.user.role;
       const assignedArea = role?.toLowerCase();
-      const sharedAreas: AppArea[] = role === 'QUALITY' ? ['home', 'quality'] : isNathalia ? ['home', 'quality'] : ['home', 'complaints', 'quality'];
+      const sharedAreas: AppArea[] = role === 'QUALITY'
+        ? ['home', 'quality']
+        : role === 'REPORTS'
+          ? ['home', 'reports', 'complaints', 'quality']
+          : isNathalia
+            ? ['home', 'quality']
+            : ['home', 'complaints', 'quality'];
       if (!['SUPER_ADMIN', 'OPERATIONS_DIRECTOR'].includes(role || '') && !sharedAreas.includes(area) && area !== assignedArea) area = 'home';
     }
     setActiveArea(area);
@@ -2476,6 +2482,8 @@ function App() {
       ? allAreas
       : role === 'QUALITY'
         ? allAreas.filter((area) => area.id === 'home' || area.id === 'quality')
+      : role === 'REPORTS'
+        ? allAreas.filter((area) => area.id === 'home' || area.id === 'reports' || area.id === 'quality' || (!isNathalia && area.id === 'complaints'))
       : allAreas.filter((area) => isNathalia
         ? area.id === 'home' || area.id === 'reports' || area.id === 'quality'
         : area.id === 'home' || area.id === 'complaints' || area.id === 'quality' || area.id === assignedArea);
