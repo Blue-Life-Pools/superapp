@@ -90,10 +90,11 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
   let totalPending = false;
   let grandTotal: number | null = null;
   const technicianDetails = new Map<string, ConsumptionTechnicianUsage[]>();
+  let lastDetailUsage: ConsumptionTechnicianUsage | null = null;
   const complete = () => {
     const finished = current;
     const recordedTotal = grandTotal;
-    current = null; grandTotal = null; totalPending = false; technicianDetails.clear();
+    current = null; grandTotal = null; totalPending = false; technicianDetails.clear(); lastDetailUsage = null;
     if (!finished) return;
     const sum = (finished.chemicals || []).reduce((value, chemical) => value + chemical.cost, 0);
     if (!finished.chemicals?.length || recordedTotal === null || Math.abs(sum - recordedTotal) > .03) {
@@ -116,6 +117,7 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
     }
     const header = line.match(/^(.*?)\s*\(([A-Z0-9][A-Z0-9 -]{5,})\)\s*$/);
     if (header && !line.includes('$')) {
+      lastDetailUsage = null;
       if (current) complete();
       const name = header[1].trim() || lines[i - 1]?.trim();
       if (!name || /Grand Total|Service Date/i.test(name)) continue;
@@ -123,6 +125,12 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
       continue;
     }
     if (!current) continue;
+    if (lastDetailUsage && /^[A-Za-zÀ-ÿ.'-]+$/.test(line)) {
+      lastDetailUsage.name = `${lastDetailUsage.name} ${line}`;
+      lastDetailUsage = null;
+      continue;
+    }
+    lastDetailUsage = null;
     const detail = line.match(/^\d{1,2}\/\d{1,2}\/\d{4}\s+(.+?)\s+((?:Back )?Pool)\s+(.+?)\s+([\d,]+(?:\.\d+)?\s*[Â¼Â½Â¾]?|[Â¼Â½Â¾])\s+(\S+)\s+\(?\$([\d,]+\.\d{2})\)?/i);
     if (detail) {
       const [, technician, , name, quantity, unit, cost] = detail;
@@ -134,6 +142,7 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
       if (existing) { existing.quantity += value; existing.cost = Math.round((existing.cost + amount) * 100) / 100; }
       else usages.push({ name: technician.trim(), quantity: value, cost: amount });
       technicianDetails.set(key, usages);
+      lastDetailUsage = usages[usages.length - 1];
       continue;
     }
     const summary = line.match(/^(.+?)\s+([\d,]+(?:\.\d+)?\s*[¼½¾]?|[¼½¾])\s+(\S+)\s+\(?\$([\d,]+\.\d{2})\)?\s+\$[\d,.]+/);
@@ -142,7 +151,17 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
     const value = quantityValue(quantity);
     const amount = Number(cost.replace(/,/g, ''));
     const chemical = current.chemicals!.find((entry) => entry.name === name && entry.unit.toLowerCase() === unit.toLowerCase());
-    const technicians = technicianDetails.get(`${name}|${unit.toLowerCase()}`);
+    const rawTechnicians = technicianDetails.get(`${name}|${unit.toLowerCase()}`);
+    const technicians = rawTechnicians?.reduce<ConsumptionTechnicianUsage[]>((merged, usage) => {
+      const existing = merged.find((item) => item.name.toLowerCase() === usage.name.toLowerCase());
+      if (existing) {
+        existing.quantity += usage.quantity;
+        existing.cost = Math.round((existing.cost + usage.cost) * 100) / 100;
+      } else {
+        merged.push({ ...usage });
+      }
+      return merged;
+    }, []);
     if (chemical) { chemical.quantity += value; chemical.cost = Math.round((chemical.cost + amount) * 100) / 100; if (technicians?.length) chemical.technicians = technicians; }
     else current.chemicals!.push({ name, quantity: value, unit, cost: amount, ...(technicians?.length ? { technicians } : {}) });
   }
