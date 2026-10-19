@@ -43,6 +43,7 @@ type ContactRelation = {
 type WaterBody = {
   id: string;
   name: string;
+  technicianName: string | null;
   type: string;
   size: string | null;
   gallons: number | null;
@@ -371,6 +372,7 @@ type EditContactForm = ContactForm & {
 type WaterBodyForm = {
   id?: string;
   name: string;
+  technicianName: string;
   type: string;
   size: string;
   gallons: string;
@@ -379,6 +381,7 @@ type WaterBodyForm = {
 
 const emptyWaterBodyForm: WaterBodyForm = {
   name: '',
+  technicianName: '',
   type: 'SWIMMING_POOL',
   size: 'MEDIUM',
   gallons: '',
@@ -578,6 +581,20 @@ function WaterBodiesEditor({
                     value={body.name}
                     onChange={(event) =>
                       onUpdate(index, 'name', event.target.value)
+                    }
+                  />
+                </div>
+
+                <div className="form-field water-body-technician-field">
+                  <label htmlFor={`${idPrefix}-technician-${index}`}>
+                    Technician name (optional)
+                  </label>
+                  <input
+                    id={`${idPrefix}-technician-${index}`}
+                    placeholder="Name of the pool technician"
+                    value={body.technicianName}
+                    onChange={(event) =>
+                      onUpdate(index, 'technicianName', event.target.value)
                     }
                   />
                 </div>
@@ -1301,6 +1318,7 @@ function App() {
       selectedProperty.waterBodies.map((waterBody) => ({
         id: waterBody.id,
         name: waterBody.name,
+        technicianName: waterBody.technicianName ?? '',
         type: waterBody.type,
         size: waterBody.type === 'SPA' ? '' : waterBody.size ?? 'MEDIUM',
         gallons: waterBody.gallons?.toString() ?? '',
@@ -1543,6 +1561,7 @@ function App() {
             })),
             waterBodies: createWaterBodies.map((waterBody) => ({
               name: waterBody.name.trim(),
+              technicianName: waterBody.technicianName.trim() || undefined,
               type: waterBody.type,
               size: waterBody.size || undefined,
               gallons: waterBody.gallons ? Number(waterBody.gallons) : undefined,
@@ -2342,6 +2361,7 @@ function App() {
             })),
             waterBodies: editWaterBodies.map((waterBody) => ({
               name: waterBody.name.trim(),
+              technicianName: waterBody.technicianName.trim() || undefined,
               type: waterBody.type,
               size: waterBody.size || undefined,
               gallons: waterBody.gallons ? Number(waterBody.gallons) : undefined,

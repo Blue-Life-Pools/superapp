@@ -18,7 +18,7 @@ type HistoryProperty = {
   sharepointFolderUrl: string | null;
   managementCompany: { id: string; name: string } | null;
   contacts: Array<{ id: string; role: string | null; isPrimary: boolean; contact: { id: string; firstName: string | null; lastName: string | null; email: string | null; phone: string | null } }>;
-  waterBodies: Array<{ id: string; name: string; type: string; size: string | null; gallons: number | null; active: boolean }>;
+  waterBodies: Array<{ id: string; name: string; technicianName: string | null; type: string; size: string | null; gallons: number | null; active: boolean }>;
 };
 type GeneralInformationForm = {
   name: string;
@@ -43,6 +43,7 @@ type ContactInformationForm = {
 };
 type WaterBodyInformationForm = {
   name: string;
+  technicianName: string;
   type: string;
   size: string;
   gallons: string;
@@ -130,6 +131,7 @@ function propertyToContactInformation(property: HistoryProperty): ContactInforma
 function propertyToWaterBodyInformation(property: HistoryProperty): WaterBodyInformationForm[] {
   return property.waterBodies.map((body) => ({
     name: body.name,
+    technicianName: body.technicianName || '',
     type: body.type,
     size: body.size || '',
     gallons: body.gallons == null ? '' : String(body.gallons),
@@ -534,7 +536,7 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
     setWaterBodiesMessage('');
   }
   function addWaterBody() {
-    setWaterBodyForms((current) => [...current, { name: '', type: 'SWIMMING_POOL', size: 'MEDIUM', gallons: '', active: true }]);
+    setWaterBodyForms((current) => [...current, { name: '', technicianName: '', type: 'SWIMMING_POOL', size: 'MEDIUM', gallons: '', active: true }]);
   }
   function updateWaterBody(index: number, field: keyof WaterBodyInformationForm, value: string | boolean) {
     setWaterBodyForms((current) => current.map((body, bodyIndex) => bodyIndex === index ? { ...body, [field]: value } as WaterBodyInformationForm : body));
@@ -560,6 +562,7 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
         body: JSON.stringify({
           waterBodies: waterBodyForms.map((body) => ({
             name: body.name.trim(),
+            technicianName: body.technicianName.trim() || undefined,
             type: body.type,
             size: body.type === 'SPA' ? undefined : body.size || undefined,
             gallons: body.gallons ? Number(body.gallons) : undefined,
