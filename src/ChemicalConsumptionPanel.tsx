@@ -14,6 +14,12 @@ const money = (value: number | null) => value === null ? 'No monthly fee' : valu
 const quantity = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 4 });
 const percent = (value: number | null) => value === null ? '—' : `${value.toFixed(2)}%`;
 const sizeLabel: Record<string, string> = { SMALL: 'Small', MEDIUM: 'Medium', LARGE: 'Large', EXTRA_LARGE: 'Extra large' };
+function technicianSplit(chemical: ConsumptionChemical) {
+  const usage = chemical.technicians || [];
+  const georky = usage.filter((item) => item.name.toLowerCase().includes('georky')).reduce((total, item) => ({ quantity: total.quantity + item.quantity, cost: total.cost + item.cost }), { quantity: 0, cost: 0 });
+  const others = usage.filter((item) => !item.name.toLowerCase().includes('georky')).reduce((total, item) => ({ quantity: total.quantity + item.quantity, cost: total.cost + item.cost }), { quantity: 0, cost: 0 });
+  return { georky, others };
+}
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await apiFetch(`${API_URL}/chemicals/consumption${path}`, options);
   const data = await response.json().catch(() => ({}));
@@ -94,6 +100,7 @@ export function ChemicalConsumptionPanel() {
   const overconsumption = chlorineOverages(dashboard.periods).map((item) => ({ ...item, propertyName: dashboard.properties.find((property) => property.id === item.propertyId)?.name || item.propertyId, technicianNames: [...new Set((dashboard.properties.find((property) => property.id === item.propertyId)?.waterBodies || []).map((body) => body.technicianName?.trim()).filter(Boolean) as string[])].join(', '), chemicalCostPercent: dashboard.periods.find((period) => period.propertyId === item.propertyId)?.costPercent ?? -1 })).sort((a, b) => b.chemicalCostPercent - a.chemicalCostPercent || (b.chemical.excessPercent ?? 0) - (a.chemical.excessPercent ?? 0));
   const overconsumptionProperties = new Set(overconsumption.map((item) => item.propertyId)).size;
   const reviewedProperties = dashboard.periods.filter((item) => item.chemicals.some((chemical) => isChlorineChemical(chemical.name) && chemical.expectedMax != null)).length;
+  const reportTechnicians = selectedProperty && period ? [...new Set(period.chemicals.flatMap((chemical) => (chemical.technicians || []).map((item) => item.name)))].join(', ') : '';
   return <section className="consumption-panel">
     <header className="consumption-heading"><div><h2>Property consumption</h2><p>Applied quantities, cost and monthly fee allocation by water body.</p></div><label>Month<input type="month" value={month} disabled={busy} onChange={(event) => { if (event.target.value) { setMonth(event.target.value); setPending(null); } }} /></label></header>
     <p className="consumption-muted">To import monthly fees from the QuickBooks Transaction Report, select a month first. Only maintenance invoices are included; repairs and extra chemical charges are excluded.</p>
@@ -134,19 +141,21 @@ export function ChemicalConsumptionPanel() {
     {selectedProperty && !loading && <>
       <h3>{selectedProperty.name}</h3><p className="consumption-muted">{selectedProperty.code} · {selectedProperty.waterBodies.filter((body) => body.active).length} active water bodies · {period?.sourceName || 'No consumption imported for this month'}</p>
       <form className="consumption-settings" onSubmit={(event) => { event.preventDefault(); void save(); }}><label>Total monthly fee ($)<input required type="number" min="0" step="0.01" value={monthlyFee} onChange={(event) => setMonthlyFee(event.target.value)} /></label><label>Chemical budget (%)<input type="number" min="0" max="100" step="0.1" placeholder="No limit set" value={budgetPercent} onChange={(event) => setBudgetPercent(event.target.value)} /></label><button className="primary-button" disabled={busy}>Save monthly fee</button></form>
-      {period && <><div className="consumption-kpis"><article><span>Monthly fee</span><strong>{money(period.monthlyFee)}</strong></article><article><span>Chemical cost</span><strong>{money(period.totalCost)}</strong></article><article className={period.overBudget ? 'consumption-high' : ''}><span>Monthly fee spent on chemicals</span><strong>{percent(period.costPercent)}</strong><small>{period.budget === null ? 'No budget set' : `Budget: ${money(period.budget)}`}</small></article><article><span>Water bodies</span><strong>{selectedProperty.waterBodies.filter((body) => body.active).length}</strong><small>Active water bodies</small></article></div>
+      {period && <><div className="consumption-kpis"><article><span>Monthly fee</span><strong>{money(period.monthlyFee)}</strong></article><article><span>Chemical cost</span><strong>{money(period.totalCost)}</strong></article><article className={period.overBudget ? 'consumption-high' : ''}><span>Monthly fee spent on chemicals</span><strong>{percent(period.costPercent)}</strong><small>{period.budget === null ? 'No budget set' : `Budget: ${money(period.budget)}`}</small></article><article><span>Water bodies</span><strong>{selectedProperty.waterBodies.filter((body) => body.active).length}</strong><small>Active water bodies</small></article><article><span>Technician(s)</span><strong className="consumption-kpi-technicians">{reportTechnicians || 'Not recorded'}</strong><small>From Skimmer report</small></article></div>
       <h3>Property chemical consumption</h3>
       <div className="consumption-history-details">{period.chemicals.filter((chemical) => isChlorineChemical(chemical.name) && chemical.referenceSource === 'HISTORY_2025').map((chemical) => <p key={`${chemical.name}-${chemical.unit}`}><strong>{englishChemicalName(chemical.name)}</strong> · Monthly mean excluding outliers: {quantity(chemical.historicalMean!)} {chemical.unit} · Expected this month: {quantity(chemical.expectedQuantity!)} {chemical.unit} · {chemical.seasonal ? `Seasonal factor: ${chemical.historicalFactor!.toFixed(2)}` : 'No reliable seasonal factor; adjusted by days only'} · {chemical.historicalMonths} recorded months, {chemical.excludedMonths?.length || 0} outliers excluded.</p>)}</div>
         <div className="consumption-chemical-list">{period.chemicals.map((chemical) => {
           const chlorine = isChlorineChemical(chemical.name);
           const evaluated = chlorine && chemical.expectedMax != null;
           const high = evaluated && chemical.status === 'HIGH';
+          const split = technicianSplit(chemical);
           return <article key={`${chemical.name}-${chemical.unit}`} className={`consumption-chemical consumption-${chlorine ? chemical.status.toLowerCase() : 'recorded'}`}>
             <div><strong>{englishChemicalName(chemical.name)}</strong><span>{quantity(chemical.quantity)} {chemical.unit} · {money(chemical.cost)}</span>
               <small>{!chlorine ? 'Recorded consumption · Informational only' : !evaluated ? 'Insufficient chlorine history to evaluate overconsumption' : high ? 'Chlorine overconsumption' : 'No chlorine overconsumption'}
                 {evaluated ? ` · Monthly threshold: ${quantity(chemical.expectedMax!)} ${chemical.unit}` : ''}
               </small>
               {high && <b className="consumption-excess">Excess: {quantity(chemical.excessQuantity ?? chemical.quantity - chemical.expectedMax!)} {chemical.unit}{chemical.excessPercent != null ? ` (+${chemical.excessPercent.toFixed(1)}%)` : ''}</b>}
+              {chemical.technicians?.length && <div className="consumption-technician-split"><p><strong>Georky refill:</strong> {quantity(split.georky.quantity)} {chemical.unit} · {money(split.georky.cost)}</p><p><strong>Other technicians:</strong> {quantity(split.others.quantity)} {chemical.unit} · {money(split.others.cost)}</p></div>}
             </div>
           </article>;
         })}</div>

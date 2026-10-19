@@ -1,4 +1,5 @@
-export type ConsumptionChemical = { name: string; unit: string; quantity: number; cost: number };
+export type ConsumptionTechnicianUsage = { name: string; quantity: number; cost: number };
+export type ConsumptionChemical = { name: string; unit: string; quantity: number; cost: number; technicians?: ConsumptionTechnicianUsage[] };
 export type ConsumptionImportRow = { propertyName: string; code?: string; propertyId?: string; chemicals?: ConsumptionChemical[]; monthlyFee?: number };
 export type ConsumptionFile = { month: string; sourceName: string; rows: ConsumptionImportRow[]; warnings: string[] };
 
@@ -88,10 +89,11 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
   let current: ConsumptionImportRow | null = null;
   let totalPending = false;
   let grandTotal: number | null = null;
+  const technicianDetails = new Map<string, ConsumptionTechnicianUsage[]>();
   const complete = () => {
     const finished = current;
     const recordedTotal = grandTotal;
-    current = null; grandTotal = null; totalPending = false;
+    current = null; grandTotal = null; totalPending = false; technicianDetails.clear();
     if (!finished) return;
     const sum = (finished.chemicals || []).reduce((value, chemical) => value + chemical.cost, 0);
     if (!finished.chemicals?.length || recordedTotal === null || Math.abs(sum - recordedTotal) > .03) {
@@ -120,15 +122,29 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
       current = { propertyName: name, code: header[2].trim(), chemicals: [] };
       continue;
     }
-    if (!current || /^\d{1,2}\/\d{1,2}\/\d{4}/.test(line)) continue;
+    if (!current) continue;
+    const detail = line.match(/^\d{1,2}\/\d{1,2}\/\d{4}\s+(.+?)\s+((?:Back )?Pool)\s+(.+?)\s+([\d,]+(?:\.\d+)?\s*[Â¼Â½Â¾]?|[Â¼Â½Â¾])\s+(\S+)\s+\(?\$([\d,]+\.\d{2})\)?/i);
+    if (detail) {
+      const [, technician, , name, quantity, unit, cost] = detail;
+      const key = `${name.trim()}|${unit.toLowerCase()}`;
+      const usages = technicianDetails.get(key) || [];
+      const existing = usages.find((usage) => usage.name.toLowerCase() === technician.trim().toLowerCase());
+      const value = quantityValue(quantity);
+      const amount = Number(cost.replace(/,/g, ''));
+      if (existing) { existing.quantity += value; existing.cost = Math.round((existing.cost + amount) * 100) / 100; }
+      else usages.push({ name: technician.trim(), quantity: value, cost: amount });
+      technicianDetails.set(key, usages);
+      continue;
+    }
     const summary = line.match(/^(.+?)\s+([\d,]+(?:\.\d+)?\s*[¼½¾]?|[¼½¾])\s+(\S+)\s+\(?\$([\d,]+\.\d{2})\)?\s+\$[\d,.]+/);
     if (!summary) continue;
     const [, name, quantity, unit, cost] = summary;
     const value = quantityValue(quantity);
     const amount = Number(cost.replace(/,/g, ''));
     const chemical = current.chemicals!.find((entry) => entry.name === name && entry.unit.toLowerCase() === unit.toLowerCase());
-    if (chemical) { chemical.quantity += value; chemical.cost = Math.round((chemical.cost + amount) * 100) / 100; }
-    else current.chemicals!.push({ name, quantity: value, unit, cost: amount });
+    const technicians = technicianDetails.get(`${name}|${unit.toLowerCase()}`);
+    if (chemical) { chemical.quantity += value; chemical.cost = Math.round((chemical.cost + amount) * 100) / 100; if (technicians?.length) chemical.technicians = technicians; }
+    else current.chemicals!.push({ name, quantity: value, unit, cost: amount, ...(technicians?.length ? { technicians } : {}) });
   }
   if (current) complete();
   if (!rows.length) throw new Error('No properties with reconciled quantities and totals were found.');
