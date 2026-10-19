@@ -7,6 +7,10 @@
 .consumption-overage-list span, .consumption-overage-list b, .consumption-history-details p { font-size: 12px; line-height: 1.6; }
 .consumption-overage-list b { color: #b42318; }
 .consumption-history-details { display: grid; gap: 8px; }
+.consumption-excess { color: #b42318; font-size: 12px; }
+.consumption-panel .consumption-chemical { grid-template-columns: minmax(0, 1fr); }
+.consumption-panel .consumption-settings { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 759px) { .consumption-panel .consumption-settings { grid-template-columns: minmax(0, 1fr); } }
 .consumption-panel h2 { font-size: 22px; }.consumption-panel h3 { font-size: 17px; }
 .consumption-panel label { display: grid; gap: 6px; font-size: 12px; font-weight: 700; min-width: 0; }
 .consumption-panel input, .consumption-panel select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid #bfd9e7; border-radius: 9px; background: white; color: #075477; font: inherit; font-size: 16px; }
