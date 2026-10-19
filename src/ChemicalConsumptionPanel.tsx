@@ -129,6 +129,7 @@ export function ChemicalConsumptionPanel() {
         </datalist>
       </label>
     </div>
+    <div className="consumption-report-divider" role="separator" aria-label="Property report" />
     {loading && <p>Loading consumption and profiles…</p>}
     {selectedProperty && !loading && <>
       <h3>{selectedProperty.name}</h3><p className="consumption-muted">{selectedProperty.code} · {selectedProperty.waterBodies.filter((body) => body.active).length} active water bodies · {period?.sourceName || 'No consumption imported for this month'}</p>
