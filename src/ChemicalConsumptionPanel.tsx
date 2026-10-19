@@ -20,6 +20,9 @@ function technicianSplit(chemical: ConsumptionChemical) {
   const others = usage.filter((item) => !item.name.toLowerCase().includes('georky')).reduce((total, item) => ({ quantity: total.quantity + item.quantity, cost: total.cost + item.cost }), { quantity: 0, cost: 0 });
   return { georky, others };
 }
+function isLiquidChlorine(chemical: ConsumptionChemical) {
+  return chemical.name.toLowerCase().includes('liquid chlorine');
+}
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await apiFetch(`${API_URL}/chemicals/consumption${path}`, options);
   const data = await response.json().catch(() => ({}));
@@ -100,7 +103,7 @@ export function ChemicalConsumptionPanel() {
   const overconsumption = chlorineOverages(dashboard.periods).map((item) => ({ ...item, propertyName: dashboard.properties.find((property) => property.id === item.propertyId)?.name || item.propertyId, technicianNames: [...new Set((dashboard.properties.find((property) => property.id === item.propertyId)?.waterBodies || []).map((body) => body.technicianName?.trim()).filter(Boolean) as string[])].join(', '), chemicalCostPercent: dashboard.periods.find((period) => period.propertyId === item.propertyId)?.costPercent ?? -1 })).sort((a, b) => b.chemicalCostPercent - a.chemicalCostPercent || (b.chemical.excessPercent ?? 0) - (a.chemical.excessPercent ?? 0));
   const overconsumptionProperties = new Set(overconsumption.map((item) => item.propertyId)).size;
   const reviewedProperties = dashboard.periods.filter((item) => item.chemicals.some((chemical) => isChlorineChemical(chemical.name) && chemical.expectedMax != null)).length;
-  const reportTechnicians = selectedProperty && period ? [...new Set(period.chemicals.flatMap((chemical) => (chemical.technicians || []).map((item) => item.name)))].join(', ') : '';
+  const reportTechnicians = selectedProperty && period ? [...new Set(period.chemicals.flatMap((chemical) => (isLiquidChlorine(chemical) ? chemical.technicians || [] : []).filter((item) => !item.name.toLowerCase().includes('georky')).map((item) => item.name)))].join(', ') : '';
   return <section className="consumption-panel">
     <header className="consumption-heading"><div><h2>Property consumption</h2><p>Applied quantities, cost and monthly fee allocation by water body.</p></div><label>Month<input type="month" value={month} disabled={busy} onChange={(event) => { if (event.target.value) { setMonth(event.target.value); setPending(null); } }} /></label></header>
     <p className="consumption-muted">To import monthly fees from the QuickBooks Transaction Report, select a month first. Only maintenance invoices are included; repairs and extra chemical charges are excluded.</p>
@@ -155,7 +158,7 @@ export function ChemicalConsumptionPanel() {
                 {evaluated ? ` · Monthly threshold: ${quantity(chemical.expectedMax!)} ${chemical.unit}` : ''}
               </small>
               {high && <b className="consumption-excess">Excess: {quantity(chemical.excessQuantity ?? chemical.quantity - chemical.expectedMax!)} {chemical.unit}{chemical.excessPercent != null ? ` (+${chemical.excessPercent.toFixed(1)}%)` : ''}</b>}
-              {chemical.technicians?.length && <div className="consumption-technician-split"><p><strong>Georky refill:</strong> {quantity(split.georky.quantity)} {chemical.unit} · {money(split.georky.cost)}</p><p><strong>Other technicians:</strong> {quantity(split.others.quantity)} {chemical.unit} · {money(split.others.cost)}</p></div>}
+              {isLiquidChlorine(chemical) && chemical.technicians?.length && <div className="consumption-technician-split">{split.georky.quantity > 0 && <p><strong>Georky refill:</strong> {quantity(split.georky.quantity)} {chemical.unit} · {money(split.georky.cost)}</p>}{split.others.quantity > 0 && <p><strong>Other technicians:</strong> {quantity(split.others.quantity)} {chemical.unit} · {money(split.others.cost)}</p>}</div>}
             </div>
           </article>;
         })}</div>
