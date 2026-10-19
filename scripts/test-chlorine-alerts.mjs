@@ -1,8 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chlorineOverages, isChlorineChemical } from '../src/chemicalConsumptionAlerts.ts';
+import { chemicalReportMonth, chlorineOverages, englishChemicalName, isChlorineChemical } from '../src/chemicalConsumptionAlerts.ts';
 
 const high = (name, excessPercent = 10) => ({ name, status: 'HIGH', expectedMax: 20, excessPercent });
+test('Home and Chemicals use the Colombia month at the UTC month boundary', () => {
+  assert.equal(chemicalReportMonth(new Date('2026-10-01T02:00:00Z')), '2026-09');
+  assert.equal(chemicalReportMonth(new Date('2026-10-01T06:00:00Z')), '2026-10');
+});
+test('translates chemical display names without modifying the underlying records', () => {
+  assert.equal(englishChemicalName('Estabilizador'), 'Stabilizer');
+  assert.equal(englishChemicalName('Liquid'), 'Liquid Chlorine');
+  assert.equal(englishChemicalName('Unknown product'), 'Unknown product');
+});
 test('recognizes recorded liquid chlorine and tablets, excluding acid and unspecified shock', () => {
   for (const name of ['Liquid', 'Liquid Chlorine', 'Cloro líquido', 'Tabs', 'Chlorine tablets']) assert.equal(isChlorineChemical(name), true);
   for (const name of ['Muriatic Acid', 'Bicarbonate', 'SALT', 'Shock', 'Phosphates']) assert.equal(isChlorineChemical(name), false);

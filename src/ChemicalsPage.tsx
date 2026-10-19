@@ -53,35 +53,35 @@ const chemicalFields: Array<{
 }> = [
   {
     key: 'liquidChlorineGallons',
-    label: 'Cloro líquido',
-    fixedUnit: { value: 'gallons', label: 'galones' },
-    shortLabel: 'Cloro',
+    label: 'Liquid Chlorine',
+    fixedUnit: { value: 'gallons', label: 'gallons' },
+    shortLabel: 'Chlorine',
   },
   {
     key: 'muriaticAcidGallons',
-    label: 'Ácido muriático',
-    fixedUnit: { value: 'gallons', label: 'galones' },
-    shortLabel: 'Ácido',
+    label: 'Muriatic Acid',
+    fixedUnit: { value: 'gallons', label: 'gallons' },
+    shortLabel: 'Acid',
   },
   {
     key: 'tabsQuantity',
-    label: 'Tabletas',
+    label: 'Tablets',
     unitKey: 'tabsUnit',
-    fixedUnit: { value: 'units', label: 'unidades' },
+    fixedUnit: { value: 'units', label: 'units' },
     shortLabel: 'Tabs',
   },
   {
     key: 'stabilizerScoops',
-    label: 'Estabilizador',
+    label: 'Stabilizer',
     unitKey: 'stabilizerUnit',
     fixedUnit: { value: 'bucket', label: 'bucket' },
-    shortLabel: 'Estab.',
+    shortLabel: 'Stab.',
   },
   {
     key: 'dePowderBags',
-    label: 'Polvo D.E.',
+    label: 'D.E. Powder',
     unitKey: 'dePowderUnit',
-    fixedUnit: { value: 'bags', label: 'bolsas' },
+    fixedUnit: { value: 'bags', label: 'bags' },
     shortLabel: 'D.E.',
   },
   {
@@ -92,27 +92,27 @@ const chemicalFields: Array<{
   },
   {
     key: 'bicarbonateScoops',
-    label: 'Bicarbonato',
-    fixedUnit: { value: 'bags', label: 'bolsas' },
+    label: 'Bicarbonate',
+    fixedUnit: { value: 'bags', label: 'bags' },
     shortLabel: 'Bicarb.',
   },
   {
     key: 'saltBags',
-    label: 'Sal',
-    fixedUnit: { value: 'bags', label: 'bolsas' },
-    shortLabel: 'Sal',
+    label: 'Salt',
+    fixedUnit: { value: 'bags', label: 'bags' },
+    shortLabel: 'Salt',
   },
   {
     key: 'phosphatesOunces',
-    label: 'Fosfato',
-    fixedUnit: { value: 'ounces', label: 'onzas' },
-    shortLabel: 'Fosfato',
+    label: 'Phosphate',
+    fixedUnit: { value: 'ounces', label: 'ounces' },
+    shortLabel: 'Phosphate',
   },
   {
     key: 'chlorinePowderScoops',
-    label: 'Cloro en polvo',
+    label: 'Chlorine Powder',
     fixedUnit: { value: 'scoops', label: 'scoops' },
-    shortLabel: 'Cloro polvo',
+    shortLabel: 'Chlorine powder',
   },
 ];
 
@@ -268,13 +268,13 @@ export function ChemicalsPage({
           const response = await fetch(
             `${API_URL}/chemicals/technicians/resolve/${encodeURIComponent(initialTechnicianToken)}`,
           );
-          if (!response.ok) throw new Error('El enlace del técnico no es válido.');
+          if (!response.ok) throw new Error('The technician link is invalid.');
           const technician = await response.json() as { name: string };
           setLockedTechnician(technician.name);
           setForm((current) => ({ ...current, technicianName: technician.name }));
         } catch (loadError) {
           console.error(loadError);
-          setError('Este enlace no es válido o ya no está activo.');
+          setError('This link is invalid or no longer active.');
         } finally {
           setLoading(false);
         }
@@ -287,13 +287,13 @@ export function ChemicalsPage({
           fetch(`${API_URL}/chemicals/technicians`),
         ]);
         if (!reportsResponse.ok || !techniciansResponse.ok) {
-          throw new Error('No se pudo cargar el espacio de químicos.');
+          throw new Error('Unable to load the chemicals workspace.');
         }
         setReports(await reportsResponse.json());
         setTechnicians(await techniciansResponse.json());
       } catch (loadError) {
         console.error(loadError);
-        setError('No se pudo cargar la información de químicos.');
+        setError('Unable to load chemical information.');
       } finally {
         setLoading(false);
       }
@@ -345,13 +345,13 @@ export function ChemicalsPage({
     ) as Record<QuantityKey, number>;
 
     if (!Object.values(quantities).some((value) => value > 0)) {
-      setError('Registra al menos una cantidad de químico mayor que cero.');
+      setError('Enter at least one chemical quantity greater than zero.');
       return;
     }
 
     const duplicateKey = reportDuplicateKey(form);
     if (reports.some((report) => report.id !== editingReportId && reportDuplicateKey(report) === duplicateKey)) {
-      setError('Este registro ya fue guardado anteriormente para ese técnico y fecha.');
+      setError('This record has already been saved for this technician and date.');
       return;
     }
 
@@ -376,7 +376,7 @@ export function ChemicalsPage({
         const message = Array.isArray(result?.message)
           ? result.message.join(' ')
           : result?.message;
-        throw new Error(message || 'No se pudo guardar el registro.');
+        throw new Error(message || 'Unable to save the record.');
       }
 
       setReports((current) => editingReportId ? current.map((report) => report.id === editingReportId ? result as ChemicalReport : report) : [result as ChemicalReport, ...current]);
@@ -385,13 +385,13 @@ export function ChemicalsPage({
         ...emptyForm(lockedTechnician || current.technicianName),
         serviceDate: current.serviceDate,
       }));
-      setSavedMessage(editingReportId ? 'Registro actualizado correctamente.' : 'Registro guardado correctamente en el sistema.');
+      setSavedMessage(editingReportId ? 'Record updated successfully.' : 'Record saved successfully.');
     } catch (submitError) {
       console.error(submitError);
       setError(
         submitError instanceof Error
           ? submitError.message
-          : 'No se pudo guardar el registro.',
+          : 'Unable to save the record.',
       );
     } finally {
       setSaving(false);
@@ -413,7 +413,7 @@ export function ChemicalsPage({
         technicianToken?: string;
       } | null;
       if (!response.ok || !result?.name || !result.technicianToken) {
-        throw new Error('No encontramos ese nombre de acceso.');
+        throw new Error('That access name was not found.');
       }
       setLockedTechnician(result.name);
       setTechnicianToken(result.technicianToken);
@@ -423,7 +423,7 @@ export function ChemicalsPage({
       setError(
         accessError instanceof Error
           ? accessError.message
-          : 'No se pudo validar el nombre de acceso.',
+          : 'Unable to validate the access name.',
       );
     } finally {
       setAccessing(false);
@@ -447,7 +447,7 @@ export function ChemicalsPage({
         owner?: ChemicalOwner;
       } | null;
       if (!response.ok || !result?.token || !result.owner) {
-        throw new Error('El correo o la clave no son correctos.');
+        throw new Error('Invalid email or password.');
       }
 
       window.localStorage.setItem(chemicalOwnerTokenKey, result.token);
@@ -468,7 +468,7 @@ export function ChemicalsPage({
       window.alert(
         ownerAccessError instanceof Error
           ? ownerAccessError.message
-          : 'No fue posible acceder al perfil.',
+          : 'Unable to access this profile.',
       );
     } finally {
       setOwnerAccessing(false);
@@ -482,9 +482,9 @@ export function ChemicalsPage({
     });
     if (response.status === 401) {
       await logoutOwner();
-      throw new Error('Tu sesión venció. Ingresa nuevamente.');
+      throw new Error('Your session expired. Please sign in again.');
     }
-    if (!response.ok) throw new Error('No se pudo cargar la lista de técnicos.');
+    if (!response.ok) throw new Error('Unable to load the technician directory.');
     setManagedTechnicians(await response.json() as TechnicianDirectoryEntry[]);
   }
 
@@ -503,29 +503,29 @@ export function ChemicalsPage({
         body: JSON.stringify({ name: newTechnicianName.trim(), whatsappNumber: newTechnicianPhone.trim() }),
       });
       const result = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(Array.isArray(result?.message) ? result.message.join(' ') : result?.message || 'No se pudo agregar el técnico.');
+      if (!response.ok) throw new Error(Array.isArray(result?.message) ? result.message.join(' ') : result?.message || 'Unable to add the technician.');
       setManagedTechnicians((current) => [...current, result as TechnicianDirectoryEntry].sort((a, b) => a.name.localeCompare(b.name)));
       setNewTechnicianName('');
       setNewTechnicianPhone('');
-      setTechnicianMessage('Técnico agregado correctamente.');
+      setTechnicianMessage('Technician added successfully.');
     } catch (saveError) {
-      setTechnicianMessage(saveError instanceof Error ? saveError.message : 'No se pudo agregar el técnico.');
+      setTechnicianMessage(saveError instanceof Error ? saveError.message : 'Unable to add the technician.');
     } finally {
       setTechnicianSaving(false);
     }
   }
 
   async function deleteTechnician(technician: TechnicianDirectoryEntry) {
-    if (!ownerToken || !window.confirm(`¿Eliminar el acceso de ${technician.name}?`)) return;
+    if (!ownerToken || !window.confirm(`Delete access for ${technician.name}?`)) return;
     try {
       const response = await fetch(`${API_URL}/chemicals/technicians/${technician.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${ownerToken}` },
       });
-      if (!response.ok) throw new Error('No se pudo eliminar el técnico.');
+      if (!response.ok) throw new Error('Unable to delete the technician.');
       setManagedTechnicians((current) => current.filter((item) => item.id !== technician.id));
     } catch (deleteError) {
-      window.alert(deleteError instanceof Error ? deleteError.message : 'No se pudo eliminar el técnico.');
+      window.alert(deleteError instanceof Error ? deleteError.message : 'Unable to delete the technician.');
     }
   }
 
@@ -534,7 +534,7 @@ export function ChemicalsPage({
     if (!ownerToken || !editingTechnician) return;
     const response = await fetch(`${API_URL}/chemicals/technicians/${editingTechnician.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` }, body: JSON.stringify({ name: editingTechnician.name.trim(), whatsappNumber: (editingTechnician.whatsappNumber ?? '').trim() }) });
     const result = await response.json().catch(() => null);
-    if (!response.ok) { window.alert(result?.message || 'No se pudo actualizar el técnico.'); return; }
+    if (!response.ok) { window.alert(result?.message || 'Unable to update the technician.'); return; }
     setManagedTechnicians((current) => current.map((item) => item.id === editingTechnician.id ? result as TechnicianDirectoryEntry : item).sort((a, b) => a.name.localeCompare(b.name)));
     setEditingTechnician(null);
   }
@@ -580,7 +580,7 @@ export function ChemicalsPage({
   ) {
     if (!activeOwner || !activeOwnerToken) return;
     const confirmed = window.confirm(
-      `¿Eliminar el registro de ${report.technicianName} del ${formatReportDate(report.serviceDate)}?`,
+      `Delete the record for ${report.technicianName} on ${formatReportDate(report.serviceDate)}?`,
     );
     if (!confirmed) return;
 
@@ -592,15 +592,15 @@ export function ChemicalsPage({
       });
       if (response.status === 401) {
         await logoutOwner();
-        throw new Error('Tu sesión venció. Presiona Eliminar para volver a ingresar.');
+        throw new Error('Your session expired. Select Delete to sign in again.');
       }
-      if (!response.ok) throw new Error('No se pudo eliminar el registro.');
+      if (!response.ok) throw new Error('Unable to delete the record.');
       setReports((current) => current.filter((item) => item.id !== report.id));
     } catch (removeError) {
       window.alert(
         removeError instanceof Error
           ? removeError.message
-          : 'No se pudo eliminar el registro.',
+          : 'Unable to delete the record.',
       );
     } finally {
       setDeletingReportId('');
@@ -608,7 +608,7 @@ export function ChemicalsPage({
   }
 
   function shareOnWhatsApp() {
-    const message = `Hola, usa este enlace para reportar las cantidades de químicos retiradas de bodega: ${sharedTechnicianAccessUrl()}`;
+    const message = `Hi, use this link to report chemical quantities withdrawn from inventory: ${sharedTechnicianAccessUrl()}`;
     const whatsappWindow = window.open(
       `https://wa.me/?text=${encodeURIComponent(message)}`,
       '_blank',
@@ -620,7 +620,7 @@ export function ChemicalsPage({
   async function downloadReportsCsv() {
     try {
       const response = await fetch(`${API_URL}/chemicals/reports/export`);
-      if (!response.ok) throw new Error('No se pudo descargar el archivo.');
+      if (!response.ok) throw new Error('Unable to download the file.');
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement('a');
       link.href = url;
@@ -628,7 +628,7 @@ export function ChemicalsPage({
       link.click();
       URL.revokeObjectURL(url);
     } catch (downloadError) {
-      window.alert(downloadError instanceof Error ? downloadError.message : 'No se pudo descargar el archivo.');
+      window.alert(downloadError instanceof Error ? downloadError.message : 'Unable to download the file.');
     }
   }
 
@@ -637,36 +637,36 @@ export function ChemicalsPage({
       {!isSharedForm && sidebar}
 
       {editingTechnician && (
-        <div className="modal-backdrop"><section className="property-modal repair-request-modal" role="dialog" aria-modal="true"><div className="edit-panel-header"><div><h2>Editar técnico</h2><p>Corrige el nombre o el celular sin eliminar el acceso.</p></div><button className="modal-close" type="button" onClick={() => setEditingTechnician(null)}>&times;</button></div><form onSubmit={(event) => void updateTechnician(event)}><div className="form-grid"><div className="form-field form-field-wide"><label>Nombre y código *</label><input required maxLength={120} value={editingTechnician.name} onChange={(event) => setEditingTechnician({ ...editingTechnician, name: event.target.value })} /></div><div className="form-field form-field-wide"><label>Celular de WhatsApp *</label><input required maxLength={30} value={editingTechnician.whatsappNumber ?? ''} onChange={(event) => setEditingTechnician({ ...editingTechnician, whatsappNumber: event.target.value })} /></div></div><div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setEditingTechnician(null)}>Cancelar</button><button className="primary-button" type="submit">Guardar cambios</button></div></form></section></div>
+        <div className="modal-backdrop"><section className="property-modal repair-request-modal" role="dialog" aria-modal="true"><div className="edit-panel-header"><div><h2>Edit technician</h2><p>Update the name or phone number without removing access.</p></div><button className="modal-close" type="button" onClick={() => setEditingTechnician(null)}>&times;</button></div><form onSubmit={(event) => void updateTechnician(event)}><div className="form-grid"><div className="form-field form-field-wide"><label>Name and code *</label><input required maxLength={120} value={editingTechnician.name} onChange={(event) => setEditingTechnician({ ...editingTechnician, name: event.target.value })} /></div><div className="form-field form-field-wide"><label>WhatsApp phone number *</label><input required maxLength={30} value={editingTechnician.whatsappNumber ?? ''} onChange={(event) => setEditingTechnician({ ...editingTechnician, whatsappNumber: event.target.value })} /></div></div><div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setEditingTechnician(null)}>Cancel</button><button className="primary-button" type="submit">Save changes</button></div></form></section></div>
       )}
 
       {!isSharedForm && (
         <header className="area-page-header chemicals-page-header">
           <div>
-            <span className="area-eyebrow">CONTROL OPERATIVO</span>
-            <h1>Químicos</h1>
+            <span className="area-eyebrow">OPERATIONS</span>
+            <h1>Chemicals</h1>
           </div>
         </header>
       )}
 
       {!isSharedForm && (
         <>
-          <nav className="chemicals-tabs" aria-label="Módulos de químicos">
-            <button className={activeTab === 'consumption' ? 'chemicals-tab-active' : ''} type="button" onClick={() => setActiveTab('consumption')}>Consumo por propiedad</button>
-            <button className={activeTab === 'register' ? 'chemicals-tab-active' : ''} type="button" onClick={() => setActiveTab('register')}>Registro</button>
-            <button className={activeTab === 'technicians' ? 'chemicals-tab-active' : ''} type="button" onClick={() => { setActiveTab('technicians'); if (ownerToken) void loadManagedTechnicians().catch((error) => setTechnicianMessage(error instanceof Error ? error.message : 'No se pudo cargar la lista.')); }}>Técnicos</button>
+          <nav className="chemicals-tabs" aria-label="Chemical sections">
+            <button className={activeTab === 'consumption' ? 'chemicals-tab-active' : ''} type="button" onClick={() => setActiveTab('consumption')}>Property consumption</button>
+            <button className={activeTab === 'register' ? 'chemicals-tab-active' : ''} type="button" onClick={() => setActiveTab('register')}>Register</button>
+            <button className={activeTab === 'technicians' ? 'chemicals-tab-active' : ''} type="button" onClick={() => { setActiveTab('technicians'); if (ownerToken) void loadManagedTechnicians().catch((error) => setTechnicianMessage(error instanceof Error ? error.message : 'Unable to load the directory.')); }}>Technicians</button>
           </nav>
 
           {activeTab !== 'consumption' && <><section className="chemicals-kpis">
-            <article><span>Registros de hoy</span><strong>{reportsToday}</strong><small>Retiros informados por el equipo</small></article>
-            <article><span>Técnicos con registros</span><strong>{techniciansReported}</strong><small>En el historial disponible</small></article>
+            <article><span>Today's records</span><strong>{reportsToday}</strong><small>Withdrawals reported by the team</small></article>
+            <article><span>Technicians with records</span><strong>{techniciansReported}</strong><small>In the available history</small></article>
           </section>
 
           <section className="chemicals-share-panel">
             <div>
-              <span>UN SOLO ENLACE PARA WHATSAPP</span>
-              <h2>Acceso general para todos los técnicos</h2>
-              <p>Todos ingresan por el mismo enlace y escriben su nombre para identificarse.</p>
+              <span>ONE SHARED WHATSAPP LINK</span>
+              <h2>Shared access for all technicians</h2>
+              <p>Everyone uses the same link and enters their assigned name to identify themselves.</p>
             </div>
             <div className="chemicals-share-controls chemicals-single-share-control">
               <button
@@ -674,7 +674,7 @@ export function ChemicalsPage({
                 type="button"
                 onClick={shareOnWhatsApp}
               >
-                Compartir enlace único
+                Share access link
               </button>
             </div>
           </section>
@@ -688,10 +688,10 @@ export function ChemicalsPage({
         <section className="chemicals-form-card">
           <div className="chemicals-card-heading">
             <div>
-              <span>{isSharedForm && !lockedTechnician ? 'ACCESO DEL TÉCNICO' : 'NUEVO REGISTRO'}</span>
-              <h2>Químicos</h2>
+              <span>{isSharedForm && !lockedTechnician ? 'TECHNICIAN ACCESS' : 'NEW RECORD'}</span>
+              <h2>Chemicals</h2>
             </div>
-            <small>{isSharedForm && !lockedTechnician ? 'Usa tu nombre de acceso.' : 'Todos los campos con * son obligatorios.'}</small>
+            <small>{isSharedForm && !lockedTechnician ? 'Use your assigned access name.' : 'All fields marked * are required.'}</small>
           </div>
 
           {isSharedForm && !lockedTechnician ? (
@@ -699,18 +699,18 @@ export function ChemicalsPage({
               <div className="chemicals-access-intro">
                 <span aria-hidden="true">✓</span>
                 <div>
-                  <h3>Escribe tu nombre de acceso</h3>
-                  <p>Usa el nombre numerado asignado. Después de validarlo, quedará bloqueado.</p>
+                  <h3>Enter your access name</h3>
+                  <p>Use your assigned numbered name. Once validated, it cannot be changed.</p>
                 </div>
               </div>
               <div className="form-field">
-                <label htmlFor="chemical-access-code">Nombre de acceso del técnico *</label>
+                <label htmlFor="chemical-access-code">Technician access name *</label>
                 <input
                   id="chemical-access-code"
                   autoCapitalize="words"
                   autoComplete="name"
                   maxLength={120}
-                  placeholder="Ejemplo: 99 Técnico Ejemplo"
+                  placeholder="Example: 99 Sample Technician"
                   required
                   value={accessCode}
                   onChange={(event) => setAccessCode(event.target.value)}
@@ -723,14 +723,14 @@ export function ChemicalsPage({
                   type="submit"
                   disabled={accessing || accessCode.trim().length < 2}
                 >
-                  {accessing ? 'Validando...' : 'Continuar'}
+                  {accessing ? 'Validating...' : 'Continue'}
                 </button>
               </div>
             </form>
           ) : <form noValidate onSubmit={submitReport}>
             <div className="chemicals-context-grid">
               <div className="form-field">
-                <label htmlFor="chemical-date">Fecha del reporte *</label>
+                <label htmlFor="chemical-date">Report date *</label>
                 <div className="chemical-date-control">
                   <input
                     id="chemical-date"
@@ -744,16 +744,16 @@ export function ChemicalsPage({
                 </div>
               </div>
               <div className="form-field">
-                <label htmlFor="chemical-technician">Técnico *</label>
+                <label htmlFor="chemical-technician">Technician *</label>
                 {isSharedForm ? (
                   <>
                     <input
                       className="chemicals-locked-technician"
                       id="chemical-technician"
                       readOnly
-                      value={loading ? 'Validando enlace...' : form.technicianName}
+                      value={loading ? 'Validating link...' : form.technicianName}
                     />
-                    <small className="chemicals-locked-note">Identificado por enlace único · no se puede cambiar</small>
+                    <small className="chemicals-locked-note">Identified by shared link · cannot be changed</small>
                   </>
                 ) : (
                   <select
@@ -764,7 +764,7 @@ export function ChemicalsPage({
                       setForm((current) => ({ ...current, technicianName: event.target.value }))
                     }
                   >
-                    <option value="">Seleccionar técnico</option>
+                    <option value="">Select technician</option>
                     {technicians.map((technician) => (
                       <option value={technician.name} key={technician.name}>{technician.name}</option>
                     ))}
@@ -774,8 +774,8 @@ export function ChemicalsPage({
             </div>
 
             <div className="chemicals-quantity-heading">
-              <div><h3>Cantidades retiradas</h3><p>Deja en blanco los químicos que no retiraste.</p></div>
-              <span>Fuente: técnico</span>
+              <div><h3>Withdrawn quantities</h3><p>Leave chemicals you did not withdraw blank.</p></div>
+              <span>Source: technician</span>
             </div>
             <div className="chemicals-quantity-grid">
               {chemicalFields.map((chemical) => (
@@ -814,14 +814,14 @@ export function ChemicalsPage({
                 }}
                 disabled={saving}
               >
-                Limpiar
+                Clear
               </button>
               <button
                 className="primary-button"
                 type="submit"
                 disabled={saving || loading || !form.serviceDate || !form.technicianName.trim()}
               >
-                {saving ? 'Guardando...' : editingReportId ? 'Guardar cambios' : 'Guardar registro'}
+                {saving ? 'Saving...' : editingReportId ? 'Save changes' : 'Save record'}
               </button>
             </div>
           </form>}
@@ -829,16 +829,16 @@ export function ChemicalsPage({
 
         {!isSharedForm && <section className="chemicals-history-card">
           <div className="chemicals-card-heading">
-            <div><span>HISTORIAL</span><h2>Registros recientes</h2></div>
-            <small>{reports.length} registros</small>
+            <div><span>HISTORY</span><h2>Recent records</h2></div>
+            <small>{reports.length} records</small>
           </div>
 
           {loading ? (
-            <p className="chemicals-history-empty">Cargando registros...</p>
+            <p className="chemicals-history-empty">Loading records...</p>
           ) : reports.length === 0 ? (
             <div className="chemicals-history-empty">
-              <strong>Aún no hay registros</strong>
-              <p>El primer reporte guardado aparecerá aquí.</p>
+              <strong>No records yet</strong>
+              <p>The first saved report will appear here.</p>
             </div>
           ) : (
             <div className="chemicals-report-list">
@@ -851,21 +851,21 @@ export function ChemicalsPage({
                     <div className="chemical-report-topline">
                       <div>
                         <strong>{report.technicianName}</strong>
-                        <small>Retiro de bodega</small>
+                        <small>Inventory withdrawal</small>
                       </div>
-                      <button className="chemical-report-edit" type="button" onClick={() => editReport(report)}>Editar</button><button
+                      <button className="chemical-report-edit" type="button" onClick={() => editReport(report)}>Edit</button><button
                         className="chemical-report-delete"
                         type="button"
                         disabled={deletingReportId === report.id}
-                        aria-label={`Eliminar registro de ${report.technicianName}`}
+                        aria-label={`Delete record for ${report.technicianName}`}
                         onClick={() => requestRemoveReport(report)}
                       >
-                        {deletingReportId === report.id ? 'Eliminando…' : 'Eliminar'}
+                        {deletingReportId === report.id ? 'Deleting…' : 'Delete'}
                       </button>
                     </div>
                     <dl>
-                      <div><dt>Fecha</dt><dd>{formatReportDate(report.serviceDate)}</dd></div>
-                      <div><dt>Origen</dt><dd>Bodega</dd></div>
+                      <div><dt>Date</dt><dd>{formatReportDate(report.serviceDate)}</dd></div>
+                      <div><dt>Source</dt><dd>Inventory</dd></div>
                     </dl>
                     <div className="chemical-report-quantities">
                       {usedChemicals.map((chemical) => (
@@ -889,20 +889,20 @@ export function ChemicalsPage({
         <section className="chemicals-technicians-card">
           {!owner ? (
             <div className="chemicals-technicians-locked">
-              <h2>Lista de técnicos</h2>
-              <p>Inicia sesión para consultar y administrar los códigos y celulares.</p>
-              <button className="primary-button" type="button" onClick={() => setShowOwnerAccess(true)}>Ingresar para ver la lista</button>
+              <h2>Technician directory</h2>
+              <p>Sign in to view and manage technician codes and phone numbers.</p>
+              <button className="primary-button" type="button" onClick={() => setShowOwnerAccess(true)}>Sign in to view the directory</button>
             </div>
           ) : (
             <>
-              <div className="chemicals-card-heading"><div><span>ADMINISTRACIÓN</span><h2>Códigos y celulares</h2></div><small>{managedTechnicians.length} accesos</small></div>
+              <div className="chemicals-card-heading"><div><span>MANAGEMENT</span><h2>Codes and phone numbers</h2></div><small>{managedTechnicians.length} access entries</small></div>
               <form className="chemicals-technician-form" onSubmit={saveTechnician}>
-                <div className="form-field"><label htmlFor="new-technician-name">Código y nombre *</label><input id="new-technician-name" required maxLength={120} placeholder="Ejemplo: 99 Técnico Ejemplo" value={newTechnicianName} onChange={(event) => setNewTechnicianName(event.target.value)} /></div>
-                <div className="form-field"><label htmlFor="new-technician-phone">Celular de WhatsApp *</label><input id="new-technician-phone" required maxLength={30} placeholder="Ejemplo: +57 300 000 0000" value={newTechnicianPhone} onChange={(event) => setNewTechnicianPhone(event.target.value)} /></div>
-                <button className="primary-button" type="submit" disabled={technicianSaving}>{technicianSaving ? 'Guardando…' : 'Agregar técnico'}</button>
+                <div className="form-field"><label htmlFor="new-technician-name">Code and name *</label><input id="new-technician-name" required maxLength={120} placeholder="Example: 99 Sample Technician" value={newTechnicianName} onChange={(event) => setNewTechnicianName(event.target.value)} /></div>
+                <div className="form-field"><label htmlFor="new-technician-phone">WhatsApp phone number *</label><input id="new-technician-phone" required maxLength={30} placeholder="Example: +57 300 000 0000" value={newTechnicianPhone} onChange={(event) => setNewTechnicianPhone(event.target.value)} /></div>
+                <button className="primary-button" type="submit" disabled={technicianSaving}>{technicianSaving ? 'Saving…' : 'Add technician'}</button>
               </form>
               {technicianMessage && <p className="chemicals-form-message chemicals-form-success">{technicianMessage}</p>}
-              <div className="chemicals-technician-list">{managedTechnicians.map((technician) => <div className="chemicals-technician-row" key={technician.id}><div><strong>{technician.name}</strong><span>{technician.whatsappNumber}</span></div><div className="chemicals-technician-actions"><button className="chemical-report-edit" type="button" onClick={() => setEditingTechnician({ ...technician })}>Editar</button><button className="chemical-report-delete" type="button" onClick={() => void deleteTechnician(technician)}>Eliminar</button></div></div>)}</div>
+              <div className="chemicals-technician-list">{managedTechnicians.map((technician) => <div className="chemicals-technician-row" key={technician.id}><div><strong>{technician.name}</strong><span>{technician.whatsappNumber}</span></div><div className="chemicals-technician-actions"><button className="chemical-report-edit" type="button" onClick={() => setEditingTechnician({ ...technician })}>Edit</button><button className="chemical-report-delete" type="button" onClick={() => void deleteTechnician(technician)}>Delete</button></div></div>)}</div>
             </>
           )}
         </section>
@@ -911,11 +911,11 @@ export function ChemicalsPage({
       {!isSharedForm && (
         <footer className="chemicals-page-tools">
           <button type="button" onClick={() => void downloadReportsCsv()}>
-            Descargar registros para Excel
+            Download records for Excel
           </button>
           {owner && !managedByApp && (
             <button type="button" onClick={() => void logoutOwner()}>
-              Cerrar sesión
+              Sign out
             </button>
           )}
         </footer>
@@ -939,12 +939,12 @@ export function ChemicalsPage({
           >
             <div className="chemicals-owner-modal-heading">
               <div>
-                <span>ACCESO PRIVADO</span>
-                <h2 id="chemicals-owner-title">Confirmar identidad</h2>
+                <span>PRIVATE ACCESS</span>
+                <h2 id="chemicals-owner-title">Confirm identity</h2>
               </div>
               <button
                 type="button"
-                aria-label="Cerrar"
+                aria-label="Close"
                 onClick={() => {
                   setShowOwnerAccess(false);
                   setReportPendingDeletion(null);
@@ -953,12 +953,12 @@ export function ChemicalsPage({
             </div>
             <p>
               {reportPendingDeletion
-                ? 'Inicia sesión para confirmar la eliminación de este registro.'
-                : 'Solo la propietaria puede habilitar la eliminación de registros.'}
+                ? 'Sign in to confirm deletion of this record.'
+                : 'Only the account owner can authorize record deletion.'}
             </p>
             <form onSubmit={accessOwner}>
               <div className="form-field">
-                <label htmlFor="chemical-owner-email">Correo *</label>
+                <label htmlFor="chemical-owner-email">Email *</label>
                 <input
                   id="chemical-owner-email"
                   type="email"
@@ -969,7 +969,7 @@ export function ChemicalsPage({
                 />
               </div>
               <div className="form-field">
-                <label htmlFor="chemical-owner-password">Clave *</label>
+                <label htmlFor="chemical-owner-password">Password *</label>
                 <input
                   id="chemical-owner-password"
                   type="password"
@@ -981,7 +981,7 @@ export function ChemicalsPage({
                 />
               </div>
               <button className="primary-button" type="submit" disabled={ownerAccessing}>
-                {ownerAccessing ? 'Ingresando…' : 'Ingresar'}
+                {ownerAccessing ? 'Signing in…' : 'Sign in'}
               </button>
             </form>
           </section>

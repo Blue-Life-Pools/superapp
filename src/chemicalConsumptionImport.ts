@@ -33,21 +33,21 @@ export function parseQuickBooksMonthlyFees(sheetRows: Map<string, string>[], mon
     // Select only recurring maintenance accounts, excluding the sibling Extra Chemical account.
     if (!/(?:COMMERCIAL|RESIDENTIAL) MAINTENANCE/i.test(account)) { otherCharges++; continue; }
     const propertyName = field(row, 'name');
-    if (!propertyName) { warnings.push('Hay una línea de mantenimiento sin nombre de propiedad; se excluyó.'); continue; }
+    if (!propertyName) { warnings.push('A maintenance line has no property name and was excluded.'); continue; }
     const type = field(row, 'transaction type');
     const invoice = field(row, 'num');
     const description = field(row, 'description');
-    if (type.toLowerCase() !== 'invoice') { warnings.push(`${propertyName}: transacción ${type} excluida; revisa su efecto en la mensualidad.`); continue; }
-    if (!invoice) { warnings.push(`${propertyName}: falta el número de invoice; se excluyó la línea.`); continue; }
+    if (type.toLowerCase() !== 'invoice') { warnings.push(`${propertyName}: transaction ${type} excluded; review its effect on the monthly fee.`); continue; }
+    if (!invoice) { warnings.push(`${propertyName}: missing invoice number; the line was excluded.`); continue; }
     if (/quarterly|trimestral|annual|anual|invoices\s*#/i.test(description)) {
-      warnings.push(`${propertyName}: cargo trimestral, anual o de varias facturas excluido de la mensualidad (${invoice}).`);
+      warnings.push(`${propertyName}: quarterly, annual or combined-invoice charge excluded from the monthly fee (${invoice}).`);
       continue;
     }
     const amount = field(row, 'amount');
     const parsed = Number(amount.replace(/[$,\s]/g, '').replace(/^\((.+)\)$/, '-$1'));
-    if (!amount || !Number.isFinite(parsed) || parsed < 0) { warnings.push(`${propertyName}: importe inválido o negativo en invoice ${invoice}; se excluyó.`); continue; }
-    if (/partial|parcial/i.test(description)) warnings.push(`${propertyName}: invoice ${invoice} tiene facturación parcial; se usa el importe facturado del mes, sin convertirlo en tarifa de un mes completo.`);
-    if (parsed === 0) warnings.push(`${propertyName}: invoice ${invoice} registra mantenimiento en $0; revisa antes de confirmar.`);
+    if (!amount || !Number.isFinite(parsed) || parsed < 0) { warnings.push(`${propertyName}: invalid or negative amount on invoice ${invoice}; excluded.`); continue; }
+    if (/partial|parcial/i.test(description)) warnings.push(`${propertyName}: invoice ${invoice} has partial billing; the billed amount is used without converting it into a full-month fee.`);
+    if (parsed === 0) warnings.push(`${propertyName}: invoice ${invoice} records maintenance at $0; review before confirming.`);
     const key = propertyName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').toLowerCase();
     const group = groups.get(key) || { propertyName, cents: 0, invoices: new Set<string>() };
     group.cents += Math.round(parsed * 100);
@@ -56,11 +56,11 @@ export function parseQuickBooksMonthlyFees(sheetRows: Map<string, string>[], mon
   }
   const rows: ConsumptionImportRow[] = [];
   for (const group of groups.values()) {
-    if (group.invoices.size > 1) { warnings.push(`${group.propertyName}: tiene varias facturas de mantenimiento en ${month}. Se excluyó para comprobar que no se sumen mensualidades distintas.`); continue; }
+    if (group.invoices.size > 1) { warnings.push(`${group.propertyName}: has multiple maintenance invoices in ${month}. Excluded to avoid combining fees from different months.`); continue; }
     rows.push({ propertyName: group.propertyName, monthlyFee: group.cents / 100 });
   }
-  if (otherCharges) warnings.unshift(`Se omitieron ${otherCharges} líneas de otras cuentas del mes: reparaciones, químicos extra y otros ingresos no se incluyen en la mensualidad.`);
-  if (!rows.length) throw new Error(`No se encontraron invoices de mantenimiento importables para ${month}. Selecciona un mes incluido en el reporte.`);
+  if (otherCharges) warnings.unshift(`Excluded ${otherCharges} other-account lines for this month: repairs, extra chemicals and other income are not part of the monthly fee.`);
+  if (!rows.length) throw new Error(`No importable maintenance invoices found for ${month}. Select a month included in the report.`);
   return { month, sourceName, rows, warnings: [...new Set(warnings)] };
 }
 
@@ -81,7 +81,7 @@ function quantityValue(raw: string) {
 }
 export function parseSkimmerDosages(lines: string[], sourceName: string): ConsumptionFile {
   const range = lines.join('\n').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s*[-–]\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (!range || range[1] !== range[4] || range[3] !== range[6]) throw new Error('El PDF debe corresponder a un solo mes.');
+  if (!range || range[1] !== range[4] || range[3] !== range[6]) throw new Error('The PDF must cover a single month.');
   const month = `${range[3]}-${range[1].padStart(2, '0')}`;
   const rows: ConsumptionImportRow[] = [];
   const warnings: string[] = [];
@@ -95,13 +95,13 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
     if (!finished) return;
     const sum = (finished.chemicals || []).reduce((value, chemical) => value + chemical.cost, 0);
     if (!finished.chemicals?.length || recordedTotal === null || Math.abs(sum - recordedTotal) > .03) {
-      warnings.push(`${finished.propertyName}: no se pudo conciliar el detalle con el total. Se excluyó de la carga.`);
+      warnings.push(`${finished.propertyName}: the line items could not be reconciled with the total and were excluded from the import.`);
     } else { rows.push(finished); }
   };
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (/Grand Total for/i.test(line)) {
-      if (!current) warnings.push(`${line.replace(/Grand Total for/i, '').split('(')[0].trim()}: no se pudo identificar su encabezado. Se excluyó de la carga.`);
+      if (!current) warnings.push(`${line.replace(/Grand Total for/i, '').split('(')[0].trim()}: the property header could not be identified and was excluded from the import.`);
       totalPending = true;
       const amount = line.match(/\(?\$([\d,]+\.\d{2})\)?/);
       if (amount) { grandTotal = Number(amount[1].replace(/,/g, '')); complete(); }
@@ -131,12 +131,12 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
     else current.chemicals!.push({ name, quantity: value, unit, cost: amount });
   }
   if (current) complete();
-  if (!rows.length) throw new Error('No se encontraron propiedades con cantidades y totales conciliados.');
+  if (!rows.length) throw new Error('No properties with reconciled quantities and totals were found.');
   const counts = new Map<string, number>();
   for (const row of rows) counts.set(row.code!, (counts.get(row.code!) || 0) + 1);
   const duplicates = new Set(rows.filter((row) => counts.get(row.code!)! > 1).map((row) => row.code!));
-  for (const code of duplicates) warnings.push(`${rows.find((row) => row.code === code)!.propertyName}: aparecen varios totales con el mismo código. Se excluyó para revisar el alcance de esos registros.`);
+  for (const code of duplicates) warnings.push(`${rows.find((row) => row.code === code)!.propertyName}: multiple totals share the same code; excluded pending a scope review.`);
   const accepted = rows.filter((row) => !duplicates.has(row.code!));
-  if (!accepted.length) throw new Error('No quedaron propiedades sin duplicados para importar.');
+  if (!accepted.length) throw new Error('No properties without duplicates remain to import.');
   return { month, sourceName, rows: accepted, warnings: [...new Set(warnings)] };
 }

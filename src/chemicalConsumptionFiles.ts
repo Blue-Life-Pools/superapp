@@ -14,7 +14,7 @@ export async function readConsumptionPdf(file: File, onProgress: (value: string)
       const text = await page.getTextContent();
       lines.push(...pdfTextLines(text.items.filter((item): item is Extract<typeof item, { str: string }> => 'str' in item)));
       page.cleanup();
-      if (index % 10 === 0) { onProgress(`Leyendo PDF: ${index} de ${document.numPages} páginas`); await new Promise((resolve) => setTimeout(resolve, 0)); }
+      if (index % 10 === 0) { onProgress(`Reading PDF: ${index} of ${document.numPages} pages`); await new Promise((resolve) => setTimeout(resolve, 0)); }
     }
     return parseSkimmerDosages(lines, file.name);
   } finally { await task.destroy(); }
@@ -24,19 +24,19 @@ export async function readMonthlyFees(file: File, month: string): Promise<Consum
   const bytes = new Uint8Array(await file.arrayBuffer());
   const metadata = unzipSync(bytes, { filter: (entry) => ['xl/workbook.xml', 'xl/_rels/workbook.xml.rels'].includes(entry.name) && entry.originalSize < 5000000 });
   const xml = (data: Uint8Array | undefined) => {
-    if (!data) throw new Error('Falta una hoja necesaria del Excel.');
+    if (!data) throw new Error('A required Excel worksheet is missing.');
     const document = new DOMParser().parseFromString(strFromU8(data), 'application/xml');
-    if (document.querySelector('parsererror')) throw new Error('El archivo Excel no tiene un formato válido.');
+    if (document.querySelector('parsererror')) throw new Error('The Excel file has an invalid format.');
     return document;
   };
   const workbook = xml(metadata['xl/workbook.xml']);
   const sheets = Array.from(workbook.getElementsByTagName('sheet'));
   const sheet = sheets.find((item) => item.getAttribute('name') === 'Por Propiedad') || sheets[0];
-  if (!sheet) throw new Error('El Excel está vacío.');
+  if (!sheet) throw new Error('The Excel file is empty.');
   const relationshipId = sheet.getAttribute('r:id');
   const relation = Array.from(xml(metadata['xl/_rels/workbook.xml.rels']).getElementsByTagName('Relationship')).find((item) => item.getAttribute('Id') === relationshipId);
   const target = relation?.getAttribute('Target');
-  if (!target) throw new Error('No se encontró la hoja de mensualidades.');
+  if (!target) throw new Error('The monthly fee worksheet was not found.');
   const sheetPath = target.startsWith('/') ? target.slice(1) : `xl/${target}`;
   const content = unzipSync(bytes, { filter: (entry) => [sheetPath, 'xl/sharedStrings.xml'].includes(entry.name) && entry.originalSize < 30000000 });
   const strings = content['xl/sharedStrings.xml'] ? Array.from(xml(content['xl/sharedStrings.xml']).getElementsByTagName('si')).map((item) => Array.from(item.getElementsByTagName('t')).map((node) => node.textContent || '').join('')) : [];
@@ -57,7 +57,7 @@ export async function readMonthlyFees(file: File, month: string): Promise<Consum
   const propertyColumn = headers.get('propiedad');
   const feeColumn = headers.get('mensualidad');
   const codeColumn = headers.get('codigo') || headers.get('código');
-  if (!propertyColumn || !feeColumn) throw new Error('Usa el Transaction Report de QuickBooks, la hoja Por Propiedad o columnas Propiedad, Mensualidad y Código (opcional).');
+  if (!propertyColumn || !feeColumn) throw new Error('Use the QuickBooks Transaction Report or the Por Propiedad worksheet with Propiedad, Mensualidad and optional Código columns.');
   const rows: ConsumptionImportRow[] = [];
   const names = new Set<string>();
   sheetRows.forEach((row, index) => {
@@ -65,13 +65,13 @@ export async function readMonthlyFees(file: File, month: string): Promise<Consum
     const propertyName = (row.get(propertyColumn) || '').trim();
     if (!propertyName || /^total$/i.test(propertyName)) return;
     const rawFee = row.get(feeColumn);
-    if (!rawFee?.trim()) throw new Error(`Falta mensualidad: ${propertyName}.`);
+    if (!rawFee?.trim()) throw new Error(`Missing monthly fee: ${propertyName}.`);
     const monthlyFee = Number(rawFee);
-    if (!Number.isFinite(monthlyFee) || monthlyFee < 0) throw new Error(`Mensualidad inválida: ${propertyName}.`);
-    if (names.has(propertyName.toLowerCase())) throw new Error(`Propiedad repetida: ${propertyName}. Usa una fila con el total de su mensualidad.`);
+    if (!Number.isFinite(monthlyFee) || monthlyFee < 0) throw new Error(`Invalid monthly fee: ${propertyName}.`);
+    if (names.has(propertyName.toLowerCase())) throw new Error(`Duplicate property: ${propertyName}. Use one row with the total monthly fee.`);
     names.add(propertyName.toLowerCase());
     rows.push({ propertyName, monthlyFee, ...(codeColumn && row.get(codeColumn) ? { code: row.get(codeColumn)!.trim() } : {}) });
   });
-  if (!rows.length) throw new Error('No se encontraron mensualidades.');
+  if (!rows.length) throw new Error('No monthly fees were found.');
   return { month, sourceName: file.name, rows, warnings: [] };
 }

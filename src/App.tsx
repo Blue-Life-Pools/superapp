@@ -2469,7 +2469,7 @@ function App() {
     const allAreas: Array<{ id: AppArea; label: string; icon: string }> = [
       { id: 'home', label: 'Home', icon: '⌂' },
       { id: 'commercial', label: 'Commercial', icon: '◎' },
-      { id: 'chemicals', label: 'Químicos', icon: '⚗' },
+      { id: 'chemicals', label: 'Chemicals', icon: '⚗' },
       { id: 'health', label: 'Health Dept.', icon: '♥' },
       { id: 'reports', label: 'Reports', icon: '!' },
       { id: 'complaints', label: 'Calls', icon: '◌' },
