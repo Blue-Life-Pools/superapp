@@ -5166,7 +5166,7 @@ tbody tr:hover,
 .quality-resolve-summary small { color: var(--bluelife-muted); }
 .quality-resolve-form { display: grid; gap: 16px; }
 .quality-resolve-form label, .quality-resolve-estimate { display: grid; gap: 7px; color: var(--bluelife-blue-dark); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
-.quality-resolve-form input, .quality-resolve-form textarea { box-sizing: border-box; width: 100%; border: 1px solid #c8d9e2; border-radius: 9px; padding: 11px; color: var(--bluelife-blue-dark); font: inherit; font-size: 13px; text-transform: none; letter-spacing: normal; }
+.quality-resolve-form input, .quality-resolve-form select, .quality-resolve-form textarea { box-sizing: border-box; width: 100%; min-height: 44px; border: 1px solid #c8d9e2; border-radius: 9px; padding: 11px; background: white; color: var(--bluelife-blue-dark); font: inherit; font-size: 13px; text-transform: none; letter-spacing: normal; }
 .quality-resolve-form textarea { resize: vertical; min-height: 120px; }
 .quality-resolve-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .quality-resolve-estimate { margin: 0; padding: 14px; border: 1px solid #c8d9e2; border-radius: 10px; }
