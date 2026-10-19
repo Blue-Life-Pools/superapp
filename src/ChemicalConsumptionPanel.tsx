@@ -23,6 +23,9 @@ function technicianSplit(chemical: ConsumptionChemical) {
 function isLiquidChlorine(chemical: ConsumptionChemical) {
   return chemical.name.toLowerCase().includes('liquid chlorine');
 }
+function otherTechnicians(chemical: ConsumptionChemical) {
+  return (chemical.technicians || []).filter((item) => !item.name.toLowerCase().includes('georky'));
+}
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await apiFetch(`${API_URL}/chemicals/consumption${path}`, options);
   const data = await response.json().catch(() => ({}));
@@ -158,7 +161,7 @@ export function ChemicalConsumptionPanel() {
                 {evaluated ? ` · Monthly threshold: ${quantity(chemical.expectedMax!)} ${chemical.unit}` : ''}
               </small>
               {high && <b className="consumption-excess">Excess: {quantity(chemical.excessQuantity ?? chemical.quantity - chemical.expectedMax!)} {chemical.unit}{chemical.excessPercent != null ? ` (+${chemical.excessPercent.toFixed(1)}%)` : ''}</b>}
-              {isLiquidChlorine(chemical) && chemical.technicians?.length && <div className="consumption-technician-split">{split.georky.quantity > 0 && <p><strong>Georky refill:</strong> {quantity(split.georky.quantity)} {chemical.unit} · {money(split.georky.cost)}</p>}{split.others.quantity > 0 && <p><strong>Other technicians:</strong> {quantity(split.others.quantity)} {chemical.unit} · {money(split.others.cost)}</p>}</div>}
+              {isLiquidChlorine(chemical) && chemical.technicians?.length && <div className="consumption-technician-split">{split.georky.quantity > 0 && <p><strong>Georky refill:</strong> {quantity(split.georky.quantity)} {chemical.unit} · {money(split.georky.cost)}</p>}{otherTechnicians(chemical).map((item) => <p key={item.name}><strong>{item.name}:</strong> {quantity(item.quantity)} {chemical.unit} · {money(item.cost)}</p>)}</div>}
             </div>
           </article>;
         })}</div>
