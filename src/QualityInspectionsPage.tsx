@@ -833,16 +833,18 @@ export function QualityInspectionsPage({
                         update({ findings });
                       }}
                     />
-                    <input
-                      type="text"
-                      placeholder="Responsible person"
+                    <select
+                      aria-label="Responsible person"
                       value={finding.responsibleName || ""}
                       onChange={(event) => {
                         const findings = [...editing.findings];
                         findings[index] = { ...finding, responsibleName: event.target.value };
                         update({ findings });
                       }}
-                    />
+                    >
+                      <option value="">Select responsible technician</option>
+                      {[...new Set([...(finding.responsibleName ? [finding.responsibleName] : []), ...technicians])].map((technician) => <option value={technician} key={technician}>{technician}</option>)}
+                    </select>
                     <select
                       aria-label="Finding importance"
                       value={finding.severity}
@@ -894,7 +896,7 @@ export function QualityInspectionsPage({
             <form onSubmit={(event) => void resolveFinding(event)} className="quality-resolve-form">
               <label className="quality-wide"><span>What was done?</span><textarea required rows={5} value={resolveForm.resolution} onChange={(event) => setResolveForm((current) => ({ ...current, resolution: event.target.value }))} placeholder="Describe the completed work..." /></label>
               <div className="quality-resolve-grid">
-                <label><span>Responsible</span><input value={resolveForm.responsibleName} onChange={(event) => setResolveForm((current) => ({ ...current, responsibleName: event.target.value }))} placeholder="Person responsible" /></label>
+                <label><span>Responsible</span><select value={resolveForm.responsibleName} onChange={(event) => setResolveForm((current) => ({ ...current, responsibleName: event.target.value }))}><option value="">Select responsible technician</option>{[...new Set([...(resolveForm.responsibleName ? [resolveForm.responsibleName] : []), ...technicians])].map((technician) => <option value={technician} key={technician}>{technician}</option>)}</select></label>
                 <label><span>Resolved date</span><input required type="date" value={resolveForm.resolvedAt} onChange={(event) => setResolveForm((current) => ({ ...current, resolvedAt: event.target.value }))} /></label>
               </div>
               <fieldset className="quality-resolve-estimate"><legend>Requires estimate?</legend><div className="quality-radio-row"><label><input type="radio" checked={!resolveForm.requiresEstimate} onChange={() => setResolveForm((current) => ({ ...current, requiresEstimate: false }))} /> No</label><label><input type="radio" checked={resolveForm.requiresEstimate} onChange={() => setResolveForm((current) => ({ ...current, requiresEstimate: true }))} /> Yes</label></div>{resolveForm.requiresEstimate && <div className="quality-resolve-grid"><label><span>Estimate number sent</span><input required value={resolveForm.estimateNumber} onChange={(event) => setResolveForm((current) => ({ ...current, estimateNumber: event.target.value }))} placeholder="e.g. 6761" /></label><label><span>Estimate sent date</span><input required type="date" value={resolveForm.estimateSentAt} onChange={(event) => setResolveForm((current) => ({ ...current, estimateSentAt: event.target.value }))} /></label></div>}</fieldset>
