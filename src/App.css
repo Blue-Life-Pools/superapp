@@ -5106,6 +5106,10 @@ tbody tr:hover,
 .history-chemical-table th, .history-chemical-table td { padding: 12px; border-bottom: 1px solid #d0e2ea; }
 .history-chemical-table th { background: #f6fbfd; color: #075477; }
 .history-chemical-overage { background: #f2f2f2; font-weight: 700; }
+.history-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 0; color: #526b78; font-size: 12px; }
+.history-pagination > div, .history-pagination label { display: flex; align-items: center; gap: 8px; }
+.history-pagination select { min-height: 38px; padding: 6px 10px; border: 1px solid #bfd9e7; border-radius: 8px; color: #075477; background: #fff; font: inherit; }
+.history-pagination button:disabled { opacity: .45; cursor: default; }
 @media (max-width: 760px) { .property-history-page .history-directory-tools .history-alert-filters { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 .quality-header h1 { color: var(--quality-blue); }.quality-message { margin: 0 1.5rem 1rem; }
 .quality-main-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; align-items: start; }.quality-inspections-card, .quality-findings-card { margin: 0; }

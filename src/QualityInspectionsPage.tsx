@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { API_URL, apiFetch as fetch } from "./api";
+import { qualityFindingsPayload, qualityVisitInput, qualityVisitInstant } from "./qualityInspectionPayload";
 
 type WaterBody = { id: string; name: string; type: string; active?: boolean };
 type Property = { id: string; name: string; waterBodies: WaterBody[] };
@@ -25,6 +26,7 @@ type Finding = {
   estimateNumber?: string | null;
   estimateSentAt?: string | null;
   photos: Photo[];
+  photosChanged?: boolean;
 };
 type Inspection = {
   id: string;
@@ -72,7 +74,7 @@ function formFromInspection(item: Inspection): Form {
     propertyId: item.propertyId,
     waterBodyId: item.waterBodyId || "",
     technicianName: item.technicianName,
-    visitDate: new Date(item.visitDate).toISOString().slice(0, 16),
+    visitDate: qualityVisitInput(item.visitDate),
     ph: readings.pH || "",
     chlorine: readings.Chlorine || "",
     alkalinity: readings.Alkalinity || "",
@@ -107,7 +109,7 @@ const emptyForm = (): Form => ({
   propertyId: "",
   waterBodyId: "",
   technicianName: "",
-  visitDate: new Date().toISOString().slice(0, 16),
+  visitDate: qualityVisitInput(new Date().toISOString()),
   ph: "",
   chlorine: "",
   alkalinity: "",
@@ -239,6 +241,7 @@ export function QualityInspectionsPage({
   const [items, setItems] = useState<Inspection[]>([]);
   const [editing, setEditing] = useState<Form | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [originalFindings, setOriginalFindings] = useState<Finding[]>([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState("ALL");
@@ -338,6 +341,7 @@ export function QualityInspectionsPage({
   function startNew() {
     setEditingId(null);
     setEditing(emptyForm());
+    setOriginalFindings([]);
     setMessage("");
   }
   async function startEdit(item: Inspection) {
@@ -352,6 +356,7 @@ export function QualityInspectionsPage({
       if (!response.ok) throw new Error("Could not load the inspection for editing.");
       const detail = await response.json() as Inspection;
       setEditing(formFromInspection(detail));
+      setOriginalFindings(detail.findings);
       setMessage("");
     } catch (error) {
       setEditingId(null);
@@ -385,6 +390,7 @@ export function QualityInspectionsPage({
       findings[index] = {
         ...findings[index],
         photos: [...findings[index].photos, ...photos],
+        photosChanged: true,
       };
       return { ...current, findings };
     });
@@ -415,25 +421,7 @@ export function QualityInspectionsPage({
         Other: editing.otherDosage,
       };
       const alerts = chemicalAlerts(readings);
-      const manualFindings = editing.findings.filter(
-        (finding) => (finding.title || "Finding").trim() !== "Chemical readings alert",
-      );
-      const automaticFinding: Finding[] = alerts.length > 0
-        ? [{
-            title: "Chemical readings alert",
-            description: `Automatic chemical alert: ${alerts.map((alert) => alert.message).join("; ")}`,
-            severity: alerts.some((alert) => alert.level === "alert") ? "HIGH" : "MEDIUM",
-            status: "OPEN",
-            // Chemical readings outside the target range require attention,
-            // but they do not automatically imply that an estimate is needed.
-            requiresEstimate: false,
-            resolution: "",
-            photos: [],
-          }]
-        : [];
-      const findingsToSave = [...manualFindings, ...automaticFinding]
-        .filter((finding) => (finding.title || "Finding").trim() && finding.description.trim())
-        .map((finding) => editingId && finding.id ? { ...finding, photos: undefined } : finding);
+      const findingsToSave = qualityFindingsPayload(editing.findings, alerts, originalFindings);
       const response = await fetch(`${API_URL}/quality-inspections${editingId ? `/${editingId}` : ""}`, {
         method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -441,7 +429,7 @@ export function QualityInspectionsPage({
           propertyId: editing.propertyId,
           waterBodyId: editing.waterBodyId || null,
           technicianName: editing.technicianName,
-          visitDate: new Date(editing.visitDate).toISOString(),
+          visitDate: qualityVisitInstant(editing.visitDate),
           readings,
           dosages,
           notes: editing.notes,
@@ -509,6 +497,7 @@ export function QualityInspectionsPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         status: "RESOLVED",
+        requiresEstimate: resolveForm.requiresEstimate,
         resolution: resolveForm.resolution.trim(),
         resolvedAt: new Date(`${resolveForm.resolvedAt}T12:00:00`).toISOString(),
         responsibleName: resolveForm.responsibleName.trim() || null,
@@ -686,6 +675,7 @@ export function QualityInspectionsPage({
               onSubmit={(event) => void save(event)}
               className="quality-form"
             >
+              {message && <p className="quality-wide health-sync-message" role="alert">{message}</p>}
               <label>
                 Property
                 <select
