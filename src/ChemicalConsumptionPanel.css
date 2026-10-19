@@ -1,5 +1,12 @@
 .consumption-panel { display: grid; gap: 18px; min-width: 0; margin-top: 20px; padding: 18px; border: 1px solid #c5dfea; border-radius: 16px; background: #fff; color: #075477; }
 .consumption-panel h2, .consumption-panel h3, .consumption-panel h4, .consumption-panel p { margin: 0; }
+.consumption-overview { display: grid; gap: 12px; padding: 16px; border: 1px solid #d5e5eb; border-radius: 12px; background: #f6fbfd; }
+.consumption-overage-list { display: grid; gap: 8px; max-height: 440px; overflow-y: auto; }
+.consumption-overage-list button { display: grid; gap: 6px; padding: 12px; border: 1px solid #f2bbb6; border-left: 4px solid #d92d20; border-radius: 8px; background: #fff1f0; color: #075477; text-align: left; font: inherit; cursor: pointer; }
+.consumption-overage-list button:focus-visible { outline: 2px solid #075477; outline-offset: 2px; }
+.consumption-overage-list span, .consumption-overage-list b, .consumption-history-details p { font-size: 12px; line-height: 1.6; }
+.consumption-overage-list b { color: #b42318; }
+.consumption-history-details { display: grid; gap: 8px; }
 .consumption-panel h2 { font-size: 22px; }.consumption-panel h3 { font-size: 17px; }
 .consumption-panel label { display: grid; gap: 6px; font-size: 12px; font-weight: 700; min-width: 0; }
 .consumption-panel input, .consumption-panel select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid #bfd9e7; border-radius: 9px; background: white; color: #075477; font: inherit; font-size: 16px; }
