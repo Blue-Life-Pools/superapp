@@ -102,7 +102,26 @@ export function ChemicalConsumptionPanel() {
     <div className="consumption-import-actions"><label className="secondary-button">{busy ? 'Procesando…' : 'Cargar PDF de Skimmer'}<input type="file" accept=".pdf" disabled={busy || loading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void readFile(file, 'pdf'); event.target.value = ''; }} /></label><label className="secondary-button">Cargar mensualidades Excel<input type="file" accept=".xlsx" disabled={busy || loading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void readFile(file, 'fees'); event.target.value = ''; }} /></label><button type="button" className="secondary-button" disabled={busy} onClick={() => void load()}>Actualizar</button></div>
     {pending && <section className="consumption-import-preview"><h3>Revisar carga · {pending.month}</h3><p>{pending.sourceName} · {preview.filter((row) => row.matchedProperty).length} de {preview.length} propiedades vinculadas. Las filas sin vincular quedan fuera.</p>{pending.warnings.length > 0 && <details><summary>{pending.warnings.length} avisos de revisión</summary>{pending.warnings.map((warning) => <p key={warning}>{warning}</p>)}</details>}<div className="consumption-preview-list">{preview.map((row, index) => <label key={`${row.code || row.propertyName}-${index}`}><span>{row.propertyName}{row.existing && <small>Ya tiene datos para este mes</small>}</span><select value={row.matchedProperty?.id || ''} disabled={busy} onChange={(event) => setPreview((current) => current.map((item, i) => i === index ? { ...item, matchedProperty: dashboard.properties.find((property) => property.id === event.target.value) || null } : item))}><option value="">Sin vincular</option>{dashboard.properties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select></label>)}</div><label className="consumption-replace"><input type="checkbox" checked={replace} disabled={busy} onChange={(event) => setReplace(event.target.checked)} />Reemplazar los datos existentes de este mes con los del archivo</label><div className="consumption-import-actions"><button type="button" className="primary-button" disabled={busy} onClick={() => void importFile()}>Confirmar carga</button><button type="button" className="secondary-button" disabled={busy} onClick={() => { setPending(null); setPreview([]); }}>Cancelar</button></div></section>}
     <div className="consumption-kpis"><article><span>Propiedades con consumo</span><strong>{dashboard.periods.filter((item) => item.sourceName).length}</strong></article><article><span>Costo registrado del mes</span><strong>{money(importedCost)}</strong></article><article><span>Alertas de presupuesto</span><strong>{dashboard.periods.filter((item) => item.overBudget).length}</strong></article></div>
-    <div className="consumption-property-select"><label>Buscar propiedad<input placeholder="Ejemplo: Ascott" value={search} onChange={(event) => setSearch(event.target.value)} /></label><label>Propiedad<select value={propertyId} disabled={loading || busy} onChange={(event) => setPropertyId(event.target.value)}><option value="">Seleccionar propiedad</option>{dashboard.properties.filter((property) => property.id === propertyId || property.name.toLowerCase().includes(search.toLowerCase())).map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select></label></div>
+    <div className="consumption-property-select">
+      <label>Propiedad
+        <input
+          list="consumption-properties"
+          placeholder="Escribe o selecciona una propiedad"
+          autoComplete="off"
+          value={search}
+          disabled={loading || busy}
+          onChange={(event) => {
+            const value = event.target.value;
+            setSearch(value);
+            const match = dashboard.properties.find((property) => property.name.toLowerCase() === value.trim().toLowerCase());
+            setPropertyId(match?.id || '');
+          }}
+        />
+        <datalist id="consumption-properties">
+          {dashboard.properties.map((property) => <option key={property.id} value={property.name} />)}
+        </datalist>
+      </label>
+    </div>
     {loading && <p>Cargando consumo y perfiles…</p>}
     {selectedProperty && !loading && <>
       <h3>{selectedProperty.name}</h3><p className="consumption-muted">{selectedProperty.code} · {selectedProperty.waterBodies.filter((body) => body.active).length} cuerpos activos · {period?.sourceName || 'Sin consumo importado para este mes'}</p>
