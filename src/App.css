@@ -3294,11 +3294,14 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
 .chemicals-page-tools {
   display: flex;
   justify-content: flex-end;
+  align-items: flex-end;
   gap: 14px;
   margin-top: 18px;
   padding-top: 12px;
   border-top: 1px solid #e4edf1;
 }
+
+.chemicals-download-range { display: flex; align-items: flex-end; gap: 8px; color: #667085; font-size: 10px; }.chemicals-download-range label { display: grid; gap: 4px; font-size: 10px; }.chemicals-download-range input { min-height: 32px; padding: 5px 8px; border: 1px solid #d5e5eb; border-radius: 7px; background: white; color: #344054; font: inherit; font-size: 11px; }.chemicals-download-range > span { padding-bottom: 9px; }
 
 .chemicals-page-tools a,
 .chemicals-page-tools button {
@@ -4129,6 +4132,7 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   .chemicals-history-card { margin-bottom: 8px; }
   .chemicals-report-list { max-height: none; }
   .chemical-report-topline { flex-wrap: wrap; }
+  .chemicals-page-tools { align-items: stretch; flex-wrap: wrap; justify-content: flex-start; }.chemicals-download-range { width: 100%; }
 }
 
 @media (max-width: 350px) {

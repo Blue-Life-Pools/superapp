@@ -231,6 +231,8 @@ export function ChemicalsPage({
   const [accessing, setAccessing] = useState(false);
   const [form, setForm] = useState<ChemicalReportForm>(emptyForm);
   const [reports, setReports] = useState<ChemicalReport[]>([]);
+  const [downloadFrom, setDownloadFrom] = useState('');
+  const [downloadTo, setDownloadTo] = useState('');
   const [technicians, setTechnicians] = useState<TechnicianDirectoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -619,12 +621,15 @@ export function ChemicalsPage({
 
   async function downloadReportsCsv() {
     try {
-      const response = await fetch(`${API_URL}/chemicals/reports/export`);
+      if ((downloadFrom && !downloadTo) || (!downloadFrom && downloadTo)) throw new Error('Select both start and end dates.');
+      if (downloadFrom && downloadTo && downloadFrom > downloadTo) throw new Error('The start date cannot be after the end date.');
+      const query = downloadFrom && downloadTo ? `?from=${encodeURIComponent(downloadFrom)}&to=${encodeURIComponent(downloadTo)}` : '';
+      const response = await fetch(`${API_URL}/chemicals/reports/export${query}`);
       if (!response.ok) throw new Error('Unable to download the file.');
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement('a');
       link.href = url;
-      link.download = `chemical-reports-${localDate()}.csv`;
+      link.download = `chemical-reports-${downloadFrom && downloadTo ? `${downloadFrom}_to_${downloadTo}` : localDate()}.csv`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (downloadError) {
@@ -910,6 +915,7 @@ export function ChemicalsPage({
 
       {!isSharedForm && (
         <footer className="chemicals-page-tools">
+          <div className="chemicals-download-range"><label>From<input type="date" value={downloadFrom} onChange={(event) => setDownloadFrom(event.target.value)} /></label><span>to</span><label>To<input type="date" value={downloadTo} onChange={(event) => setDownloadTo(event.target.value)} /></label></div>
           <button type="button" onClick={() => void downloadReportsCsv()}>
             Download records for Excel
           </button>
