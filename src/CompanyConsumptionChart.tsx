@@ -9,16 +9,13 @@ export function CompanyConsumptionChart({ report }: { report: CompanyConsumption
   return <section className="company-chart" aria-labelledby="company-chart-title">
     <header className="company-chart-heading">
       <h3 id="company-chart-title">Total company — Skimmer vs. estimated maximum · {global ? 'Global' : companyReportMonthLabel(report.month)}</h3>
-      <p>{global ? 'Global maximum = sum of the monthly maximums for the included months.' : 'Monthly maximum = sum of each active property’s reliable estimate.'} Each estimate uses {report.baselineYear} history, adjusted for the corresponding month's days and seasonal factor where available.</p>
-      <p>Company totals include all uploaded usage. Bars compare Skimmer with the maximum for the same properties: only those with both a reliable reference and an uploaded report.</p>
     </header>
     <div className="company-chart-legend" aria-label="Consumption alert levels">
-      <span className="company-legend-normal">Below {report.thresholds.warning}%: within range*</span>
-      <span className="company-legend-warning">{report.thresholds.warning}%: early warning</span>
-      <span className="company-legend-attention">{report.thresholds.attention}%: attention</span>
-      <span className="company-legend-high">Above {report.thresholds.maximum}%: overconsumption</span>
+      <span className="company-legend-normal" title="Within range">&lt; {report.thresholds.warning}%</span>
+      <span className="company-legend-warning" title="Early warning">{report.thresholds.warning}% – &lt; {report.thresholds.attention}%</span>
+      <span className="company-legend-attention" title="Attention">{report.thresholds.attention}% – {report.thresholds.maximum}%</span>
+      <span className="company-legend-high" title="Overconsumption">&gt; {report.thresholds.maximum}%</span>
     </div>
-    <p className="company-chart-note">The dashed line marks 100% of the comparable maximum. *“Within range” for the company requires complete coverage. These are monthly usage review thresholds, not chemical dosing targets. Each chemical uses its own unit.</p>
     <div className="company-chart-axis" aria-hidden="true"><span>0%</span><span>{percent(scale)} of comparable maximum</span></div>
     <div className="company-chart-rows">
       {report.chemicals.map((chemical) => {
@@ -36,13 +33,6 @@ export function CompanyConsumptionChart({ report }: { report: CompanyConsumption
             <span className="company-chart-marker company-chart-marker-attention" style={{ left: `${report.thresholds.attention / scale * 100}%` }} title={`${report.thresholds.attention}% — Attention`} />
             <span className="company-chart-marker company-chart-marker-maximum" style={{ left: `${report.thresholds.maximum / scale * 100}%` }} title={`${report.thresholds.maximum}% — Estimated maximum`} />
           </div>
-          <div className="company-chart-row-summary">
-            <strong>{chemical.percent === null ? status.label : `${percent(chemical.percent)} of comparable maximum · ${status.label}`}</strong>
-            {chemical.comparableQuantity !== null && chemical.comparisonMaximum !== null && <span>{chemical.excessQuantity! > 0 ? `Exceeds comparable maximum by ${quantity(chemical.excessQuantity!)} ${chemical.unit}` : `${quantity(chemical.remainingQuantity!)} ${chemical.unit} below the comparable maximum`}</span>}
-          </div>
-          <p className="company-chart-coverage">Reference: {chemical.referenceProperties} properties · Uploaded reports: {chemical.reportedReferenceProperties}/{chemical.referenceProperties} reference properties{chemical.unreferencedProperties > 0 ? ` · ${quantity(chemical.unreferencedQuantity)} ${chemical.unit} from ${chemical.unreferencedProperties} properties without a reliable reference` : ''}.</p>
-          {global && <p className="company-chart-coverage">Reported property-months: {chemical.reportedReferencePropertyMonths ?? 0}/{chemical.referencePropertyMonths ?? 0}. Each property's month is compared only when its report is available.</p>}
-          {!chemical.coverageComplete && chemical.recordedQuantity !== null && <p className="company-chart-incomplete">Partial coverage: usage without a reference and properties without a report are excluded from the bar comparison. A low percentage does not confirm company-wide savings.</p>}
           {chemical.georkyRefillQuantity > 0 && <p className="company-chart-coverage">Included in Skimmer total — Georky tank refill: {quantity(chemical.georkyRefillQuantity)} {chemical.unit}.</p>}
           {!!chemical.properties.length && <details className="company-chart-details"><summary>View property breakdown ({chemical.properties.length})</summary>
             <div className="company-chart-table-wrap"><table><thead><tr><th>Property</th>{global && <th>Reported / reference months</th>}<th>Skimmer ({chemical.unit})</th><th>{global ? 'Comparable maximum' : 'Maximum'} ({chemical.unit})</th><th>Excess ({chemical.unit})</th></tr></thead><tbody>{chemical.properties.map((property) => <tr key={property.propertyId}>
