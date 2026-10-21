@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { API_URL, apiFetch } from './api';
 import type { ConsumptionFile, ConsumptionImportRow, ConsumptionChemical } from './chemicalConsumptionImport';
 import { chemicalReportMonth, chlorineOverages, englishChemicalName, isChlorineChemical } from './chemicalConsumptionAlerts';
+import { RecurringOverconsumptionReport } from './RecurringOverconsumptionReport';
 import './ChemicalConsumptionPanel.css';
 
 type Property = { id: string; name: string; code: string | null; waterBodies: Array<{ id: string; name: string; technicianName: string | null; gallons: number | null; type: string; size: string | null; active: boolean }> };
@@ -50,7 +51,6 @@ export function ChemicalConsumptionPanel() {
   const [pending, setPending] = useState<ConsumptionFile | null>(null);
   const [preview, setPreview] = useState<Preview[]>([]);
   const [replace, setReplace] = useState(false);
-  const [recurringPropertyId, setRecurringPropertyId] = useState('');
   const selectedProperty = dashboard.properties.find((property) => property.id === propertyId);
   const period = dashboard.periods.find((item) => item.propertyId === propertyId);
   async function load() {
@@ -70,7 +70,6 @@ export function ChemicalConsumptionPanel() {
     setBudgetPercent(period?.budgetPercent == null ? '' : String(period.budgetPercent));
     setSeasonFactor(String(period?.seasonFactor || 1));
   }, [period, propertyId]);
-  const recurringProperty = dashboard.recurringOverconsumption?.find((item) => item.propertyId === recurringPropertyId);
   async function readFile(file: File, kind: 'pdf' | 'fees') {
     setBusy(true); setError(''); setMessage('Reading file…'); setReplace(false);
     try {
@@ -110,14 +109,15 @@ export function ChemicalConsumptionPanel() {
   const overconsumptionProperties = new Set(overconsumption.map((item) => item.propertyId)).size;
   const reviewedProperties = dashboard.periods.filter((item) => item.chemicals.some((chemical) => isChlorineChemical(chemical.name) && chemical.expectedMax != null)).length;
   const reportTechnicians = selectedProperty && period ? [...new Set(period.chemicals.flatMap((chemical) => (isLiquidChlorine(chemical) ? chemical.technicians || [] : []).filter((item) => !item.name.toLowerCase().includes('georky')).map((item) => item.name)))].join(', ') : '';
-  return <section className="consumption-panel">
+  return <>
+    <RecurringOverconsumptionReport items={dashboard.recurringOverconsumption || []} />
+    <section className="consumption-panel">
     <header className="consumption-heading"><div><h2>Property consumption</h2><p>Applied quantities, cost and monthly fee allocation by water body.</p></div><label>Month<input type="month" value={month} disabled={busy} onChange={(event) => { if (event.target.value) { setMonth(event.target.value); setPending(null); } }} /></label></header>
     <p className="consumption-muted">To import monthly fees from the QuickBooks Transaction Report, select a month first. Only maintenance invoices are included; repairs and extra chemical charges are excluded.</p>
     {error && <p className="consumption-error" role="alert">{error}</p>}{message && <p className="consumption-message" role="status">{message}</p>}
     <div className="consumption-import-actions"><label className="secondary-button">{busy ? 'Processing…' : 'Upload Skimmer PDF'}<input type="file" accept=".pdf" disabled={busy || loading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void readFile(file, 'pdf'); event.target.value = ''; }} /></label><label className="secondary-button">Upload monthly fees (Excel)<input type="file" accept=".xlsx" disabled={busy || loading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void readFile(file, 'fees'); event.target.value = ''; }} /></label><button type="button" className="secondary-button" disabled={busy} onClick={() => void load()}>Refresh</button></div>
     {pending && <section className="consumption-import-preview"><h3>Review import · {pending.month}</h3><p>{pending.sourceName} · {preview.filter((row) => row.matchedProperty).length} of {preview.length} properties matched. Unmatched rows are excluded.</p>{pending.warnings.length > 0 && <details><summary>{pending.warnings.length} review notices</summary>{pending.warnings.map((warning) => <p key={warning}>{warning}</p>)}</details>}<div className="consumption-preview-list">{preview.map((row, index) => <label key={`${row.code || row.propertyName}-${index}`}><span>{row.propertyName}{row.existing && <small>Already has data for this month</small>}</span><select value={row.matchedProperty?.id || ''} disabled={busy} onChange={(event) => setPreview((current) => current.map((item, i) => i === index ? { ...item, matchedProperty: dashboard.properties.find((property) => property.id === event.target.value) || null } : item))}><option value="">Unmatched</option>{dashboard.properties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select></label>)}</div><label className="consumption-replace"><input type="checkbox" checked={replace} disabled={busy} onChange={(event) => setReplace(event.target.checked)} />Replace existing data for this month with the uploaded file</label><div className="consumption-import-actions"><button type="button" className="primary-button" disabled={busy} onClick={() => void importFile()}>Confirm import</button><button type="button" className="secondary-button" disabled={busy} onClick={() => { setPending(null); setPreview([]); }}>Cancel</button></div></section>}
     <div className="consumption-kpis"><article><span>Properties with consumption</span><strong>{dashboard.periods.filter((item) => item.sourceName).length}</strong></article><article><span>Recorded monthly cost</span><strong>{money(importedCost)}</strong></article><article className={overconsumptionProperties > 0 ? 'consumption-high' : ''}><span>Properties with chlorine overconsumption</span><strong>{overconsumptionProperties}</strong><small>Liquid chlorine and tablets</small></article></div>
-    {!!dashboard.recurringOverconsumption?.length && <section className="consumption-recurring"><h3>Properties with overconsumption for more than one month</h3><div className="consumption-recurring-list">{dashboard.recurringOverconsumption.map((item) => <button type="button" key={item.propertyId} className={item.propertyId === recurringPropertyId ? 'active' : ''} onClick={() => setRecurringPropertyId(item.propertyId === recurringPropertyId ? '' : item.propertyId)}><strong>{item.propertyName}</strong><span>{item.months} months in alert</span></button>)}</div>{recurringProperty && <div className="consumption-recurring-details"><strong>{recurringProperty.propertyName}</strong>{recurringProperty.entries.map((entry) => <p key={`${entry.month}-${entry.chemicalName}-${entry.unit}`}><b>{entry.month}</b> · {englishChemicalName(entry.chemicalName)}: {quantity(entry.quantity)} {entry.unit} · threshold {quantity(entry.threshold)} {entry.unit} · +{entry.excessPercent.toFixed(1)}%</p>)}</div>}</section>}
     {!loading && <section className="consumption-overview">
       <h3>Chlorine overconsumption by property</h3>
       <p className="consumption-muted">{overconsumptionProperties} properties with chlorine overconsumption · {reviewedProperties} properties with evaluable chlorine consumption. Includes liquid chlorine and tablets.</p>
@@ -175,5 +175,6 @@ export function ChemicalConsumptionPanel() {
       </>}
       {!period && <p>Save the monthly fee to view its size-based allocation, then upload the consumption PDF.</p>}
     </>}
-  </section>;
+    </section>
+  </>;
 }
