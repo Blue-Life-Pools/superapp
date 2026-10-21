@@ -82,4 +82,18 @@ for (const scope of ['month', 'global']) {
   assert.match(fill, /class="company-chart-row company-chart-high"[^]*?class="company-chart-fill" style="width:100%"><span>111\.5%<\/span>/, 'The acid track is fully red above its maximum');
 }
 for (const invalid of [null, 0, -1, NaN, Infinity]) assert.equal(companyChemicalMetrics({ ...chemical, maximum: invalid }).percent, null);
+const grown = { ...manualChemical, id: 'stabilizer:scoop', name: 'Stabilizer', recordedQuantity: 430, baseMaximum: 412, maximum: 412 * 275 / 253, updatedMaximum: 412 * 275 / 253, populationAdjusted: true, adjustmentFactor: 275 / 253, manualMonthlyMaximum: 412 };
+assert.equal(companyChemicalStatus(grown, thresholds).level, 'attention', 'Alerts use the updated cap, not the exceeded original cap');
+for (const scope of ['month', 'global']) {
+  const grownHtml = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: scope === 'global' ? 'global' : '2026-01', scope, baselineYear: 2025, thresholds, basePropertyCount: 253, uploadedProperties: 275, monthlyPropertyCounts: [{ month: '2026-01', properties: 275 }], chemicals: [grown] } }));
+  assert.match(grownHtml, /Updated maximum: <strong>447\.83 scoop/);
+  assert.match(grownHtml, /Base maximum: 412 scoop/);
+  assert.match(grownHtml, /96% of company maximum/);
+  assert.match(grownHtml, /company-chart-row company-chart-attention/);
+  assert.match(grownHtml, /<td>275<\/td><td>253<\/td>/);
+  assert.match(grownHtml, /unique properties with uploaded Skimmer data/);
+}
+const awaitingUpload = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: '2026-01', baselineYear: 2025, thresholds, uploadedProperties: 0, chemicals: [{ ...grown, maximum: null, updatedMaximum: null, recordedQuantity: null }] } }));
+assert.match(awaitingUpload, /Awaiting Skimmer report/);
+assert.doesNotMatch(awaitingUpload, /class="company-chart-fill"/);
 console.log('PASS: company chart thresholds, partial data, shared scale, markers, refills, units and property breakdown');

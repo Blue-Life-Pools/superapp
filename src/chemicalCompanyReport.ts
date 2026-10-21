@@ -1,6 +1,8 @@
 export type CompanyChemicalTotal = {
   id: string; name: string; unit: string;
   recordedQuantity: number | null; maximum: number | null; expectedQuantity: number | null;
+  baseMaximum?: number | null; updatedMaximum?: number | null;
+  populationAdjusted?: boolean; adjustmentFactor?: number | null;
   comparableQuantity: number | null; comparisonMaximum: number | null;
   maximumSource?: 'HISTORY_2025' | 'MANUAL_COMPANY'; manualMonthlyMaximum?: number | null;
   percent: number | null; excessQuantity: number | null; remainingQuantity: number | null;
@@ -20,6 +22,8 @@ export type CompanyConsumptionReport = {
   month: string; scope: 'month' | 'global'; months: string[]; availableMonths: string[]; baselineYear: number;
   thresholds: { warning: number; attention: number; maximum: number };
   activeProperties: number; uploadedProperties: number; matchedHistoryProperties: number;
+  basePropertyCount?: number | null;
+  monthlyPropertyCounts?: Array<{ month: string; properties: number }>;
   sources: string[]; chemicals: CompanyChemicalTotal[];
 };
 

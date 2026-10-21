@@ -39,11 +39,11 @@ export function ChemicalsReportsPanel() {
     <header className="consumption-heading">
       <h2 id="chemicals-reports-heading">Reports</h2>
     </header>
-    {report && <p className="company-report-stats">{report.uploadedProperties} active properties with uploaded Skimmer data · {report.matchedHistoryProperties} properties matched to 2025 history</p>}
+    {report && <p className="company-report-stats">{report.uploadedProperties} active properties with uploaded Skimmer data · {report.basePropertyCount ? `2025 base: ${report.basePropertyCount} properties` : `${report.matchedHistoryProperties} properties matched to 2025 history`}</p>}
     {!current && <p role="status">Loading company chemical report…</p>}
     {current?.error && <p className="consumption-error" role="alert">{current.error}</p>}
     {report && <>
-      {!report.uploadedProperties && <p className="consumption-message">{global ? 'No uploaded Skimmer reports are available for the global view.' : `No Skimmer report has been uploaded for ${companyReportMonthLabel(month)}. The maximums below come from 2025 history.`} Upload a PDF in Property consumption to compare actual usage.</p>}
+      {!report.uploadedProperties && <p className="consumption-message">{global ? 'No uploaded Skimmer reports are available for the global view.' : `No Skimmer report has been uploaded for ${companyReportMonthLabel(month)}.`} Upload a PDF in Property consumption to calculate the updated maximum and compare actual usage.</p>}
       <CompanyConsumptionChart report={report} />
       {!!report.sources.length && <details className="company-report-sources"><summary>Uploaded sources ({report.sources.length})</summary>{report.sources.map((source) => <p key={source}>{source}</p>)}</details>}
     </>}
