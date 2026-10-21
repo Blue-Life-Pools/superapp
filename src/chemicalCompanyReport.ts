@@ -2,6 +2,7 @@ export type CompanyChemicalTotal = {
   id: string; name: string; unit: string;
   recordedQuantity: number | null; maximum: number | null; expectedQuantity: number | null;
   comparableQuantity: number | null; comparisonMaximum: number | null;
+  maximumSource?: 'HISTORY_2025' | 'MANUAL_COMPANY'; manualMonthlyMaximum?: number | null;
   percent: number | null; excessQuantity: number | null; remainingQuantity: number | null;
   referenceProperties: number; reportedReferenceProperties: number;
   referencePropertyMonths?: number; reportedReferencePropertyMonths?: number;
@@ -33,13 +34,24 @@ export function companyReportMonthLabel(month: string) {
 
 export function companyChemicalStatus(chemical: CompanyChemicalTotal, thresholds: CompanyConsumptionReport['thresholds']) {
   if (chemical.recordedQuantity === null) return { level: 'empty', label: 'No Skimmer data' };
-  if (chemical.percent === null) return { level: 'empty', label: 'No comparable reference' };
-  if (chemical.percent > thresholds.maximum) return { level: 'high', label: chemical.coverageComplete ? 'Overconsumption' : 'Overconsumption · Comparable properties' };
-  if (chemical.percent >= thresholds.attention) return { level: 'attention', label: 'Attention' };
-  if (chemical.percent >= thresholds.warning) return { level: 'warning', label: 'Early warning' };
-  return chemical.coverageComplete ? { level: 'normal', label: 'Within range' } : { level: 'partial', label: 'Partial coverage' };
+  const { percent } = companyChemicalMetrics(chemical);
+  if (percent === null) return { level: 'empty', label: 'No maximum available' };
+  if (percent > thresholds.maximum) return { level: 'high', label: 'Overconsumption' };
+  if (percent >= thresholds.attention) return { level: 'attention', label: 'Attention' };
+  if (percent >= thresholds.warning) return { level: 'warning', label: 'Early warning' };
+  return { level: 'normal', label: 'Within range' };
+}
+
+export function companyChemicalMetrics(chemical: Pick<CompanyChemicalTotal, 'recordedQuantity' | 'maximum'>) {
+  const { recordedQuantity, maximum } = chemical;
+  const valid = recordedQuantity !== null && Number.isFinite(recordedQuantity) && maximum !== null && Number.isFinite(maximum) && maximum > 0;
+  return {
+    percent: valid ? recordedQuantity / maximum * 100 : null,
+    excessQuantity: valid ? Math.max(0, recordedQuantity - maximum) : null,
+    remainingQuantity: valid ? Math.max(0, maximum - recordedQuantity) : null,
+  };
 }
 
 export function companyChartScale(chemicals: CompanyChemicalTotal[]) {
-  return Math.max(200, Math.ceil(Math.max(0, ...chemicals.map((chemical) => chemical.percent ?? 0)) / 50) * 50);
+  return Math.max(200, Math.ceil(Math.max(0, ...chemicals.map((chemical) => companyChemicalMetrics(chemical).percent ?? 0)) / 50) * 50);
 }

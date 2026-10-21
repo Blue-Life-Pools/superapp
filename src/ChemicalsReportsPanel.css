@@ -5,21 +5,21 @@
 .company-report-period-summary summary { cursor: pointer; font-weight: 700; }
 .company-report-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .company-report-toolbar > span, .company-report-sources { color: #667085; font-size: 12px; line-height: 1.6; }
-.company-chart { display: grid; gap: 14px; min-width: 0; }
+.company-chart { display: grid; gap: 14px; min-width: 0; --company-normal: #0d4268; --company-warning: #a37800; --company-attention: #b85b00; --company-high: #c43227; --company-empty: #667085; }
 .company-chart-heading { display: grid; gap: 8px; }
 .company-chart-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 12px; }
 .company-chart-legend > span { display: flex; align-items: center; gap: 6px; }
-.company-chart-legend > span::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: #0d4268; }
-.company-chart-legend > .company-legend-warning::before { background: #d9a300; }
-.company-chart-legend > .company-legend-attention::before { background: #b85b00; }
-.company-chart-legend > .company-legend-high::before { background: #c43227; }
+.company-chart-legend > span::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--company-normal); }
+.company-chart-legend > .company-legend-warning::before { background: var(--company-warning); }
+.company-chart-legend > .company-legend-attention::before { background: var(--company-attention); }
+.company-chart-legend > .company-legend-high::before { background: var(--company-high); }
 .company-chart-axis { display: flex; justify-content: space-between; color: #667085; font-size: 11px; }
 .company-chart-rows { display: grid; gap: 22px; }
-.company-chart-row { display: grid; gap: 7px; min-width: 0; --company-bar: #0d4268; }
-.company-chart-warning { --company-bar: #a37800; }
-.company-chart-attention { --company-bar: #b85b00; }
-.company-chart-high { --company-bar: #c43227; }
-.company-chart-partial, .company-chart-empty { --company-bar: #667085; }
+.company-chart-row { display: grid; gap: 7px; min-width: 0; --company-bar: var(--company-normal); }
+.company-chart-warning { --company-bar: var(--company-warning); }
+.company-chart-attention { --company-bar: var(--company-attention); }
+.company-chart-high { --company-bar: var(--company-high); }
+.company-chart-empty { --company-bar: var(--company-empty); }
 .company-chart-row-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; }
 .company-chart-row-heading h4 { font-size: 15px; }
 .company-chart-row-heading small { font-size: 12px; font-weight: 500; }
@@ -27,9 +27,10 @@
 .company-chart-row-heading p strong { font-weight: 500; }
 .company-chart-track { position: relative; height: 28px; border-radius: 5px; background: #edf1f3; isolation: isolate; }
 .company-chart-fill { display: flex; align-items: center; justify-content: center; height: 100%; border-radius: 5px; background: var(--company-bar); color: #fff; font-size: 12px; font-weight: 750; }
+.company-chart-value { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--company-bar); font-size: 12px; font-weight: 750; }
 .company-chart-marker { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 1px dotted; pointer-events: none; }
-.company-chart-marker-warning { border-color: #a37800; }
-.company-chart-marker-attention { border-color: #b85b00; }
+.company-chart-marker-warning { border-color: var(--company-warning); }
+.company-chart-marker-attention { border-color: var(--company-attention); }
 .company-chart-marker-maximum { border-left: 2px dashed #344054; }
 .company-chart-coverage { color: #667085; font-size: 12px; line-height: 1.6; }
 .company-chart-details, .company-chart-method { font-size: 12px; line-height: 1.6; }
