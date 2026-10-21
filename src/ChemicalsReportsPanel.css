@@ -1,10 +1,8 @@
 .chemicals-reports-panel { gap: 22px; }
-.chemicals-reports-panel > .consumption-heading { grid-template-columns: minmax(0, 1fr) minmax(240px, 290px); }
-.company-report-period-summary { display: grid; gap: 8px; padding: 14px; border: 1px solid #d5e5eb; border-radius: 10px; background: #f6fbfd; }
-.company-report-period-summary p, .company-report-period-summary details { font-size: 12px; line-height: 1.6; color: #667085; }
-.company-report-period-summary summary { cursor: pointer; font-weight: 700; }
-.company-report-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-.company-report-toolbar > span, .company-report-sources { color: #667085; font-size: 12px; line-height: 1.6; }
+.chemicals-reports-panel > .consumption-heading { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.company-report-header-actions { display: grid; grid-template-columns: minmax(220px, 290px) auto; align-items: end; gap: 12px; min-width: 0; }
+.company-report-header-actions button { min-height: 44px; white-space: nowrap; }
+.company-report-stats, .company-report-sources { color: #667085; font-size: 12px; line-height: 1.6; }
 .company-chart { display: grid; gap: 14px; min-width: 0; --company-normal: #0d4268; --company-warning: #a37800; --company-attention: #b85b00; --company-high: #c43227; --company-empty: #667085; }
 .company-chart-heading { display: grid; gap: 8px; }
 .company-chart-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 12px; }
@@ -46,6 +44,7 @@
 .company-chart-details summary:focus-visible, .company-chart-method summary:focus-visible { outline: 2px solid #075477; outline-offset: 3px; }
 @media (max-width: 599px) {
   .chemicals-reports-panel > .consumption-heading { grid-template-columns: minmax(0, 1fr); }
+  .company-report-header-actions { grid-template-columns: minmax(0, 1fr) auto; }
   .company-chart-row-heading { display: grid; }
   .company-chart-track { height: 30px; }
   .company-chart-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
