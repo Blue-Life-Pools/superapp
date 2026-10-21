@@ -1,7 +1,12 @@
+.chemicals-reports-view { display: grid; gap: 12px; min-width: 0; margin-top: 20px; }
+.chemicals-reports-view > .chemicals-reports-panel { margin-top: 0; }
 .chemicals-reports-panel { gap: 22px; }
-.chemicals-reports-panel > .consumption-heading { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
-.company-report-header-actions { display: grid; grid-template-columns: minmax(220px, 290px) auto; align-items: end; gap: 12px; min-width: 0; }
-.company-report-header-actions button { min-height: 44px; white-space: nowrap; }
+.chemicals-reports-panel > .consumption-heading { grid-template-columns: minmax(0, 1fr); }
+.company-report-header-actions { display: grid; grid-template-columns: minmax(180px, 220px) auto; justify-self: end; align-items: end; gap: 8px; min-width: 0; max-width: 100%; color: #075477; }
+.company-report-header-actions label { display: grid; gap: 4px; min-width: 0; font-size: 11px; font-weight: 700; }
+.company-report-header-actions select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 36px; padding: 6px 9px; border: 1px solid #bfd9e7; border-radius: 8px; background: #fff; color: #075477; font: inherit; font-size: 13px; }
+.company-report-header-actions select:focus-visible { outline: 2px solid #b7deef; outline-offset: 1px; }
+.company-report-header-actions button { min-height: 36px; padding: 7px 10px; border-radius: 8px; font-size: 12px; white-space: nowrap; }
 .company-report-stats, .company-report-sources { color: #667085; font-size: 12px; line-height: 1.6; }
 .company-chart { display: grid; gap: 14px; min-width: 0; --company-normal: #0d4268; --company-warning: #a37800; --company-attention: #b85b00; --company-high: #c43227; --company-empty: #667085; }
 .company-chart-heading { display: grid; gap: 8px; }
@@ -43,8 +48,7 @@
 .company-chart-method p { padding-top: 10px; }
 .company-chart-details summary:focus-visible, .company-chart-method summary:focus-visible { outline: 2px solid #075477; outline-offset: 3px; }
 @media (max-width: 599px) {
-  .chemicals-reports-panel > .consumption-heading { grid-template-columns: minmax(0, 1fr); }
-  .company-report-header-actions { grid-template-columns: minmax(0, 1fr) auto; }
+  .company-report-header-actions { grid-template-columns: minmax(0, 1fr) auto; justify-self: stretch; }
   .company-chart-row-heading { display: grid; }
   .company-chart-track { height: 30px; }
   .company-chart-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
