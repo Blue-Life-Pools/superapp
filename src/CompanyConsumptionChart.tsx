@@ -1,10 +1,10 @@
-import { companyChartScale, companyChemicalMetrics, companyChemicalStatus, companyReportMonthLabel, type CompanyConsumptionReport } from './chemicalCompanyReport';
+import { companyChemicalMetrics, companyChemicalStatus, companyReportMonthLabel, type CompanyConsumptionReport } from './chemicalCompanyReport';
 
 const quantity = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 const percent = (value: number) => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
 
 export function CompanyConsumptionChart({ report }: { report: CompanyConsumptionReport }) {
-  const scale = companyChartScale(report.chemicals);
+  const scale = report.thresholds.maximum;
   const global = report.scope === 'global';
   return <section className="company-chart" aria-labelledby="company-chart-title">
     <header className="company-chart-heading">

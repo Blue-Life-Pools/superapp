@@ -31,7 +31,7 @@
 .company-chart-marker { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 1px dotted; pointer-events: none; }
 .company-chart-marker-warning { border-color: var(--company-warning); }
 .company-chart-marker-attention { border-color: var(--company-attention); }
-.company-chart-marker-maximum { border-left: 2px dashed #344054; }
+.company-chart-marker-maximum { border-left: 2px dashed #344054; transform: translateX(-100%); }
 .company-chart-coverage { color: #667085; font-size: 12px; line-height: 1.6; }
 .company-chart-details, .company-chart-method { font-size: 12px; line-height: 1.6; }
 .company-chart-details summary, .company-chart-method summary, .company-report-sources summary { cursor: pointer; font-weight: 700; }

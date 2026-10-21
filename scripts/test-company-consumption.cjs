@@ -12,7 +12,7 @@ function load(file) {
   new Function('exports', 'module', 'require', code)(result.exports, result, (name) => name.startsWith('./') ? load(name.slice(2) + '.ts') : require(name));
   return result.exports;
 }
-const { companyChartScale, companyChemicalMetrics, companyChemicalStatus, companyReportPeriodOptions, companyReportMonthLabel } = load('chemicalCompanyReport.ts');
+const { companyChemicalMetrics, companyChemicalStatus, companyReportPeriodOptions, companyReportMonthLabel } = load('chemicalCompanyReport.ts');
 const { CompanyConsumptionChart } = load('CompanyConsumptionChart.tsx');
 const thresholds = { warning: 80, attention: 90, maximum: 100 };
 const chemical = { id: 'liquidchlorine:gal', name: 'Liquid Chlorine', unit: 'gal', recordedQuantity: 120, maximum: 100, comparableQuantity: 120, comparisonMaximum: 100, percent: 120, excessQuantity: 20, remainingQuantity: 0, referenceProperties: 1, reportedReferenceProperties: 1, coverageComplete: true, unreferencedProperties: 0, unreferencedQuantity: 0, georkyRefillQuantity: 30, properties: [{ propertyId: 'a', propertyName: 'Example Pool', recordedQuantity: 120, maximum: 100 }] };
@@ -25,18 +25,16 @@ for (const [value, level] of [[0, 'normal'], [79.9, 'normal'], [80, 'warning'], 
 assert.equal(companyChemicalStatus({ ...chemical, recordedQuantity: 20, maximum: 100, percent: 120, coverageComplete: false }, thresholds).label, 'Within range');
 assert.equal(companyChemicalStatus({ ...chemical, recordedQuantity: null }, thresholds).label, 'No Skimmer data');
 assert.equal(companyChemicalStatus({ ...chemical, percent: null, maximum: null }, thresholds).label, 'No maximum available');
-assert.equal(companyChartScale([chemical]), 200);
-assert.equal(companyChartScale([{ ...chemical, recordedQuantity: 345, maximum: 100, percent: 0 }]), 350);
 assert.deepEqual(companyReportPeriodOptions(['2026-01', '2025-12', '2026-01', '2026-13'], '2026-02'), ['2026-02', '2026-01', '2025-12']);
 assert.deepEqual(companyReportPeriodOptions(['2026-01', '2025-12'], 'global'), ['2026-01', '2025-12']);
 assert.equal(companyReportMonthLabel('2026-01'), 'January 2026');
 
 const html = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: '2026-01', baselineYear: 2025, thresholds, chemicals: [chemical] } }));
 assert.match(html, /Skimmer vs. estimated maximum/);
-assert.match(html, /width:60%/);
-assert.match(html, /left:40%/);
-assert.match(html, /left:45%/);
-assert.match(html, /left:50%/);
+assert.match(html, /width:100%/);
+assert.match(html, /left:80%/);
+assert.match(html, /left:90%/);
+assert.match(html, /left:100%/);
 assert.match(html, /120% of company maximum/);
 assert.match(html, /class="company-chart-fill"[^>]*><span>120%<\/span>/);
 assert.match(html, /class="company-legend-normal"[^>]*>&lt; 80%/);
@@ -70,7 +68,18 @@ assert.match(acidHtml, /company-chart-row company-chart-high/);
 assert.match(acidHtml, /106\.5% of company maximum/);
 assert.doesNotMatch(acidHtml, /74\.3%|Compared:/);
 const extreme = { ...chemical, recordedQuantity: 10000, maximum: 100 };
-const wideScale = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: '2026-01', baselineYear: 2025, thresholds, chemicals: [acid, extreme] } }));
-assert.match(wideScale, /class="company-chart-value">106\.5%<\/span>/, 'The percentage stays visible when another chemical expands the common scale');
+const fixedScale = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: '2026-01', baselineYear: 2025, thresholds, chemicals: [acid, extreme] } }));
+assert.match(fixedScale, /class="company-chart-fill" style="width:100%"><span>106\.5%<\/span>/, 'Overconsumption fills the whole track while retaining its real percentage');
+assert.match(fixedScale, /class="company-chart-fill" style="width:100%"><span>10,000%<\/span>/);
+assert.match(fixedScale, /100% of maximum/);
+const liquid = { ...chemical, id: 'liquid', recordedQuantity: 15600, maximum: 22311.34, georkyRefillQuantity: 0, properties: [] };
+const septemberAcid = { ...chemical, id: 'acid', name: 'Muriatic Acid', recordedQuantity: 1112.5, maximum: 997.91, georkyRefillQuantity: 0, properties: [] };
+for (const scope of ['month', 'global']) {
+  const fill = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: scope === 'global' ? 'global' : '2026-09', scope, baselineYear: 2025, thresholds, chemicals: [liquid, septemberAcid, extreme] } }));
+  const firstBarWidth = Number(fill.match(/class="company-chart-fill" style="width:([\d.]+)%"/)?.[1]);
+  assert.ok(Math.abs(firstBarWidth - 69.9) < .05, 'The liquid chlorine bar fills about 69.9% regardless of other chemical extremes');
+  assert.match(fill, /<span>69\.9%<\/span>/);
+  assert.match(fill, /class="company-chart-row company-chart-high"[^]*?class="company-chart-fill" style="width:100%"><span>111\.5%<\/span>/, 'The acid track is fully red above its maximum');
+}
 for (const invalid of [null, 0, -1, NaN, Infinity]) assert.equal(companyChemicalMetrics({ ...chemical, maximum: invalid }).percent, null);
 console.log('PASS: company chart thresholds, partial data, shared scale, markers, refills, units and property breakdown');

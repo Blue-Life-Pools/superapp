@@ -51,7 +51,3 @@ export function companyChemicalMetrics(chemical: Pick<CompanyChemicalTotal, 'rec
     remainingQuantity: valid ? Math.max(0, maximum - recordedQuantity) : null,
   };
 }
-
-export function companyChartScale(chemicals: CompanyChemicalTotal[]) {
-  return Math.max(200, Math.ceil(Math.max(0, ...chemicals.map((chemical) => companyChemicalMetrics(chemical).percent ?? 0)) / 50) * 50);
-}
