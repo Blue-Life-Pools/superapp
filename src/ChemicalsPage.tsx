@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 
 import { API_URL, apiFetch as fetch, getAppToken } from './api';
 import { ChemicalConsumptionPanel } from './ChemicalConsumptionPanel';
+import { ChemicalsReportsPanel } from './ChemicalsReportsPanel';
 
 type QuantityKey =
   | 'tabsQuantity'
@@ -225,7 +226,7 @@ export function ChemicalsPage({
   const [initialTechnicianToken] = useState(technicianTokenFromSharedLink);
   const [technicianToken, setTechnicianToken] = useState(initialTechnicianToken);
   const [technicianAccessMode] = useState(technicianAccessModeFromLink);
-  const [activeTab, setActiveTab] = useState<'register' | 'technicians' | 'consumption'>('register');
+  const [activeTab, setActiveTab] = useState<'register' | 'technicians' | 'consumption' | 'reports'>('register');
   const [lockedTechnician, setLockedTechnician] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [accessing, setAccessing] = useState(false);
@@ -658,11 +659,12 @@ export function ChemicalsPage({
         <>
           <nav className="chemicals-tabs" aria-label="Chemical sections">
             <button className={activeTab === 'consumption' ? 'chemicals-tab-active' : ''} type="button" onClick={() => setActiveTab('consumption')}>Property consumption</button>
+            <button className={activeTab === 'reports' ? 'chemicals-tab-active' : ''} type="button" onClick={() => setActiveTab('reports')}>Reports</button>
             <button className={activeTab === 'register' ? 'chemicals-tab-active' : ''} type="button" onClick={() => setActiveTab('register')}>Register</button>
             <button className={activeTab === 'technicians' ? 'chemicals-tab-active' : ''} type="button" onClick={() => { setActiveTab('technicians'); if (ownerToken) void loadManagedTechnicians().catch((error) => setTechnicianMessage(error instanceof Error ? error.message : 'Unable to load the directory.')); }}>Technicians</button>
           </nav>
 
-          {activeTab !== 'consumption' && <><section className="chemicals-kpis">
+          {(activeTab === 'register' || activeTab === 'technicians') && <><section className="chemicals-kpis">
             <article><span>Today's records</span><strong>{reportsToday}</strong><small>Withdrawals reported by the team</small></article>
             <article><span>Technicians with records</span><strong>{techniciansReported}</strong><small>In the available history</small></article>
           </section>
@@ -688,6 +690,7 @@ export function ChemicalsPage({
       )}
 
       {!isSharedForm && activeTab === 'consumption' && <ChemicalConsumptionPanel />}
+      {!isSharedForm && activeTab === 'reports' && <ChemicalsReportsPanel />}
 
       {(isSharedForm || activeTab === 'register') && <div className={`chemicals-workspace ${isSharedForm ? 'chemicals-shared-workspace' : ''}`}>
         <section className="chemicals-form-card">

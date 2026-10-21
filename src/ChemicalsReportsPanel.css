@@ -1,0 +1,56 @@
+.chemicals-reports-panel { gap: 22px; }
+.chemicals-reports-panel > .consumption-heading { grid-template-columns: minmax(0, 1fr) minmax(240px, 290px); }
+.company-report-period-summary { display: grid; gap: 8px; padding: 14px; border: 1px solid #d5e5eb; border-radius: 10px; background: #f6fbfd; }
+.company-report-period-summary p, .company-report-period-summary details { font-size: 12px; line-height: 1.6; color: #667085; }
+.company-report-period-summary summary { cursor: pointer; font-weight: 700; }
+.company-report-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.company-report-toolbar > span, .company-report-sources { color: #667085; font-size: 12px; line-height: 1.6; }
+.company-chart { display: grid; gap: 14px; min-width: 0; }
+.company-chart-heading { display: grid; gap: 8px; }
+.company-chart-heading p, .company-chart-note { color: #667085; font-size: 12px; line-height: 1.6; }
+.company-chart-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 12px; }
+.company-chart-legend > span { display: flex; align-items: center; gap: 6px; }
+.company-chart-legend > span::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: #0d4268; }
+.company-chart-legend > .company-legend-warning::before { background: #d9a300; }
+.company-chart-legend > .company-legend-attention::before { background: #b85b00; }
+.company-chart-legend > .company-legend-high::before { background: #c43227; }
+.company-chart-axis { display: flex; justify-content: space-between; color: #667085; font-size: 11px; }
+.company-chart-rows { display: grid; gap: 22px; }
+.company-chart-row { display: grid; gap: 7px; min-width: 0; --company-bar: #0d4268; }
+.company-chart-warning { --company-bar: #a37800; }
+.company-chart-attention { --company-bar: #b85b00; }
+.company-chart-high { --company-bar: #c43227; }
+.company-chart-partial, .company-chart-empty { --company-bar: #667085; }
+.company-chart-row-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; }
+.company-chart-row-heading h4 { font-size: 15px; }
+.company-chart-row-heading small { font-size: 12px; font-weight: 500; }
+.company-chart-row-heading p { display: flex; flex-wrap: wrap; gap: 5px; color: #667085; font-size: 12px; line-height: 1.5; }
+.company-chart-row-heading p strong { font-weight: 500; }
+.company-chart-track { position: relative; height: 28px; border-radius: 5px; background: #edf1f3; isolation: isolate; }
+.company-chart-fill { display: flex; align-items: center; justify-content: center; height: 100%; border-radius: 5px; background: var(--company-bar); color: #fff; font-size: 12px; font-weight: 750; }
+.company-chart-marker { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 1px dotted; pointer-events: none; }
+.company-chart-marker-warning { border-color: #a37800; }
+.company-chart-marker-attention { border-color: #b85b00; }
+.company-chart-marker-maximum { border-left: 2px dashed #344054; }
+.company-chart-row-summary { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; line-height: 1.5; }
+.company-chart-row-summary strong { color: var(--company-bar); }
+.company-chart-row-summary > span, .company-chart-coverage { color: #667085; font-size: 12px; line-height: 1.6; }
+.company-chart-incomplete { color: #8a5a00; font-size: 12px; line-height: 1.6; }
+.company-chart-details, .company-chart-method { font-size: 12px; line-height: 1.6; }
+.company-chart-details summary, .company-chart-method summary, .company-report-sources summary { cursor: pointer; font-weight: 700; }
+.company-chart-table-wrap { max-height: 360px; overflow: auto; margin-top: 10px; border: 1px solid #d5e5eb; border-radius: 8px; }
+.company-chart-table-wrap table { width: 100%; border-collapse: collapse; text-align: left; }
+.company-chart-table-wrap th, .company-chart-table-wrap td { padding: 10px 12px; border-bottom: 1px solid #d5e5eb; }
+.company-chart-table-wrap thead { position: sticky; top: 0; background: #f6fbfd; }
+.company-chart-table-wrap tbody th { font-weight: 500; min-width: 180px; }
+.company-chart-table-wrap td { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.company-chart-method { padding-top: 16px; border-top: 1px solid #d5e5eb; color: #667085; }
+.company-chart-method p { padding-top: 10px; }
+.company-chart-details summary:focus-visible, .company-chart-method summary:focus-visible { outline: 2px solid #075477; outline-offset: 3px; }
+@media (max-width: 599px) {
+  .chemicals-reports-panel > .consumption-heading { grid-template-columns: minmax(0, 1fr); }
+  .company-chart-row-heading { display: grid; }
+  .company-chart-row-summary { display: grid; }
+  .company-chart-track { height: 30px; }
+  .company-chart-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+}
