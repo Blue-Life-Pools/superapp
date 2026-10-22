@@ -678,20 +678,22 @@ export function QualityInspectionsPage({
               {message && <p className="quality-wide health-sync-message" role="alert">{message}</p>}
               <label>
                 Property
-                <select
+                <input
+                  list="quality-properties"
                   required
-                  value={editing.propertyId}
-                  onChange={(event) =>
-                    update({ propertyId: event.target.value, waterBodyId: "" })
-                  }
-                >
-                  <option value="">Select property</option>
+                  autoComplete="off"
+                  placeholder="Type to search a property"
+                  value={properties.find((property) => property.id === editing.propertyId)?.name || ""}
+                  onChange={(event) => {
+                    const selected = properties.find((property) => property.name.toLowerCase() === event.target.value.trim().toLowerCase());
+                    update({ propertyId: selected?.id || "", waterBodyId: "" });
+                  }}
+                />
+                <datalist id="quality-properties">
                   {properties.map((property) => (
-                    <option key={property.id} value={property.id}>
-                      {property.name}
-                    </option>
+                    <option key={property.id} value={property.name} />
                   ))}
-                </select>
+                </datalist>
               </label>
               <label>
                 Pool / water body
