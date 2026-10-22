@@ -12,7 +12,7 @@ function load(file) {
   new Function('exports', 'module', 'require', code)(result.exports, result, (name) => name.startsWith('./') ? load(name.slice(2) + '.ts') : require(name));
   return result.exports;
 }
-const { companyChemicalMetrics, companyChemicalStatus, companyReportPeriodOptions, companyReportMonthLabel } = load('chemicalCompanyReport.ts');
+const { companyChemicalMetrics, companyChemicalStatus, companyPropertyStatus, sortCompanyProperties, companyReportPeriodOptions, companyReportMonthLabel } = load('chemicalCompanyReport.ts');
 const { CompanyConsumptionChart } = load('CompanyConsumptionChart.tsx');
 const thresholds = { warning: 80, attention: 90, maximum: 100 };
 const chemical = { id: 'liquidchlorine:gal', name: 'Liquid Chlorine', unit: 'gal', recordedQuantity: 120, maximum: 100, comparableQuantity: 120, comparisonMaximum: 100, percent: 120, excessQuantity: 20, remainingQuantity: 0, referenceProperties: 1, reportedReferenceProperties: 1, coverageComplete: true, unreferencedProperties: 0, unreferencedQuantity: 0, georkyRefillQuantity: 30, properties: [{ propertyId: 'a', propertyName: 'Example Pool', recordedQuantity: 120, maximum: 100 }] };
@@ -43,7 +43,7 @@ assert.doesNotMatch(html, /class="company-chart-row-summary"|class="company-char
 assert.doesNotMatch(html, /Monthly maximum =|Company totals include all uploaded usage|The dashed line marks|below the comparable maximum|Reference:|Exceeds comparable maximum by/);
 assert.match(html, /Georky tank refill: 30 gal/);
 assert.match(html, /Example Pool/);
-assert.match(html, /<th>Skimmer \(gal\)<\/th>/);
+assert.match(html, /<th aria-sort="descending">Skimmer \(gal\)<\/th>/);
 const missing = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: '2026-01', baselineYear: 2025, thresholds, chemicals: [{ ...chemical, recordedQuantity: null, percent: null }] } }));
 assert.match(missing, /No data for this month/);
 assert.doesNotMatch(missing, /class="company-chart-fill"/);
@@ -58,7 +58,7 @@ assert.equal(companyChemicalStatus(manualChemical, thresholds).label, 'Overconsu
 const manual = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: '2026-01', baselineYear: 2025, thresholds, chemicals: [manualChemical] } }));
 assert.match(manual, /170 scoop \(manual\)/);
 assert.match(manual, /117\.6% of company maximum/);
-assert.match(manual, /<th>Skimmer \(scoop\)<\/th>/);
+assert.match(manual, /<th aria-sort="descending">Skimmer \(scoop\)<\/th>/);
 assert.doesNotMatch(manual, /<th>Maximum|<th>Excess|Compared:/, 'A company manual limit must not become a per-property allowance');
 const acid = { ...chemical, name: 'Muriatic Acid', recordedQuantity: 685.25, maximum: 643.6674910612855, comparableQuantity: 445.5, comparisonMaximum: 599.3778879406699, percent: 74.3, coverageComplete: false };
 assert.equal(companyChemicalMetrics(acid).percent.toFixed(1), '106.5');
@@ -114,4 +114,26 @@ assert.match(manualPropertyHtml, /Updated maximum: <strong>170 scoop \(manual\)/
 assert.match(manualPropertyHtml, /<th>Maximum \(scoop\)<\/th>/);
 assert.match(manualPropertyHtml, /<td title="[^"]*">8<\/td>/);
 assert.match(manualPropertyHtml, /117\.6% of company maximum/);
-console.log('PASS: company chart thresholds, partial data, shared scale, markers, refills, units and property breakdown');
+
+for (const [recordedQuantity, maximum, level] of [[0, 100, 'normal'], [80, 100, 'normal'], [89.999, 100, 'normal'], [90, 100, 'warning'], [100, 100, 'warning'], [100.001, 100, 'high'], [1, 0, 'high'], [0, 0, 'normal'], [5, null, 'normal'], [null, 100, 'normal'], [NaN, 100, 'normal'], [1, Infinity, 'normal'], [-1, 100, 'normal']]) {
+  assert.equal(companyPropertyStatus({ recordedQuantity, maximum, referenceMaximum: 1 }).level, level);
+}
+const propertyRow = (name, recordedQuantity, maximum) => ({ propertyId: name, propertyName: name, recordedQuantity, maximum, referenceMaximum: 1000, maximumSource: 'WORKBOOK_PROPERTY' });
+const tableProperties = [propertyRow('Yellow pool', 95, 100), propertyRow('No report', null, 100), propertyRow('Red pool', 120, 100), propertyRow('Ordinary pool', 80, 100), propertyRow('No reference', 200, null), propertyRow('Zero pool', 0, 10)];
+const originalRows = JSON.stringify(tableProperties);
+assert.deepEqual(sortCompanyProperties(tableProperties).map((row) => row.propertyName), ['No reference', 'Red pool', 'Yellow pool', 'Ordinary pool', 'Zero pool', 'No report']);
+assert.equal(JSON.stringify(tableProperties), originalRows, 'Sorting does not mutate API data or company totals');
+assert.deepEqual(sortCompanyProperties([propertyRow('Zeta', 5, 10), propertyRow('Alpha', 5, 10)]).map((row) => row.propertyName), ['Alpha', 'Zeta']);
+for (const scope of ['month', 'global']) {
+  for (const maximumSource of ['HISTORY_2025', 'MANUAL_COMPANY']) {
+    const tableHtml = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: scope === 'global' ? 'global' : '2026-09', scope, baselineYear: 2025, thresholds, chemicals: [{ ...chemical, maximumSource, properties: tableProperties }] } }));
+    const body = tableHtml.match(/<tbody>([^]*?)<\/tbody>/)[1];
+    const renderedRows = [...body.matchAll(/<tr([^>]*)>([^]*?)<\/tr>/g)].map((match) => ({ attributes: match[1], name: match[2].match(/<th scope="row">([^]*?)<\/th>/)[1] }));
+    assert.deepEqual(renderedRows.map((row) => row.name), ['No reference', 'Red pool', 'Yellow pool', 'Ordinary pool', 'Zero pool', 'No report']);
+    assert.match(renderedRows.find((row) => row.name === 'Red pool').attributes, /class="company-property-high"/);
+    assert.match(renderedRows.find((row) => row.name === 'Yellow pool').attributes, /class="company-property-warning"/);
+    for (const name of ['No reference', 'Ordinary pool', 'Zero pool', 'No report']) assert.doesNotMatch(renderedRows.find((row) => row.name === name).attributes, /class=/, `${name} stays unhighlighted`);
+    assert.match(tableHtml, /120% of company maximum/, 'Individual row highlighting must not change the company bar');
+  }
+}
+console.log('PASS: company chart, independent property maximums, descending consumption and property row warning colors');

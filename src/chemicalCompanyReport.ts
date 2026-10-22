@@ -58,3 +58,24 @@ export function companyChemicalMetrics(chemical: Pick<CompanyChemicalTotal, 'rec
     remainingQuantity: valid ? Math.max(0, maximum - recordedQuantity) : null,
   };
 }
+
+type PropertyConsumption = CompanyChemicalTotal['properties'][number];
+
+export function sortCompanyProperties(properties: readonly PropertyConsumption[]) {
+  return [...properties].sort((a, b) => {
+    const aRecorded = a.recordedQuantity !== null && Number.isFinite(a.recordedQuantity);
+    const bRecorded = b.recordedQuantity !== null && Number.isFinite(b.recordedQuantity);
+    if (aRecorded !== bRecorded) return aRecorded ? -1 : 1;
+    if (aRecorded && bRecorded && a.recordedQuantity !== b.recordedQuantity) return b.recordedQuantity! - a.recordedQuantity!;
+    return a.propertyName.localeCompare(b.propertyName);
+  });
+}
+
+export function companyPropertyStatus(property: Pick<PropertyConsumption, 'recordedQuantity' | 'maximum'>) {
+  const { recordedQuantity, maximum } = property;
+  if (recordedQuantity === null || !Number.isFinite(recordedQuantity) || recordedQuantity < 0) return { level: 'normal', label: 'No recorded consumption' };
+  if (maximum === null || !Number.isFinite(maximum) || maximum < 0) return { level: 'normal', label: 'No property maximum available' };
+  if (recordedQuantity > maximum) return { level: 'high', label: 'Over property maximum' };
+  if (maximum > 0 && recordedQuantity >= maximum * .9) return { level: 'warning', label: 'Near property maximum (90–100%)' };
+  return { level: 'normal', label: 'Within property maximum' };
+}

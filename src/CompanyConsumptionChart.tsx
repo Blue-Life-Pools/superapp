@@ -1,4 +1,4 @@
-import { companyChemicalMetrics, companyChemicalStatus, companyReportMonthLabel, type CompanyConsumptionReport } from './chemicalCompanyReport';
+import { companyChemicalMetrics, companyChemicalStatus, companyPropertyStatus, sortCompanyProperties, companyReportMonthLabel, type CompanyConsumptionReport } from './chemicalCompanyReport';
 
 const quantity = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 const percent = (value: number) => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
@@ -25,6 +25,7 @@ export function CompanyConsumptionChart({ report }: { report: CompanyConsumption
         const manual = chemical.maximumSource === 'MANUAL_COMPANY';
         const propertyWorkbook = chemical.properties.some((property) => property.maximumSource === 'WORKBOOK_PROPERTY');
         const showPropertyMaximum = !manual || propertyWorkbook;
+        const properties = sortCompanyProperties(chemical.properties);
         const maximum = chemical.maximum === null ? chemical.populationAdjusted && !report.uploadedProperties ? 'Awaiting Skimmer report' : 'Insufficient history' : `${quantity(chemical.maximum)} ${chemical.unit}`;
         const maximumLabel = chemical.populationAdjusted ? 'Updated maximum' : 'Company maximum';
         const adjustment = chemical.populationAdjusted && chemical.baseMaximum != null && report.basePropertyCount
@@ -45,13 +46,16 @@ export function CompanyConsumptionChart({ report }: { report: CompanyConsumption
           </div>
           {chemical.georkyRefillQuantity > 0 && <p className="company-chart-coverage">Included in Skimmer total — Georky tank refill: {quantity(chemical.georkyRefillQuantity)} {chemical.unit}.</p>}
           {!!chemical.properties.length && <details className="company-chart-details"><summary>View property breakdown ({chemical.properties.length})</summary>
-            <div className="company-chart-table-wrap"><table><thead><tr><th>Property</th>{global && <th>{manual ? 'Reported months' : 'Reported / reference months'}</th>}<th>Skimmer ({chemical.unit})</th>{showPropertyMaximum && <><th>{chemical.populationAdjusted && !propertyWorkbook ? 'Base maximum' : 'Maximum'} ({chemical.unit})</th><th>Excess ({chemical.unit})</th></>}</tr></thead><tbody>{chemical.properties.map((property) => <tr key={property.propertyId}>
+            <div className="company-chart-table-wrap"><table><thead><tr><th>Property</th>{global && <th>{manual ? 'Reported months' : 'Reported / reference months'}</th>}<th aria-sort="descending">Skimmer ({chemical.unit})</th>{showPropertyMaximum && <><th>{chemical.populationAdjusted && !propertyWorkbook ? 'Base maximum' : 'Maximum'} ({chemical.unit})</th><th>Excess ({chemical.unit})</th></>}</tr></thead><tbody>{properties.map((property) => {
+              const propertyStatus = companyPropertyStatus(property);
+              return <tr key={property.propertyId} className={propertyStatus.level === 'normal' ? undefined : `company-property-${propertyStatus.level}`} title={propertyStatus.label}>
               <th scope="row">{property.propertyName}</th>
               {global && <td>{manual ? property.reportedMonths ?? 0 : `${property.reportedMonths ?? 0} / ${property.referenceMonths ?? 0}`}</td>}
               <td>{property.recordedQuantity === null ? 'No report' : quantity(property.recordedQuantity)}</td>
               {showPropertyMaximum && <><td title={property.maximumSource === 'WORKBOOK_PROPERTY' ? 'Cleaned property maximum from the supplied workbook; independent of the company updated maximum.' : undefined}>{property.maximum === null ? 'No reference' : quantity(property.maximum)}</td>
               <td>{property.recordedQuantity === null || property.maximum === null ? '—' : quantity(Math.max(0, property.recordedQuantity - property.maximum))}</td></>}
-            </tr>)}</tbody></table></div>
+            </tr>;
+            })}</tbody></table></div>
           </details>}
         </article>;
       })}

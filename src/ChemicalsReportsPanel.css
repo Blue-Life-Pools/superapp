@@ -44,6 +44,8 @@
 .company-chart-table-wrap thead { position: sticky; top: 0; background: #f6fbfd; }
 .company-chart-table-wrap tbody th { font-weight: 500; min-width: 180px; }
 .company-chart-table-wrap td { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.company-chart-details .company-property-high > th, .company-chart-details .company-property-high > td { background: #fff1f0; color: #b42318; border-bottom-color: #fecaca; }
+.company-chart-details .company-property-warning > th, .company-chart-details .company-property-warning > td { background: #fff9e6; color: #854d0e; border-bottom-color: #fde68a; }
 .company-chart-method { padding-top: 16px; border-top: 1px solid #d5e5eb; color: #667085; }
 .company-chart-method p { padding-top: 10px; }
 .company-chart-details summary:focus-visible, .company-chart-method summary:focus-visible { outline: 2px solid #075477; outline-offset: 3px; }
