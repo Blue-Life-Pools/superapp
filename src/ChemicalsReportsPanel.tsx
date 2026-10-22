@@ -39,7 +39,7 @@ export function ChemicalsReportsPanel() {
     <header className="consumption-heading">
       <h2 id="chemicals-reports-heading">Reports</h2>
     </header>
-    {report && <p className="company-report-stats">{report.uploadedProperties} active properties with uploaded Skimmer data · {report.basePropertyCount ? `2025 base: ${report.basePropertyCount} properties` : `${report.matchedHistoryProperties} properties matched to 2025 history`}</p>}
+    {report && <p className="company-report-stats">{report.uploadedProperties} active properties with uploaded Skimmer data · {report.maximumReferenceSources?.length ? '2025–2026 property maximums' : report.basePropertyCount ? `2025 base: ${report.basePropertyCount} properties` : `${report.matchedHistoryProperties} properties matched to 2025 history`}</p>}
     {!current && <p role="status">Loading company chemical report…</p>}
     {current?.error && <p className="consumption-error" role="alert">{current.error}</p>}
     {report && <>

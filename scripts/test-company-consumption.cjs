@@ -96,4 +96,12 @@ for (const scope of ['month', 'global']) {
 const awaitingUpload = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: '2026-01', baselineYear: 2025, thresholds, uploadedProperties: 0, chemicals: [{ ...grown, maximum: null, updatedMaximum: null, recordedQuantity: null }] } }));
 assert.match(awaitingUpload, /Awaiting Skimmer report/);
 assert.doesNotMatch(awaitingUpload, /class="company-chart-fill"/);
+const supplied = { ...chemical, maximumSource: 'WORKBOOK_PROPERTY', maximum: 100, populationAdjusted: false, baseMaximum: 100 };
+const suppliedHtml = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: '2026-09', scope: 'month', baselineYear: 2025, thresholds, basePropertyCount: 253, maximumReferenceSources: ['property-maximums.xlsx'], uploadedProperties: 275, chemicals: [supplied] } }));
+assert.match(suppliedHtml, /Updated maximum: <strong>100 gal/);
+assert.match(suppliedHtml, /company-chart-row company-chart-high/);
+assert.match(suppliedHtml, /cleaned monthly maximum/);
+assert.match(suppliedHtml, /property-maximums.xlsx/);
+assert.match(suppliedHtml, /<th>Maximum \(gal\)<\/th>/);
+assert.doesNotMatch(suppliedHtml, /<th>Base maximum|Manual base monthly company maximums|mean plus 3 standard deviations/);
 console.log('PASS: company chart thresholds, partial data, shared scale, markers, refills, units and property breakdown');

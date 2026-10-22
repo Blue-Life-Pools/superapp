@@ -4,7 +4,7 @@ export type CompanyChemicalTotal = {
   baseMaximum?: number | null; updatedMaximum?: number | null;
   populationAdjusted?: boolean; adjustmentFactor?: number | null;
   comparableQuantity: number | null; comparisonMaximum: number | null;
-  maximumSource?: 'HISTORY_2025' | 'MANUAL_COMPANY'; manualMonthlyMaximum?: number | null;
+  maximumSource?: 'HISTORY_2025' | 'MANUAL_COMPANY' | 'WORKBOOK_PROPERTY'; manualMonthlyMaximum?: number | null;
   percent: number | null; excessQuantity: number | null; remainingQuantity: number | null;
   referenceProperties: number; reportedReferenceProperties: number;
   referencePropertyMonths?: number; reportedReferencePropertyMonths?: number;
@@ -23,6 +23,7 @@ export type CompanyConsumptionReport = {
   thresholds: { warning: number; attention: number; maximum: number };
   activeProperties: number; uploadedProperties: number; matchedHistoryProperties: number;
   basePropertyCount?: number | null;
+  maximumReferenceSources?: string[];
   monthlyPropertyCounts?: Array<{ month: string; properties: number }>;
   sources: string[]; chemicals: CompanyChemicalTotal[];
 };
