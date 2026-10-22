@@ -240,6 +240,7 @@ export function QualityInspectionsPage({
 }) {
   const [items, setItems] = useState<Inspection[]>([]);
   const [editing, setEditing] = useState<Form | null>(null);
+  const [propertySearch, setPropertySearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [originalFindings, setOriginalFindings] = useState<Finding[]>([]);
   const [message, setMessage] = useState("");
@@ -341,6 +342,7 @@ export function QualityInspectionsPage({
   function startNew() {
     setEditingId(null);
     setEditing(emptyForm());
+    setPropertySearch("");
     setOriginalFindings([]);
     setMessage("");
   }
@@ -356,6 +358,7 @@ export function QualityInspectionsPage({
       if (!response.ok) throw new Error("Could not load the inspection for editing.");
       const detail = await response.json() as Inspection;
       setEditing(formFromInspection(detail));
+      setPropertySearch(detail.property.name);
       setOriginalFindings(detail.findings);
       setMessage("");
     } catch (error) {
@@ -683,8 +686,9 @@ export function QualityInspectionsPage({
                   required
                   autoComplete="off"
                   placeholder="Type to search a property"
-                  value={properties.find((property) => property.id === editing.propertyId)?.name || ""}
+                  value={propertySearch}
                   onChange={(event) => {
+                    setPropertySearch(event.target.value);
                     const selected = properties.find((property) => property.name.toLowerCase() === event.target.value.trim().toLowerCase());
                     update({ propertyId: selected?.id || "", waterBodyId: "" });
                   }}
