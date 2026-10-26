@@ -129,7 +129,13 @@ export function ReportsPage({ sidebar, properties, unassignedOnly = false, onCle
   const supervisors = people('SUPERVISOR');
   const technicians = people('TECHNICIAN');
   const inspectors = people('INSPECTOR');
-  const propertiesInHistory = Array.from(new Set([...properties.map((item) => item.name), ...dashboard.incidents.map((item) => item.propertyName)])).filter(Boolean).sort();
+  const propertiesInHistory = Array.from(
+    new Map(
+      properties
+        .filter((item) => item.name.trim())
+        .map((item) => [reportPropertyKey(item.name), item.name.trim()]),
+    ).values(),
+  ).sort((a, b) => a.localeCompare(b));
   const hasRegisteredProperty = (incident: Incident) => Boolean(
     (incident.propertyId && properties.some((property) => property.id === incident.propertyId)) ||
     properties.filter((property) => reportPropertyKey(property.name) === reportPropertyKey(incident.propertyName)).length === 1,
