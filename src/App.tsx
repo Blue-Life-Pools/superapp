@@ -2751,8 +2751,8 @@ function App() {
 
           <div className="property-header-actions">
             <div className="property-lifecycle-summary">
-              <span className={`lifecycle-badge lifecycle-${isClient ? 'client' : 'lead'}`}>
-                {isClient ? 'Client' : 'Lead'}
+              <span className={`lifecycle-badge lifecycle-${selectedProperty.lifecycleStatus === 'INACTIVE' ? 'inactive' : isClient ? 'client' : 'lead'}`}>
+                {selectedProperty.lifecycleStatus === 'INACTIVE' ? 'Inactive' : isClient ? 'Client' : 'Lead'}
               </span>
               {selectedProperty.serviceStartDate && (
                 <small>
@@ -3323,7 +3323,7 @@ function App() {
 
                 <div>
                   <span>Commercial Status</span>
-                  <strong>{selectedProperty.lifecycleStatus === 'CLIENT' ? 'Client' : 'Lead'}</strong>
+                  <strong>{selectedProperty.lifecycleStatus === 'INACTIVE' ? 'Inactive' : selectedProperty.lifecycleStatus === 'CLIENT' ? 'Client' : 'Lead'}</strong>
                 </div>
 
                 <div>
@@ -5279,8 +5279,8 @@ function App() {
                     </td>
 
                     <td>
-                      <span className={`lifecycle-badge lifecycle-${property.lifecycleStatus === 'CLIENT' ? 'client' : 'lead'}`}>
-                        {property.lifecycleStatus === 'CLIENT' ? 'Client' : 'Lead'}
+                      <span className={`lifecycle-badge lifecycle-${property.lifecycleStatus === 'INACTIVE' ? 'inactive' : property.lifecycleStatus === 'CLIENT' ? 'client' : 'lead'}`}>
+                        {property.lifecycleStatus === 'INACTIVE' ? 'Inactive' : property.lifecycleStatus === 'CLIENT' ? 'Client' : 'Lead'}
                       </span>
                     </td>
 

@@ -4397,6 +4397,11 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   color: #075985;
 }
 
+.lifecycle-inactive {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
 .edit-panel {
   background: white;
   border: 1px solid #e5e7eb;
