@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { API_URL, apiFetch } from './api';
 import { chemicalReportMonth } from './chemicalConsumptionAlerts';
 import { CompanyConsumptionChart } from './CompanyConsumptionChart';
+import { SkimmerVsRegisterSection } from './SkimmerVsRegisterSection';
 import { companyReportMonthLabel, companyReportPeriodOptions, type CompanyConsumptionReport } from './chemicalCompanyReport';
 import './ChemicalConsumptionPanel.css';
 import './ChemicalsReportsPanel.css';
@@ -48,5 +49,6 @@ export function ChemicalsReportsPanel() {
       {!!report.sources.length && <details className="company-report-sources"><summary>Uploaded sources ({report.sources.length})</summary>{report.sources.map((source) => <p key={source}>{source}</p>)}</details>}
     </>}
     </section>
+    <SkimmerVsRegisterSection />
   </div>;
 }
