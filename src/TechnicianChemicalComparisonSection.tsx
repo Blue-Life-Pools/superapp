@@ -106,7 +106,7 @@ export function TechnicianChemicalComparisonSection() {
       row.values.tablets.register += numeric(report.tabsQuantity);
       row.values.de.register += numeric(report.dePowderBags);
     }
-    return [...byTechnician.values()].filter((row) => columns.some(({ key }) => row.values[key].skimmer || row.values[key].register)).sort((a, b) => columns.reduce((sum, column) => sum + b.values[column.key].register - b.values[column.key].skimmer - (a.values[column.key].register - a.values[column.key].skimmer), 0));
+    return [...new Set(byTechnician.values())].filter((row) => columns.some(({ key }) => row.values[key].skimmer || row.values[key].register)).sort((a, b) => columns.reduce((sum, column) => sum + b.values[column.key].register - b.values[column.key].skimmer - (a.values[column.key].register - a.values[column.key].skimmer), 0));
   }, [consumption, reports]);
 
   const difference = (values: TechnicianRow['values'][ChemicalKey]) => values.register - values.skimmer;
