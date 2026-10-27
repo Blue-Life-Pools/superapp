@@ -1,0 +1,26 @@
+.reports-chemical-comparison { margin-top: 20px; padding: 22px; border: 1px solid #cfe3ee; border-radius: 18px; background: #fff; box-shadow: 0 8px 24px rgba(11, 74, 105, .06); }
+.reports-chemical-comparison-heading { align-items: flex-start; gap: 18px; }
+.reports-chemical-comparison-heading h2 { margin: 0; color: #123e63; font-size: 19px; }
+.reports-chemical-comparison-heading p { margin: 7px 0 0; color: #475467; font-size: 13px; }
+.reports-chemical-comparison-actions { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
+.reports-chemical-comparison-actions label { display: grid; gap: 4px; color: #123e63; font-size: 11px; font-weight: 800; }
+.reports-chemical-comparison-actions input { min-height: 34px; border: 1px solid #bfd9e7; border-radius: 8px; padding: 5px 8px; color: #123e63; font: inherit; }
+.reports-chemical-chart { display: grid; gap: 13px; margin-top: 20px; }
+.reports-chemical-chart-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; gap: 14px; }
+.reports-chemical-chart-row > span { color: #123e63; font-size: 12px; font-weight: 800; }
+.reports-chemical-bars { display: grid; gap: 4px; }
+.reports-chemical-bars i { display: flex; min-width: 24px; height: 19px; align-items: center; justify-content: flex-end; border-radius: 3px; padding-right: 6px; color: #fff; font-size: 10px; font-style: normal; font-weight: 800; transition: width .2s ease; }
+.reports-chemical-bar-skimmer { background: #6b7280; }
+.reports-chemical-bar-register { background: #0e4772; }
+.reports-chemical-legend { display: flex; gap: 18px; margin: 16px 0 12px 164px; color: #344054; font-size: 12px; }
+.reports-chemical-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.reports-chemical-swatch { width: 12px; height: 12px; border-radius: 2px; }
+.reports-chemical-table-wrap { overflow-x: auto; }
+.reports-chemical-table { width: 100%; border-collapse: collapse; color: #101828; font-size: 12px; }
+.reports-chemical-table th, .reports-chemical-table td { border: 1px solid #d9e2e8; padding: 9px 10px; text-align: right; }
+.reports-chemical-table thead th { background: #0e4772; color: #fff; font-weight: 800; }
+.reports-chemical-table thead th:first-child, .reports-chemical-table tbody th { text-align: left; }
+.reports-chemical-table tbody tr:nth-child(even) { background: #eef1f4; }
+.reports-chemical-positive { color: #075985; font-weight: 800; }
+.reports-chemical-negative { color: #b54708; font-weight: 800; }
+@media (max-width: 720px) { .reports-chemical-comparison-heading { display: grid; } .reports-chemical-chart-row { grid-template-columns: 105px minmax(0, 1fr); gap: 8px; } .reports-chemical-legend { margin-left: 113px; } }
