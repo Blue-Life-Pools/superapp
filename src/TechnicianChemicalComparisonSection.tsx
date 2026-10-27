@@ -18,8 +18,8 @@ const columns: Array<{ key: ChemicalKey; label: string }> = [
   { key: 'de', label: 'DE' },
 ];
 const numeric = (value: number | string | null | undefined) => Number(value) || 0;
-const normalized = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/^[0-9]+\s*/, '').replace(/[^a-z0-9]/g, '');
-const displayName = (value: string) => value.trim().replace(/^[0-9]+\s+/, '');
+const normalized = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\([^)]*\)/g, '').replace(/^[0-9]+\s*/, '').replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean).sort().join('');
+const displayName = (value: string) => value.trim().replace(/\s*\([^)]*\)/g, '').replace(/^[0-9]+\s*[-.]?\s*/, '').replace(/\s+/g, ' ');
 const chemicalKey = (value: string): ChemicalKey | null => {
   const key = normalized(value);
   if (key.includes('liquidchlorine') || key === 'liquid' || key.includes('cloroliquido')) return 'liquidchlorine';
