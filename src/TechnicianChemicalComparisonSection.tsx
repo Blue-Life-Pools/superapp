@@ -9,7 +9,7 @@ type ConsumptionPeriod = { chemicals: ConsumptionChemical[] };
 type ConsumptionDashboard = { periods: ConsumptionPeriod[] };
 type TechnicianReport = { serviceDate: string; technicianName: string; tabsQuantity: number | string; liquidChlorineGallons: number | string; muriaticAcidGallons: number | string; dePowderBags: number | string };
 type ChemicalKey = 'liquidchlorine' | 'muriaticacid' | 'tablets' | 'de';
-type TechnicianRow = { name: string; values: Record<ChemicalKey, { skimmer: number; register: number }> };
+type TechnicianRow = { name: string; tokens: string[]; values: Record<ChemicalKey, { skimmer: number; register: number }> };
 
 const columns: Array<{ key: ChemicalKey; label: string }> = [
   { key: 'liquidchlorine', label: 'Cloro líquido' },
@@ -18,7 +18,8 @@ const columns: Array<{ key: ChemicalKey; label: string }> = [
   { key: 'de', label: 'DE' },
 ];
 const numeric = (value: number | string | null | undefined) => Number(value) || 0;
-const normalized = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\([^)]*\)/g, '').replace(/^[0-9]+\s*/, '').replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean).sort().join('');
+const nameTokens = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\([^)]*\)/g, '').replace(/^[0-9]+\s*/, '').replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean).sort();
+const normalized = (value: string) => nameTokens(value).join('');
 const displayName = (value: string) => value.trim().replace(/\s*\([^)]*\)/g, '').replace(/^[0-9]+\s*[-.]?\s*/, '').replace(/\s+/g, ' ');
 const chemicalKey = (value: string): ChemicalKey | null => {
   const key = normalized(value);
@@ -62,11 +63,28 @@ export function TechnicianChemicalComparisonSection() {
   const rows = useMemo(() => {
     const byTechnician = new Map<string, TechnicianRow>();
     const getRow = (rawName: string) => {
-      const key = normalized(rawName);
+      const tokens = nameTokens(rawName);
+      const key = tokens.join('');
       if (!key) return null;
-      const existing = byTechnician.get(key);
-      if (existing) return existing;
-      const row = { name: displayName(rawName), values: emptyValues() };
+      const exact = byTechnician.get(key);
+      if (exact) return exact;
+      const subsetMatches = [...new Set([...byTechnician.values()])].filter((candidate) => {
+        const candidateTokens = new Set(candidate.tokens);
+        const incomingTokens = new Set(tokens);
+        const incomingIsShort = [...incomingTokens].every((token) => candidateTokens.has(token));
+        const candidateIsShort = [...candidateTokens].every((token) => incomingTokens.has(token));
+        return incomingIsShort || candidateIsShort;
+      });
+      const existing = subsetMatches.length === 1 ? subsetMatches[0] : null;
+      if (existing) {
+        if (tokens.length > existing.tokens.length) {
+          existing.name = displayName(rawName);
+          existing.tokens = tokens;
+        }
+        byTechnician.set(key, existing);
+        return existing;
+      }
+      const row = { name: displayName(rawName), tokens, values: emptyValues() };
       byTechnician.set(key, row);
       return row;
     };
