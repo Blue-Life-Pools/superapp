@@ -21,8 +21,8 @@
 .reports-chemical-table-wrap { overflow-x: auto; }
 .reports-chemical-table { width: 100%; border-collapse: collapse; color: #101828; font-size: 12px; }
 .reports-chemical-table th, .reports-chemical-table td { border: 1px solid #d9e2e8; padding: 9px 10px; text-align: right; }
-.reports-chemical-table thead th { background: #0e4772; color: #fff; font-weight: 800; }
-.reports-chemical-table thead th:first-child, .reports-chemical-table tbody th { text-align: left; }
+.reports-chemical-table thead th { background: #0e4772; color: #fff; font-weight: 800; text-align: center; }
+.reports-chemical-table tbody th { text-align: left; }
 .reports-chemical-table tbody tr:nth-child(even) { background: #eef1f4; }
 .reports-chemical-positive { color: #075985; font-weight: 800; }
 .reports-chemical-negative { color: #b54708; font-weight: 800; }

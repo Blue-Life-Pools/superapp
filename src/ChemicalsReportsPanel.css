@@ -42,6 +42,7 @@
 .company-chart-table-wrap table { width: 100%; border-collapse: collapse; text-align: left; }
 .company-chart-table-wrap th, .company-chart-table-wrap td { padding: 10px 12px; border-bottom: 1px solid #d5e5eb; }
 .company-chart-table-wrap thead { position: sticky; top: 0; background: #f6fbfd; }
+.company-chart-table-wrap thead th { text-align: center; }
 .company-chart-table-wrap tbody th { font-weight: 500; min-width: 180px; }
 .company-chart-table-wrap td { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .company-chart-details .company-property-high > th, .company-chart-details .company-property-high > td { background: #fff1f0; color: #b42318; border-bottom-color: #fecaca; }

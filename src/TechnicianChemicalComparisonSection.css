@@ -8,8 +8,8 @@
 .reports-technician-table-wrap { overflow-x: auto; margin-top: 18px; }
 .reports-technician-table { width: 100%; border-collapse: collapse; color: #101828; font-size: 12px; }
 .reports-technician-table th, .reports-technician-table td { border: 1px solid #d9e2e8; padding: 6px 9px; text-align: center; }
-.reports-technician-table thead th { background: #0e4772; color: #fff; font-weight: 800; }
-.reports-technician-table thead th:first-child, .reports-technician-table tbody th { text-align: left; }
+.reports-technician-table thead th { background: #0e4772; color: #fff; font-weight: 800; text-align: center; }
+.reports-technician-table tbody th { text-align: left; }
 .reports-technician-table tbody th { color: #123e63; white-space: nowrap; }
 .reports-technician-table tbody tr:nth-child(even) { background: #e4e7eb; }
 .reports-technician-table td strong { display: block; font-size: 13px; }
