@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { API_URL, apiFetch } from './api';
 import type { ConsumptionFile, ConsumptionImportRow, ConsumptionChemical } from './chemicalConsumptionImport';
 import { chemicalReportMonth, chlorineOverages, englishChemicalName, isChlorineChemical } from './chemicalConsumptionAlerts';
-import { RecurringOverconsumptionReport } from './RecurringOverconsumptionReport';
 import './ChemicalConsumptionPanel.css';
 
 type Property = { id: string; name: string; code: string | null; chemicalFollowUpResolvedAt?: string | null; chemicalFollowUpResolution?: string | null; waterBodies: Array<{ id: string; name: string; technicianName: string | null; gallons: number | null; type: string; size: string | null; active: boolean }> };
@@ -110,7 +109,6 @@ export function ChemicalConsumptionPanel() {
   const reviewedProperties = dashboard.periods.filter((item) => item.chemicals.some((chemical) => isChlorineChemical(chemical.name) && chemical.expectedMax != null)).length;
   const reportTechnicians = selectedProperty && period ? [...new Set(period.chemicals.flatMap((chemical) => (isLiquidChlorine(chemical) ? chemical.technicians || [] : []).filter((item) => !item.name.toLowerCase().includes('georky')).map((item) => item.name)))].join(', ') : '';
   return <>
-    <RecurringOverconsumptionReport items={dashboard.recurringOverconsumption || []} />
     <section className="consumption-panel">
     <header className="consumption-heading"><div><h2>Property consumption</h2><p>Applied quantities, cost and monthly fee allocation by water body.</p></div><label>Month<input type="month" value={month} disabled={busy} onChange={(event) => { if (event.target.value) { setMonth(event.target.value); setPending(null); } }} /></label></header>
     <p className="consumption-muted">To import monthly fees from the QuickBooks Transaction Report, select a month first. Only maintenance invoices are included; repairs and extra chemical charges are excluded.</p>
