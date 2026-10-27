@@ -115,9 +115,15 @@ export function SkimmerVsRegisterSection() {
     {!loading && !error && !hasData && <p className="reports-empty">No hay datos de Skimmer ni registros de técnicos para este mes.</p>}
     {!loading && !error && hasData && <>
       <div className="reports-chemical-chart" role="img" aria-label="Comparación de Skimmer y salidas de bodega por químico">
-        {rows.map((row) => <div className="reports-chemical-chart-row" key={row.key}>
-          <span>{row.label}</span><div className="reports-chemical-bars"><i className="reports-chemical-bar-skimmer" style={{ width: `${row.skimmer / maximum * 100}%` }}><b>{formatQuantity(row.skimmer)}</b></i><i className="reports-chemical-bar-register" style={{ width: `${row.register / maximum * 100}%` }}><b>{formatQuantity(row.register)}</b></i></div>
-        </div>)}
+        <div className="reports-chemical-chart-area">
+          {rows.map((row) => <div className="reports-chemical-chart-group" key={row.key}>
+            <div className="reports-chemical-column-pair">
+              <div className="reports-chemical-column"><b>{formatQuantity(row.skimmer)}</b><i className="reports-chemical-bar-skimmer" style={{ height: `${row.skimmer ? Math.max(3, row.skimmer / maximum * 100) : 0}%` }} /></div>
+              <div className="reports-chemical-column"><b>{formatQuantity(row.register)}</b><i className="reports-chemical-bar-register" style={{ height: `${row.register ? Math.max(3, row.register / maximum * 100) : 0}%` }} /></div>
+            </div>
+            <span>{row.label}</span>
+          </div>)}
+        </div>
       </div>
       <div className="reports-chemical-legend"><span><i className="reports-chemical-swatch reports-chemical-bar-skimmer" />Skimmer</span><span><i className="reports-chemical-swatch reports-chemical-bar-register" />Bodega</span></div>
       <div className="reports-chemical-table-wrap"><table className="reports-chemical-table"><thead><tr><th>Químico</th><th>Skimmer</th><th>Bodega</th><th>Diferencia<br />(Bodega − Skimmer)</th></tr></thead><tbody>{rows.map((row) => <tr key={row.key}><th>{row.label}</th><td>{formatQuantity(row.skimmer)}</td><td>{formatQuantity(row.register)}</td><td className={row.register - row.skimmer >= 0 ? 'reports-chemical-positive' : 'reports-chemical-negative'}>{row.register - row.skimmer >= 0 ? '+' : ''}{formatQuantity(row.register - row.skimmer)}</td></tr>)}</tbody></table></div>
