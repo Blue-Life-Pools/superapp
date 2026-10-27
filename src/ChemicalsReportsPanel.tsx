@@ -3,6 +3,7 @@ import { API_URL, apiFetch } from './api';
 import { chemicalReportMonth } from './chemicalConsumptionAlerts';
 import { CompanyConsumptionChart } from './CompanyConsumptionChart';
 import { SkimmerVsRegisterSection } from './SkimmerVsRegisterSection';
+import { TechnicianChemicalComparisonSection } from './TechnicianChemicalComparisonSection';
 import { companyReportMonthLabel, companyReportPeriodOptions, type CompanyConsumptionReport } from './chemicalCompanyReport';
 import './ChemicalConsumptionPanel.css';
 import './ChemicalsReportsPanel.css';
@@ -50,5 +51,6 @@ export function ChemicalsReportsPanel() {
     </>}
     </section>
     <SkimmerVsRegisterSection />
+    <TechnicianChemicalComparisonSection />
   </div>;
 }

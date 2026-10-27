@@ -1,0 +1,20 @@
+.reports-technician-comparison { margin-top: 20px; padding: 22px; border: 1px solid #cfe3ee; border-radius: 18px; background: #fff; box-shadow: 0 8px 24px rgba(11, 74, 105, .06); }
+.reports-technician-comparison-heading { align-items: flex-start; gap: 18px; }
+.reports-technician-comparison-heading h2 { margin: 0; color: #123e63; font-size: 19px; }
+.reports-technician-comparison-heading p { margin: 7px 0 0; color: #475467; font-size: 13px; }
+.reports-technician-actions { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
+.reports-technician-actions label { display: grid; gap: 4px; color: #123e63; font-size: 11px; font-weight: 800; }
+.reports-technician-actions input { min-height: 34px; border: 1px solid #bfd9e7; border-radius: 8px; padding: 5px 8px; color: #123e63; font: inherit; }
+.reports-technician-table-wrap { overflow-x: auto; margin-top: 18px; }
+.reports-technician-table { width: 100%; border-collapse: collapse; color: #101828; font-size: 12px; }
+.reports-technician-table th, .reports-technician-table td { border: 1px solid #d9e2e8; padding: 6px 9px; text-align: center; }
+.reports-technician-table thead th { background: #0e4772; color: #fff; font-weight: 800; }
+.reports-technician-table thead th:first-child, .reports-technician-table tbody th { text-align: left; }
+.reports-technician-table tbody th { color: #123e63; white-space: nowrap; }
+.reports-technician-table tbody tr:nth-child(even) { background: #e4e7eb; }
+.reports-technician-table td strong { display: block; font-size: 13px; }
+.reports-technician-table td small { display: block; margin-top: 2px; color: #667085; font-size: 10px; }
+.reports-technician-positive strong, .reports-technician-positive small { color: #075985; }
+.reports-technician-negative strong, .reports-technician-negative small { color: #667085; }
+.reports-technician-footnote { margin: 10px 0 0; color: #667085; font-size: 12px; font-style: italic; }
+@media (max-width: 720px) { .reports-technician-comparison-heading { display: grid; } .reports-technician-table { min-width: 650px; } }
