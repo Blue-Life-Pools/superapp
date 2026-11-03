@@ -4,6 +4,7 @@ import type { PropertyHealthTicket } from './propertyHistory';
 
 // Reports and inspection dates are business dates; visit/creation timestamps use Colombia time.
 export function matchesHistoryMonth(value: string | null | undefined, month: string, timestamp = false) {
+  if (month === 'all') return true;
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !value) return false;
   if (!timestamp || /^\d{4}-\d{2}-\d{2}$/.test(value)) return healthDate(value).slice(0, 7) === month;
   if (!healthDate(value)) return false;

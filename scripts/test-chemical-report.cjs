@@ -25,4 +25,17 @@ assert.match(details, /Overconsumption: \+10 gal/);
 assert.match(details, /<td>Recorded<\/td>/);
 const missing = renderToStaticMarkup(React.createElement(ChemicalOverconsumptionReport, { dashboard, month: '2026-10', propertyId: 'missing' }));
 assert.match(missing, /No consumption report for this property in 2026-10/);
+const monthlyDashboard = { properties: dashboard.properties, periods: [
+  { ...dashboard.periods[0], month: '2026-09' },
+  { ...dashboard.periods[0], month: '2026-10', sourceName: 'october.pdf', chemicals: [{ ...chlorine, quantity: 12, cost: 24, expectedMax: 15, status: 'IN_RANGE' }] },
+] };
+const allMonths = renderToStaticMarkup(React.createElement(ChemicalOverconsumptionReport, { dashboard: monthlyDashboard, month: 'all', propertyId: 'a' }));
+assert.match(allMonths, /All months/);
+assert.match(allMonths, /<h3>2026-10<\/h3>/);
+assert.match(allMonths, /<h3>2026-09<\/h3>/);
+assert.equal((allMonths.match(/<table /g) || []).length, 2, 'Each month has its own quantities and reference');
+assert.match(allMonths, /1 properties with an evaluable chlorine reference/);
+assert.match(allMonths, /No overconsumption/);
+assert.match(allMonths, /Overconsumption: \+10 gal/);
+assert.ok(allMonths.indexOf('2026-10') < allMonths.indexOf('2026-09'), 'Newest month is shown first');
 console.log('PASS: property-only Chemicals panel, unchanged table columns, chemical details and missing-report state');
