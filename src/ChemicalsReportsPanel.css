@@ -2,11 +2,13 @@
 .chemicals-reports-view > .chemicals-reports-panel { margin-top: 0; }
 .chemicals-reports-panel { gap: 22px; }
 .chemicals-reports-panel > .consumption-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 14px; }
-.company-report-header-actions { display: grid; grid-template-columns: minmax(180px, 220px) auto; margin-left: auto; align-items: end; gap: 8px; min-width: 0; max-width: 100%; color: #075477; }
-.company-report-header-actions label { display: grid; gap: 4px; min-width: 0; font-size: 11px; font-weight: 700; }
-.company-report-header-actions select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 36px; padding: 6px 9px; border: 1px solid #bfd9e7; border-radius: 8px; background: #fff; color: #075477; font: inherit; font-size: 13px; }
+.company-report-header-actions { display: grid; grid-template-columns: minmax(150px, 160px) auto; margin-left: auto; align-items: end; gap: 8px; min-width: 0; max-width: 100%; color: #123e63; }
+.company-report-header-actions label { display: grid; gap: 4px; min-width: 0; color: #123e63; font-size: 11px; font-weight: 800; }
+.company-report-header-actions select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 34px; padding: 5px 8px; border: 1px solid #bfd9e7; border-radius: 8px; background: #fff; color: #123e63; font: inherit; }
 .company-report-header-actions select:focus-visible { outline: 2px solid #b7deef; outline-offset: 1px; }
-.company-report-header-actions button { min-height: 36px; padding: 7px 10px; border-radius: 8px; font-size: 12px; white-space: nowrap; }
+.company-report-header-actions button { min-height: 34px; padding: 8px 11px; border: 0; border-radius: 9px; background: transparent; color: #111820; font-size: 10px; font-weight: 850; white-space: nowrap; cursor: pointer; }
+.company-report-header-actions button:hover { background: #f4fafc; }
+.company-report-header-actions button:focus-visible { outline: 2px solid #b7deef; outline-offset: 1px; }
 .company-report-stats, .company-report-sources { color: #667085; font-size: 12px; line-height: 1.6; }
 .company-chart { display: grid; gap: 14px; min-width: 0; --company-normal: #0d4268; --company-warning: #a37800; --company-attention: #b85b00; --company-high: #c43227; --company-empty: #667085; }
 .company-chart-heading { display: grid; gap: 8px; }
