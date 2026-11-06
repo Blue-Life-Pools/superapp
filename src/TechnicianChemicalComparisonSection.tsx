@@ -16,6 +16,7 @@ const columns: Array<{ key: ChemicalKey; label: string }> = [
 
 export function TechnicianChemicalComparisonSection() {
   const [month, setMonth] = useState(chemicalReportMonth);
+  const [technician, setTechnician] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [consumption, setConsumption] = useState<ConsumptionDashboard | null>(null);
   const [reports, setReports] = useState<TechnicianReport[]>([]);
@@ -44,19 +45,32 @@ export function TechnicianChemicalComparisonSection() {
   }, [month, refresh]);
 
   const rows = useMemo(() => technicianChemicalComparison(consumption?.periods || [], reports), [consumption, reports]);
+  const technicianOptions = [...rows].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  const selectedTechnician = rows.find((row) => row.key === technician);
+  const visibleRows = selectedTechnician ? [selectedTechnician] : rows;
 
   const difference = (values: TechnicianRow['values'][ChemicalKey]) => values.register - values.skimmer;
   const format = (value: number) => Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 20 });
 
   return <section className="reports-technician-comparison" aria-labelledby="technician-comparison-heading">
-    <div className="reports-section-heading reports-technician-comparison-heading"><div><h2 id="technician-comparison-heading">3. Por técnico — Diferencia Skimmer vs. Bodega por químico</h2><p>Cada casilla muestra la diferencia sin signo y debajo los totales de ambos registros.</p></div><div className="reports-technician-actions"><label>Mes<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label><button type="button" className="reports-table-download-button" onClick={() => setRefresh((value) => value + 1)}>Actualizar</button></div></div>
+    <div className="reports-section-heading reports-technician-comparison-heading">
+      <div><h2 id="technician-comparison-heading">3. Por técnico — Diferencia Skimmer vs. Bodega por químico</h2><p>Cada casilla muestra la diferencia sin signo y debajo los totales de ambos registros.</p></div>
+      <div className="reports-technician-actions">
+        <label>Mes<input type="month" value={month} onChange={(event) => { setMonth(event.target.value); setTechnician(''); }} /></label>
+        <label>Técnico<select value={selectedTechnician?.key || ''} disabled={loading || !rows.length} onChange={(event) => setTechnician(event.target.value)}>
+          <option value="">Todos los técnicos</option>
+          {technicianOptions.map((row) => <option key={row.key} value={row.key}>{row.name}</option>)}
+        </select></label>
+        <button type="button" className="reports-table-download-button" onClick={() => setRefresh((value) => value + 1)}>Actualizar</button>
+      </div>
+    </div>
     {loading && <p className="reports-empty">Cargando comparación por técnico…</p>}
     {error && <p className="reports-message" role="alert">{error}</p>}
     {!loading && !error && !rows.length && <p className="reports-empty">No hay detalle por técnico para este mes.</p>}
     {!loading && !error && rows.length > 0 && <div className="reports-technician-table-wrap">
       <table className="reports-technician-table">
         <thead><tr><th>Técnico</th>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead>
-        <tbody>{rows.map((row) => <tr key={row.key}><th>{row.name}</th>{columns.map((column) => {
+        <tbody>{visibleRows.map((row) => <tr key={row.key}><th>{row.name}</th>{columns.map((column) => {
           const values = row.values[column.key];
           const delta = difference(values);
           const total = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 20 });
