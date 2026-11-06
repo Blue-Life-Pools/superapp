@@ -49,7 +49,7 @@ export function TechnicianChemicalComparisonSection() {
   const format = (value: number) => value === 0 ? '0.0' : `${value > 0 ? '+' : ''}${value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 20 })}`;
 
   return <section className="reports-technician-comparison" aria-labelledby="technician-comparison-heading">
-    <div className="reports-section-heading reports-technician-comparison-heading"><div><h2 id="technician-comparison-heading">3. Por técnico — Diferencia Skimmer vs. Bodega por químico</h2><p>Cada casilla muestra la diferencia (Bodega − Skimmer) y debajo cuál de los dos registros fue mayor.</p></div><div className="reports-technician-actions"><label>Mes<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label><button type="button" className="reports-table-download-button" onClick={() => setRefresh((value) => value + 1)}>Actualizar</button></div></div>
+    <div className="reports-section-heading reports-technician-comparison-heading"><div><h2 id="technician-comparison-heading">3. Por técnico — Diferencia Skimmer vs. Bodega por químico</h2><p>Cada casilla muestra la diferencia (Bodega − Skimmer) y debajo los totales de ambos registros.</p></div><div className="reports-technician-actions"><label>Mes<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label><button type="button" className="reports-table-download-button" onClick={() => setRefresh((value) => value + 1)}>Actualizar</button></div></div>
     {loading && <p className="reports-empty">Cargando comparación por técnico…</p>}
     {error && <p className="reports-message" role="alert">{error}</p>}
     {!loading && !error && !rows.length && <p className="reports-empty">No hay detalle por técnico para este mes.</p>}
@@ -62,7 +62,6 @@ export function TechnicianChemicalComparisonSection() {
           const total = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 20 });
           return <td key={column.key} className={delta > 0 ? 'reports-technician-positive' : delta < 0 ? 'reports-technician-negative' : ''}>
             <strong>{format(delta)}</strong>
-            <small>{delta > 0 ? 'Bodega' : delta < 0 ? 'Skimmer' : '—'}</small>
             <small className="reports-technician-totals">Bodega: {total(values.register)} · Skimmer: {total(values.skimmer)}</small>
           </td>;
         })}</tr>)}</tbody>
