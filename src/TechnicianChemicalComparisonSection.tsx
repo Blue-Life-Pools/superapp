@@ -27,7 +27,7 @@ export function TechnicianChemicalComparisonSection() {
     setLoading(true); setError('');
     void Promise.all([
       apiFetch(`${API_URL}/chemicals/consumption?month=${month}`, { signal: controller.signal }),
-      apiFetch(`${API_URL}/chemicals/reports`, { signal: controller.signal }),
+      apiFetch(`${API_URL}/chemicals/reports?month=${month}`, { signal: controller.signal }),
     ]).then(async ([consumptionResponse, reportsResponse]) => {
       const [consumptionData, reportsData] = await Promise.all([consumptionResponse.json(), reportsResponse.json()]);
       if (!consumptionResponse.ok) throw new Error(consumptionData.message || 'No fue posible cargar Skimmer.');
@@ -53,6 +53,21 @@ export function TechnicianChemicalComparisonSection() {
     {loading && <p className="reports-empty">Cargando comparación por técnico…</p>}
     {error && <p className="reports-message" role="alert">{error}</p>}
     {!loading && !error && !rows.length && <p className="reports-empty">No hay detalle por técnico para este mes.</p>}
-    {!loading && !error && rows.length > 0 && <div className="reports-technician-table-wrap"><table className="reports-technician-table"><thead><tr><th>Técnico</th>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.key}><th>{row.name}</th>{columns.map((column) => { const values = row.values[column.key]; const delta = difference(values); return <td key={column.key} className={delta > 0 ? 'reports-technician-positive' : delta < 0 ? 'reports-technician-negative' : ''}><strong>{format(delta)}</strong><small>{delta > 0 ? 'Bodega' : delta < 0 ? 'Skimmer' : '—'}</small></td>; })}</tr>)}</tbody></table><p className="reports-technician-footnote">Diferencia = Bodega − Skimmer. Positivo (azul) indica mayor salida de bodega; negativo (gris) indica mayor consumo registrado en Skimmer. La tabla está ordenada de mayor tendencia hacia Bodega a mayor tendencia hacia Skimmer.</p></div>}
+    {!loading && !error && rows.length > 0 && <div className="reports-technician-table-wrap">
+      <table className="reports-technician-table">
+        <thead><tr><th>Técnico</th>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead>
+        <tbody>{rows.map((row) => <tr key={row.key}><th>{row.name}</th>{columns.map((column) => {
+          const values = row.values[column.key];
+          const delta = difference(values);
+          const total = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+          return <td key={column.key} className={delta > 0 ? 'reports-technician-positive' : delta < 0 ? 'reports-technician-negative' : ''}>
+            <strong>{format(delta)}</strong>
+            <small>{delta > 0 ? 'Bodega' : delta < 0 ? 'Skimmer' : '—'}</small>
+            <small className="reports-technician-totals">Bodega: {total(values.register)} · Skimmer: {total(values.skimmer)}</small>
+          </td>;
+        })}</tr>)}</tbody>
+      </table>
+      <p className="reports-technician-footnote">Bodega suma todos los registros de Register del mes seleccionado. Skimmer suma el consumo cargado en Property consumption de ese mismo mes. Diferencia = Bodega − Skimmer. Positivo (azul) indica mayor salida de bodega; negativo (gris) indica mayor consumo registrado en Skimmer.</p>
+    </div>}
   </section>;
 }

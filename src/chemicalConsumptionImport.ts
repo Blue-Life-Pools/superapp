@@ -124,16 +124,20 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
   let totalPending = false;
   let grandTotal: number | null = null;
   const technicianDetails = new Map<string, ConsumptionTechnicianUsage[]>();
+  const rowDetails = new Map<ConsumptionImportRow, Set<string>>();
+  let detailSignatures = new Set<string>();
   let lastDetailUsage: ConsumptionTechnicianUsage | null = null;
   const complete = () => {
     const finished = current;
     const recordedTotal = grandTotal;
+    const finishedDetails = detailSignatures;
+    detailSignatures = new Set<string>();
     current = null; grandTotal = null; totalPending = false; technicianDetails.clear(); lastDetailUsage = null;
     if (!finished) return;
     const sum = (finished.chemicals || []).reduce((value, chemical) => value + chemical.cost, 0);
     if (!finished.chemicals?.length || recordedTotal === null || Math.abs(sum - recordedTotal) > .03) {
       warnings.push(`${finished.propertyName}: the line items could not be reconciled with the total and were excluded from the import.`);
-    } else { rows.push(finished); }
+    } else { rows.push(finished); rowDetails.set(finished, finishedDetails); }
   };
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -176,6 +180,7 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
       const existing = usages.find((usage) => usage.name.toLowerCase() === technicianName.toLowerCase());
       const value = quantityValue(quantity);
       const amount = Number(cost.replace(/,/g, ''));
+      detailSignatures.add(JSON.stringify([line.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)![0], technicianName.toLowerCase(), detail[2].trim().toLowerCase(), name.trim().toLowerCase(), unit.toLowerCase(), value, amount]));
       if (existing) { existing.quantity += value; existing.cost = Math.round((existing.cost + amount) * 100) / 100; }
       else usages.push({ name: technicianName, quantity: value, cost: amount });
       technicianDetails.set(key, usages);
@@ -204,11 +209,37 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
   }
   if (current) complete();
   if (!rows.length) throw new Error('No properties with reconciled quantities and totals were found.');
-  const counts = new Map<string, number>();
-  for (const row of rows) counts.set(row.code!, (counts.get(row.code!) || 0) + 1);
-  const duplicates = new Set(rows.filter((row) => counts.get(row.code!)! > 1).map((row) => row.code!));
-  for (const code of duplicates) warnings.push(`${rows.find((row) => row.code === code)!.propertyName}: multiple totals share the same code; excluded pending a scope review.`);
-  const accepted = rows.filter((row) => !duplicates.has(row.code!));
+  const grouped = new Map<string, ConsumptionImportRow[]>();
+  for (const row of rows) grouped.set(row.code!, [...(grouped.get(row.code!) || []), row]);
+  const accepted: ConsumptionImportRow[] = [];
+  for (const group of grouped.values()) {
+    if (group.length === 1) { accepted.push(group[0]); continue; }
+    const seen = new Set<string>();
+    const completeDetails = group.every((row) => {
+      const details = rowDetails.get(row)!;
+      const reconciled = details.size > 0 && row.chemicals!.every((chemical) => Math.abs(chemical.quantity - (chemical.technicians || []).reduce((sum, usage) => sum + usage.quantity, 0)) < .0001);
+      const overlap = [...details].some((detail) => seen.has(detail));
+      details.forEach((detail) => seen.add(detail));
+      return reconciled && !overlap;
+    });
+    if (!completeDetails) {
+      warnings.push(`${group[0].propertyName}: repeated property blocks overlap or have incomplete technician details; excluded pending a scope review.`);
+      continue;
+    }
+    const chemicals: ConsumptionChemical[] = [];
+    for (const row of group) for (const item of row.chemicals!) {
+      let chemical = chemicals.find((other) => other.name.toLowerCase() === item.name.toLowerCase() && other.unit.toLowerCase() === item.unit.toLowerCase());
+      if (!chemical) { chemical = { ...item, quantity: 0, cost: 0, technicians: [] }; chemicals.push(chemical); }
+      chemical.quantity += item.quantity;
+      chemical.cost = Math.round((chemical.cost + item.cost) * 100) / 100;
+      for (const usage of item.technicians || []) {
+        const existing = chemical.technicians!.find((other) => other.name.toLowerCase() === usage.name.toLowerCase());
+        if (existing) { existing.quantity += usage.quantity; existing.cost = Math.round((existing.cost + usage.cost) * 100) / 100; }
+        else chemical.technicians!.push({ ...usage });
+      }
+    }
+    accepted.push({ ...group[0], chemicals });
+  }
   if (!accepted.length) throw new Error('No properties without duplicates remain to import.');
   return { month, sourceName, rows: accepted, warnings: [...new Set(warnings)] };
 }

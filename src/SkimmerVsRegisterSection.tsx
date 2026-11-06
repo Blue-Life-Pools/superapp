@@ -68,7 +68,7 @@ export function SkimmerVsRegisterSection() {
     setError('');
     void Promise.all([
       apiFetch(`${API_URL}/chemicals/consumption/company-report?month=${month}`, { signal: controller.signal }),
-      apiFetch(`${API_URL}/chemicals/reports`, { signal: controller.signal }),
+      apiFetch(`${API_URL}/chemicals/reports?month=${month}`, { signal: controller.signal }),
     ]).then(async ([skimmerResponse, registerResponse]) => {
       const [skimmerData, registerData] = await Promise.all([skimmerResponse.json(), registerResponse.json()]);
       if (!skimmerResponse.ok) throw new Error(skimmerData.message || 'No fue posible cargar Skimmer.');

@@ -14,6 +14,7 @@
 .reports-technician-table tbody tr:nth-child(even) { background: #e4e7eb; }
 .reports-technician-table td strong { display: block; font-size: 13px; }
 .reports-technician-table td small { display: block; margin-top: 2px; color: #667085; font-size: 10px; }
+.reports-technician-table td .reports-technician-totals { margin-top: 5px; color: #475467; }
 .reports-technician-positive strong, .reports-technician-positive small { color: #075985; }
 .reports-technician-negative strong, .reports-technician-negative small { color: #667085; }
 .reports-technician-footnote { margin: 10px 0 0; color: #667085; font-size: 12px; font-style: italic; }

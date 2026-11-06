@@ -58,3 +58,22 @@ assert.deepEqual(parsed.rows[0].chemicals[0].technicians, [{ name: 'Miguel Moral
 const repeated = parseSkimmerDosages(['10/1/2026 - 10/31/2026', 'Example (ABC12345)', '10/2/2026 Miguel Pool Tabs 1 Qty ($1.00) $0.00', 'Morales', '10/3/2026 Jose Lugo Pool Tabs 1 Qty ($1.00) $0.00', '10/4/2026 Miguel Pool Tabs 1 Qty ($1.00) $0.00', 'Morales', 'Tabs 3 Qty ($3.00) $0.00', 'Grand Total for Example ($3.00)'], 'example.pdf');
 assert.deepEqual(repeated.rows[0].chemicals[0].technicians, [{ name: 'Miguel Morales', quantity: 2, cost: 2 }, { name: 'Jose Lugo', quantity: 1, cost: 1 }]);
 console.log('PASS: technician aliases, combined balances, order independence, ambiguous names, wrapped PDF columns and repeated technicians');
+
+const block = (technician, day, amount, cost, body = 'Pool') => [
+  'Example (ABC12345)',
+  `10/${day}/2026\t${technician}\t${body}\tLiquid Chlorine\t${amount} GAL\t($${cost})\t$0.00`,
+  `Liquid Chlorine ${amount} GAL ($${cost}) $0.00`,
+  `Grand Total for Example ($${cost})`,
+];
+const splitBlocks = parseSkimmerDosages(['10/1/2026 - 10/31/2026', ...block('Georky Quinones', 1, 30, '54.30'), ...block('Georky Quinones', 30, 30, '54.30')], 'october.pdf');
+assert.equal(splitBlocks.rows.length, 1, 'One monthly property includes all disjoint blocks with the same code');
+assert.equal(splitBlocks.rows[0].chemicals[0].quantity, 60);
+assert.deepEqual(splitBlocks.rows[0].chemicals[0].technicians, [{ name: 'Georky Quiñonez', quantity: 60, cost: 108.6 }]);
+const multipleBodies = parseSkimmerDosages(['10/1/2026 - 10/31/2026', ...block('Miguel Morales', 1, 10, '18.10', 'Pool'), ...block('Miguel Morales', 1, 10, '18.10', 'Water Feature')], 'october.pdf');
+assert.equal(multipleBodies.rows[0].chemicals[0].quantity, 20, 'Distinct water bodies both contribute to the monthly total');
+assert.throws(() => parseSkimmerDosages(['10/1/2026 - 10/31/2026', ...block('Georky Quinones', 1, 30, '54.30'), ...block('Georky Quinones', 1, 30, '54.30')], 'duplicate.pdf'), /No properties without duplicates/);
+const overlap = parseSkimmerDosages(['10/1/2026 - 10/31/2026', ...block('Georky Quinones', 1, 30, '54.30'), ...block('Georky Quinones', 1, 30, '54.30'), 'Other (XYZ12345)', '10/2/2026\tJose Lugo\tPool\tTabs\t1 Qty\t($1.70)\t$0.00', 'Tabs 1 Qty ($1.70) $0.00', 'Grand Total for Other ($1.70)'], 'overlap.pdf');
+assert.equal(overlap.rows.length, 1);
+assert.equal(overlap.rows[0].propertyName, 'Other');
+assert.ok(overlap.warnings.some(w => /overlap/.test(w)), 'Overlapping property blocks are not added twice');
+console.log('PASS: full-month property blocks, multiple water bodies, overlap protection');
