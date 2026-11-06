@@ -2,7 +2,7 @@ import { cleanChemicalTechnicianName } from './chemicalTechnicianIdentity';
 
 export type ConsumptionTechnicianUsage = { name: string; quantity: number; cost: number };
 export type ConsumptionChemical = { name: string; unit: string; quantity: number; cost: number; technicians?: ConsumptionTechnicianUsage[] };
-export type ConsumptionImportRow = { propertyName: string; code?: string; propertyId?: string; chemicals?: ConsumptionChemical[]; monthlyFee?: number };
+export type ConsumptionImportRow = { propertyName: string; code?: string; addressLine1?: string; propertyId?: string; chemicals?: ConsumptionChemical[]; monthlyFee?: number };
 export type ConsumptionFile = { month: string; sourceName: string; rows: ConsumptionImportRow[]; warnings: string[] };
 
 function transactionMonth(value: string) {
@@ -162,6 +162,12 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
       current = { propertyName: name, code: header[2].trim(), chemicals: [] };
       continue;
     }
+    const address = lines[i + 1];
+    if (line && !/[\t$()]/.test(line) && /^\d+[A-Za-z]?\s+\S/.test(address || '') && lines.slice(i + 2, i + 7).some((next) => /Tech.*Chemical.*Dosage/.test(next))) {
+      if (current) complete();
+      current = { propertyName: line.trim(), addressLine1: address.trim(), chemicals: [] };
+      continue;
+    }
     if (!current) continue;
     if (lastDetailUsage && /^[A-Za-zÀ-ÿ.'-]+$/.test(line) && !/^(?:Chlorine|Acid|Powder|Included|Front)$/i.test(line)) {
       lastDetailUsage.name = cleanChemicalTechnicianName(`${lastDetailUsage.name} ${line}`);
@@ -210,7 +216,10 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
   if (current) complete();
   if (!rows.length) throw new Error('No properties with reconciled quantities and totals were found.');
   const grouped = new Map<string, ConsumptionImportRow[]>();
-  for (const row of rows) grouped.set(row.code!, [...(grouped.get(row.code!) || []), row]);
+  for (const row of rows) {
+    const key = row.code || `${row.propertyName.toLowerCase()}|${row.addressLine1?.toLowerCase()}`;
+    grouped.set(key, [...(grouped.get(key) || []), row]);
+  }
   const accepted: ConsumptionImportRow[] = [];
   for (const group of grouped.values()) {
     if (group.length === 1) { accepted.push(group[0]); continue; }

@@ -77,3 +77,22 @@ assert.equal(overlap.rows.length, 1);
 assert.equal(overlap.rows[0].propertyName, 'Other');
 assert.ok(overlap.warnings.some(w => /overlap/.test(w)), 'Overlapping property blocks are not added twice');
 console.log('PASS: full-month property blocks, multiple water bodies, overlap protection');
+
+const withoutCode = parseSkimmerDosages(['10/1/2026 - 10/31/2026',
+  'NV PROPERTY HOLDINGS', '10380 Lafoy Rd', 'Included', 'Service Date Tech Body of Water Chemical Dosage Cost Price', 'w/ Service',
+  ...[2, 9, 16, 23].map(day => `10/${day}/2026\tAlexander Lara\tPool\tLiquid Chlorine\t2½ GAL\t($4.53)\t$0.00`),
+  'Liquid Chlorine 10 GAL ($18.12) $0.00', 'Grand Total for NV PROPERTY HOLDINGS ($18.12) $0.00',
+  'NV PROPERTY HOLDINGS', '4623 w Browning ave', 'Included', 'Service Date Tech Body of Water Chemical Dosage Cost Price',
+  '10/1/2026\tDiego Avila\tPool\tLiquid Chlorine\t5 GAL\t($9.05)\t$0.00',
+  'Liquid Chlorine 5 GAL ($9.05) $0.00', 'Grand Total for NV PROPERTY HOLDINGS ($9.05) $0.00',
+], 'october.pdf');
+assert.equal(withoutCode.rows.length, 2, 'Same customer name at different addresses must remain separate properties');
+assert.equal(withoutCode.rows[0].code, undefined);
+assert.equal(withoutCode.rows[0].addressLine1, '10380 Lafoy Rd');
+assert.deepEqual(withoutCode.rows[0].chemicals[0].technicians, [{ name: 'Alexander Lara', quantity: 10, cost: 18.12 }]);
+assert.equal(withoutCode.rows[1].addressLine1, '4623 w Browning ave');
+const previouslyLoadedAlexander = { chemicals: [{ name: 'Liquid Chlorine', quantity: 582.5, technicians: [usage('Alexander Lara', 582.5)] }] };
+const correctedAlexander = technicianChemicalComparison([previouslyLoadedAlexander, ...withoutCode.rows], [register('10 Alexander Lara', 107)]).find(row => row.name === 'Alexander Lara');
+assert.equal(correctedAlexander.values.liquidchlorine.skimmer, 592.5);
+assert.equal(correctedAlexander.values.liquidchlorine.register - correctedAlexander.values.liquidchlorine.skimmer, -485.5);
+console.log('PASS: uncoded PDF properties retain their address and technician quantities');
