@@ -124,16 +124,17 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
   let totalPending = false;
   let grandTotal: number | null = null;
   const technicianDetails = new Map<string, ConsumptionTechnicianUsage[]>();
-  const rowDetails = new Map<ConsumptionImportRow, Set<string>>();
-  let detailSignatures = new Set<string>();
+  const rowDetails = new Map<ConsumptionImportRow, string[]>();
+  let detailSignatures: string[] = [];
   let lastDetailUsage: ConsumptionTechnicianUsage | null = null;
   const complete = () => {
     const finished = current;
     const recordedTotal = grandTotal;
     const finishedDetails = detailSignatures;
-    detailSignatures = new Set<string>();
+    detailSignatures = [];
     current = null; grandTotal = null; totalPending = false; technicianDetails.clear(); lastDetailUsage = null;
     if (!finished) return;
+    if (!finished.chemicals?.length && !finishedDetails.length && recordedTotal === null) return;
     const sum = (finished.chemicals || []).reduce((value, chemical) => value + chemical.cost, 0);
     if (!finished.chemicals?.length || recordedTotal === null || Math.abs(sum - recordedTotal) > .03) {
       warnings.push(`${finished.propertyName}: the line items could not be reconciled with the total and were excluded from the import.`);
@@ -153,13 +154,14 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
       if (amount) { grandTotal = Number(amount[1].replace(/,/g, '')); complete(); }
       continue;
     }
-    const header = line.match(/^(.*?)\s*\(([A-Z0-9][A-Z0-9 -]{5,})\)\s*$/);
+    const header = line.match(/^(.*?)\s*\(([A-Z0-9][A-Z0-9 -]*)\)\s*$/);
     if (header && !line.includes('$')) {
       lastDetailUsage = null;
       if (current) complete();
       const name = header[1].trim() || lines[i - 1]?.trim();
       if (!name || /Grand Total|Service Date/i.test(name)) continue;
-      current = { propertyName: name, code: header[2].trim(), chemicals: [] };
+      const address = /^\d+[A-Za-z]?\s+\S/.test(lines[i + 1] || '') ? lines[i + 1].trim() : undefined;
+      current = { propertyName: name, code: header[2].trim(), ...(address ? { addressLine1: address } : {}), chemicals: [] };
       continue;
     }
     const address = lines[i + 1];
@@ -186,7 +188,7 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
       const existing = usages.find((usage) => usage.name.toLowerCase() === technicianName.toLowerCase());
       const value = quantityValue(quantity);
       const amount = Number(cost.replace(/,/g, ''));
-      detailSignatures.add(JSON.stringify([line.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)![0], technicianName.toLowerCase(), detail[2].trim().toLowerCase(), name.trim().toLowerCase(), unit.toLowerCase(), value, amount]));
+      detailSignatures.push(JSON.stringify([line.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)![0], technicianName.toLowerCase(), detail[2].trim().toLowerCase(), name.trim().toLowerCase(), unit.toLowerCase(), value, amount]));
       if (existing) { existing.quantity += value; existing.cost = Math.round((existing.cost + amount) * 100) / 100; }
       else usages.push({ name: technicianName, quantity: value, cost: amount });
       technicianDetails.set(key, usages);
@@ -217,7 +219,8 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
   if (!rows.length) throw new Error('No properties with reconciled quantities and totals were found.');
   const grouped = new Map<string, ConsumptionImportRow[]>();
   for (const row of rows) {
-    const key = row.code || `${row.propertyName.toLowerCase()}|${row.addressLine1?.toLowerCase()}`;
+    const addressKey = row.addressLine1?.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const key = row.code ? /\s+-\s+/.test(row.code) ? `${row.code}|${addressKey}` : row.code : `${row.propertyName.toLowerCase()}|${addressKey}`;
     grouped.set(key, [...(grouped.get(key) || []), row]);
   }
   const accepted: ConsumptionImportRow[] = [];
@@ -226,13 +229,15 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
     const seen = new Set<string>();
     const completeDetails = group.every((row) => {
       const details = rowDetails.get(row)!;
-      const reconciled = details.size > 0 && row.chemicals!.every((chemical) => Math.abs(chemical.quantity - (chemical.technicians || []).reduce((sum, usage) => sum + usage.quantity, 0)) < .0001);
-      const overlap = [...details].some((detail) => seen.has(detail));
-      details.forEach((detail) => seen.add(detail));
-      return reconciled && !overlap;
+      const reconciled = details.length > 0 && row.chemicals!.every((chemical) => Math.abs(chemical.quantity - (chemical.technicians || []).reduce((sum, usage) => sum + usage.quantity, 0)) < .0001 && Math.abs(chemical.cost - (chemical.technicians || []).reduce((sum, usage) => sum + usage.cost, 0)) <= .03);
+      // Separate service-location totals can share visits; only an identical whole block is a duplicate.
+      const fingerprint = JSON.stringify([row.addressLine1?.toLowerCase().replace(/[^a-z0-9]/g, '') || '', [...details].sort()]);
+      const duplicate = seen.has(fingerprint);
+      seen.add(fingerprint);
+      return reconciled && !duplicate;
     });
     if (!completeDetails) {
-      warnings.push(`${group[0].propertyName}: repeated property blocks overlap or have incomplete technician details; excluded pending a scope review.`);
+      warnings.push(`${group[0].propertyName}: repeated property blocks overlap completely or have incomplete technician details; excluded pending a scope review.`);
       continue;
     }
     const chemicals: ConsumptionChemical[] = [];

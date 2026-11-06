@@ -96,3 +96,21 @@ const correctedAlexander = technicianChemicalComparison([previouslyLoadedAlexand
 assert.equal(correctedAlexander.values.liquidchlorine.skimmer, 592.5);
 assert.equal(correctedAlexander.values.liquidchlorine.register - correctedAlexander.values.liquidchlorine.skimmer, -485.5);
 console.log('PASS: uncoded PDF properties retain their address and technician quantities');
+
+const sharedVisit = parseSkimmerDosages(['10/1/2026 - 10/31/2026', ...block('Angel Viña', 1, 5, '9.05'),
+  'Example (ABC12345)', '10/1/2026\tAngel Viña\tPool\tLiquid Chlorine\t5 GAL\t($9.05)\t$0.00', '10/2/2026\tAngel Viña\tPool\tLiquid Chlorine\t5 GAL\t($9.05)\t$0.00',
+  'Liquid Chlorine 10 GAL ($18.10) $0.00', 'Grand Total for Example ($18.10)',
+], 'locations.pdf');
+assert.equal(sharedVisit.rows[0].chemicals[0].quantity, 15, 'Distinct reconciled location totals remain included even if they contain a matching visit');
+const separateAddresses = parseSkimmerDosages(['10/1/2026 - 10/31/2026',
+  'BELMONT (NOQ717E8N9Z7 - YCO895P5G3L8)', '2419 E 31st Ave',
+  '10/1/2026\tJavier Llovera\tPool\tLiquid Chlorine\t5 GAL\t($9.05)\t$0.00', 'Liquid Chlorine 5 GAL ($9.05) $0.00', 'Grand Total for BELMONT ($9.05)',
+  'BELMONT (NOQ717E8N9Z7 - YCO895P5G3L8)', '3540 N 20th St',
+  '10/1/2026\tJavier Llovera\tPool\tLiquid Chlorine\t5 GAL\t($9.05)\t$0.00', 'Liquid Chlorine 5 GAL ($9.05) $0.00', 'Grand Total for BELMONT ($9.05)',
+], 'combined-code.pdf');
+assert.equal(separateAddresses.rows.length, 2, 'Combined source codes retain separate addresses for matching to Home');
+assert.deepEqual(separateAddresses.rows.map(r => r.addressLine1), ['2419 E 31st Ave', '3540 N 20th St']);
+const shortCode = parseSkimmerDosages(['10/1/2026 - 10/31/2026', 'Stella Stephens (001)', '17122 Orange Wood Dr', '10/1/2026\tAngel Viña\tPool\tLiquid Chlorine\t2½ GAL\t($4.53)\t$0.00', 'Liquid Chlorine 2½ GAL ($4.53) $0.00', 'Grand Total for Stella Stephens ($4.53)'], 'short-code.pdf');
+assert.equal(shortCode.rows[0].code, '001');
+assert.equal(shortCode.rows[0].chemicals[0].quantity, 2.5);
+console.log('PASS: distinct location blocks sharing visits, combined property codes and short customer codes');
