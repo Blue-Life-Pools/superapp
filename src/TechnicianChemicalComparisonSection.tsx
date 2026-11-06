@@ -46,10 +46,10 @@ export function TechnicianChemicalComparisonSection() {
   const rows = useMemo(() => technicianChemicalComparison(consumption?.periods || [], reports), [consumption, reports]);
 
   const difference = (values: TechnicianRow['values'][ChemicalKey]) => values.register - values.skimmer;
-  const format = (value: number) => value === 0 ? '0.0' : `${value > 0 ? '+' : ''}${value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 20 })}`;
+  const format = (value: number) => Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 20 });
 
   return <section className="reports-technician-comparison" aria-labelledby="technician-comparison-heading">
-    <div className="reports-section-heading reports-technician-comparison-heading"><div><h2 id="technician-comparison-heading">3. Por técnico — Diferencia Skimmer vs. Bodega por químico</h2><p>Cada casilla muestra la diferencia (Bodega − Skimmer) y debajo los totales de ambos registros.</p></div><div className="reports-technician-actions"><label>Mes<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label><button type="button" className="reports-table-download-button" onClick={() => setRefresh((value) => value + 1)}>Actualizar</button></div></div>
+    <div className="reports-section-heading reports-technician-comparison-heading"><div><h2 id="technician-comparison-heading">3. Por técnico — Diferencia Skimmer vs. Bodega por químico</h2><p>Cada casilla muestra la diferencia sin signo y debajo los totales de ambos registros.</p></div><div className="reports-technician-actions"><label>Mes<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label><button type="button" className="reports-table-download-button" onClick={() => setRefresh((value) => value + 1)}>Actualizar</button></div></div>
     {loading && <p className="reports-empty">Cargando comparación por técnico…</p>}
     {error && <p className="reports-message" role="alert">{error}</p>}
     {!loading && !error && !rows.length && <p className="reports-empty">No hay detalle por técnico para este mes.</p>}
@@ -66,7 +66,7 @@ export function TechnicianChemicalComparisonSection() {
           </td>;
         })}</tr>)}</tbody>
       </table>
-      <p className="reports-technician-footnote">Bodega suma todos los registros de Register del mes seleccionado. Skimmer suma el consumo cargado en Property consumption de ese mismo mes. Diferencia = Bodega − Skimmer. Positivo (azul) indica mayor salida de bodega; negativo (gris) indica mayor consumo registrado en Skimmer.</p>
+      <p className="reports-technician-footnote">Bodega suma todos los registros de Register del mes seleccionado. Skimmer suma el consumo cargado en Property consumption de ese mismo mes. La diferencia se muestra como valor absoluto. Azul indica mayor salida de bodega; gris indica mayor consumo registrado en Skimmer.</p>
     </div>}
   </section>;
 }
