@@ -52,7 +52,7 @@ function registerValues(report: TechnicianReport) {
   };
 }
 
-const formatQuantity = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const formatQuantity = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 20 });
 
 export function SkimmerVsRegisterSection() {
   const [month, setMonth] = useState(chemicalReportMonth);
