@@ -1,64 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { API_URL, apiFetch } from './api';
 import { chemicalReportMonth } from './chemicalConsumptionAlerts';
+import { companySkimmerRegisterComparison } from './companySkimmerRegisterComparison';
+import type { CompanyConsumptionPeriod, CompanyRegisterReport } from './companySkimmerRegisterComparison';
 import './SkimmerVsRegisterSection.css';
 
-type CompanyChemical = { name: string; recordedQuantity: number | null };
-type CompanyReport = { chemicals: CompanyChemical[] };
-type TechnicianReport = {
-  serviceDate: string;
-  tabsQuantity: number | string;
-  liquidChlorineGallons: number | string;
-  muriaticAcidGallons: number | string;
-  dePowderBags: number | string;
-  stabilizerScoops: number | string;
-};
-
-type ComparisonRow = {
-  key: string;
-  label: string;
-  skimmer: number;
-  register: number;
-};
-
-const chemicals = [
-  { key: 'liquidchlorine', label: 'Cloro líquido' },
-  { key: 'muriaticacid', label: 'Ácido' },
-  { key: 'tablets', label: 'Tabletas / Pastillas' },
-  { key: 'stabilizer', label: 'Estabilizador' },
-  { key: 'de', label: 'DE' },
-] as const;
-
-const numberValue = (value: number | string | null | undefined) => Number(value) || 0;
-const chemicalKey = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
-function skimmerKey(name: string) {
-  const key = chemicalKey(name);
-  if (key.includes('liquidchlorine') || key === 'liquid' || key.includes('cloroliquido')) return 'liquidchlorine';
-  if (key.includes('muriaticacid') || key.includes('acidomuriatico')) return 'muriaticacid';
-  if (key.includes('tablet') || key === 'tabs' || key.includes('clorotablet')) return 'tablets';
-  if (key.includes('stabil')) return 'stabilizer';
-  if (key.includes('depowder') || key === 'de' || key.includes('filterpowder')) return 'de';
-  return null;
-}
-
-function registerValues(report: TechnicianReport) {
-  return {
-    liquidchlorine: numberValue(report.liquidChlorineGallons),
-    muriaticacid: numberValue(report.muriaticAcidGallons),
-    tablets: numberValue(report.tabsQuantity),
-    stabilizer: numberValue(report.stabilizerScoops),
-    de: numberValue(report.dePowderBags),
-  };
-}
+type ConsumptionDashboard = { periods: CompanyConsumptionPeriod[] };
 
 const formatQuantity = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 20 });
 
 export function SkimmerVsRegisterSection() {
   const [month, setMonth] = useState(chemicalReportMonth);
   const [refresh, setRefresh] = useState(0);
-  const [skimmer, setSkimmer] = useState<CompanyReport | null>(null);
-  const [register, setRegister] = useState<TechnicianReport[]>([]);
+  const [skimmer, setSkimmer] = useState<ConsumptionDashboard | null>(null);
+  const [register, setRegister] = useState<CompanyRegisterReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -67,15 +22,15 @@ export function SkimmerVsRegisterSection() {
     setLoading(true);
     setError('');
     void Promise.all([
-      apiFetch(`${API_URL}/chemicals/consumption/company-report?month=${month}`, { signal: controller.signal }),
+      apiFetch(`${API_URL}/chemicals/consumption?month=${month}`, { signal: controller.signal }),
       apiFetch(`${API_URL}/chemicals/reports?month=${month}`, { signal: controller.signal }),
     ]).then(async ([skimmerResponse, registerResponse]) => {
       const [skimmerData, registerData] = await Promise.all([skimmerResponse.json(), registerResponse.json()]);
       if (!skimmerResponse.ok) throw new Error(skimmerData.message || 'No fue posible cargar Skimmer.');
       if (!registerResponse.ok) throw new Error(registerData.message || 'No fue posible cargar los registros de técnicos.');
       if (controller.signal.aborted) return;
-      setSkimmer(skimmerData as CompanyReport);
-      setRegister((registerData as TechnicianReport[]).filter((item) => item.serviceDate.slice(0, 7) === month));
+      setSkimmer(skimmerData as ConsumptionDashboard);
+      setRegister(registerData as CompanyRegisterReport[]);
     }).catch((cause) => {
       if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'No fue posible cargar la comparación.');
     }).finally(() => {
@@ -84,30 +39,14 @@ export function SkimmerVsRegisterSection() {
     return () => controller.abort();
   }, [month, refresh]);
 
-  const rows = useMemo<ComparisonRow[]>(() => {
-    const skimmerTotals = new Map<string, number>();
-    for (const item of skimmer?.chemicals || []) {
-      const key = skimmerKey(item.name);
-      if (key) skimmerTotals.set(key, (skimmerTotals.get(key) || 0) + numberValue(item.recordedQuantity));
-    }
-    const registerTotals = register.reduce<Record<string, number>>((totals, item) => {
-      const values = registerValues(item);
-      for (const chemical of chemicals) totals[chemical.key] = (totals[chemical.key] || 0) + values[chemical.key];
-      return totals;
-    }, {});
-    return chemicals.map((chemical) => ({
-      ...chemical,
-      skimmer: skimmerTotals.get(chemical.key) || 0,
-      register: registerTotals[chemical.key] || 0,
-    }));
-  }, [register, skimmer]);
+  const rows = useMemo(() => companySkimmerRegisterComparison(skimmer?.periods || [], register, month), [register, skimmer, month]);
 
   const maximum = Math.max(...rows.flatMap((row) => [row.skimmer, row.register]), 1);
   const hasData = rows.some((row) => row.skimmer > 0 || row.register > 0);
 
   return <section className="reports-chemical-comparison" aria-labelledby="skimmer-register-heading">
     <div className="reports-section-heading reports-chemical-comparison-heading">
-      <div><h2 id="skimmer-register-heading">2. Total empresa — Skimmer vs. salidas de bodega</h2><p>Comparativo del consumo cargado desde Skimmer frente a lo registrado por los técnicos en Register.</p></div>
+      <div><h2 id="skimmer-register-heading">2. Total empresa — Skimmer vs. salidas de bodega</h2><p>Totales del mes: todo el consumo cargado en Property consumption y todas las salidas registradas en Register.</p></div>
       <div className="reports-chemical-comparison-actions"><label>Mes<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label><button type="button" className="reports-table-download-button" onClick={() => setRefresh((value) => value + 1)}>Actualizar</button></div>
     </div>
     {loading && <p className="reports-empty">Cargando comparación…</p>}
