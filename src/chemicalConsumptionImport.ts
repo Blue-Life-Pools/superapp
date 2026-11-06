@@ -1,3 +1,5 @@
+import { cleanChemicalTechnicianName } from './chemicalTechnicianIdentity';
+
 export type ConsumptionTechnicianUsage = { name: string; quantity: number; cost: number };
 export type ConsumptionChemical = { name: string; unit: string; quantity: number; cost: number; technicians?: ConsumptionTechnicianUsage[] };
 export type ConsumptionImportRow = { propertyName: string; code?: string; propertyId?: string; chemicals?: ConsumptionChemical[]; monthlyFee?: number };
@@ -73,7 +75,39 @@ export function pdfTextLines(items: Array<{ str: string; transform: number[] }>)
     if (!group) { group = { y: item.transform[5], items: [] }; groups.push(group); }
     group.items.push({ x: item.transform[4], text: item.str });
   }
-  return groups.sort((a, b) => b.y - a.y).map((group) => group.items.sort((a, b) => a.x - b.x).map((item) => item.text).join(' ').replace(/\s+/g, ' ').trim());
+  const ordered = groups.sort((a, b) => b.y - a.y);
+  const boundariesFor = (y: number) => {
+    const header = items.filter((item) => item.str.trim() === 'Tech' && item.transform[5] > y).sort((a, b) => a.transform[5] - b.transform[5])[0];
+    if (!header) return null;
+    const headerX = (label: RegExp) => items.find((item) => label.test(item.str.trim()) && Math.abs(item.transform[5] - header.transform[5]) < 9)?.transform[4];
+    const tech = header.transform[4], body = headerX(/^Body of(?: Water)?$/), chemical = headerX(/^Chemical$/);
+    const dosage = headerX(/^Dosage$/), cost = headerX(/^Cost$/), price = headerX(/^Price(?: w\/)?$/);
+    return [body, chemical, dosage, cost, price].every((x) => x !== undefined)
+      ? [tech - 2, body! - 2, chemical! - 2, (chemical! + dosage!) / 2, (dosage! + cost!) / 2, (cost! + price!) / 2] : null;
+  };
+  const text = (group: typeof groups[number]) => group.items.sort((a, b) => a.x - b.x).map((item) => item.text).join(' ').replace(/\s+/g, ' ').trim();
+  const lines: string[] = [];
+  for (let i = 0; i < ordered.length; i++) {
+    const group = ordered[i];
+    const boundaries = boundariesFor(group.y);
+    const column = (x: number) => boundaries?.filter((boundary) => x >= boundary).length ?? 0;
+    if (!boundaries || !/^\d{1,2}\/\d{1,2}\/\d{4}\s/.test(text(group)) || !text(group).includes('$')) {
+      lines.push(text(group));
+      continue;
+    }
+    // Keep wrapped names, water bodies and chemicals in their own PDF columns.
+    const cells: string[][] = Array.from({ length: 7 }, () => []);
+    const append = (row: typeof group) => row.items.sort((a, b) => a.x - b.x).forEach((item) => cells[column(item.x)].push(item.text.trim()));
+    append(group);
+    while (i + 1 < ordered.length) {
+      const next = ordered[i + 1];
+      const gap = ordered[i].y - next.y;
+      if (gap > 20 || next.items.some((item) => ![1, 2, 3, 6].includes(column(item.x))) || /\$/.test(text(next))) break;
+      append(next); i++;
+    }
+    lines.push(cells.map((cell) => cell.join(' ').replace(/\s+/g, ' ').trim()).join('\t'));
+  }
+  return lines;
 }
 function quantityValue(raw: string) {
   const fractions: Record<string, number> = { '¼': .25, '½': .5, '¾': .75 };
@@ -125,24 +159,27 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
       continue;
     }
     if (!current) continue;
-    if (lastDetailUsage && /^[A-Za-zÀ-ÿ.'-]+$/.test(line)) {
-      lastDetailUsage.name = `${lastDetailUsage.name} ${line}`;
+    if (lastDetailUsage && /^[A-Za-zÀ-ÿ.'-]+$/.test(line) && !/^(?:Chlorine|Acid|Powder|Included|Front)$/i.test(line)) {
+      lastDetailUsage.name = cleanChemicalTechnicianName(`${lastDetailUsage.name} ${line}`);
       lastDetailUsage = null;
       continue;
     }
     lastDetailUsage = null;
-    const detail = line.match(/^\d{1,2}\/\d{1,2}\/\d{4}\s+(.+?)\s+((?:Back )?Pool)\s+(.+?)\s+([\d,]+(?:\.\d+)?\s*[Â¼Â½Â¾]?|[Â¼Â½Â¾])\s+(\S+)\s+\(?\$([\d,]+\.\d{2})\)?/i);
+    const detail = line.includes('\t')
+      ? line.match(/^\d{1,2}\/\d{1,2}\/\d{4}\t([^\t]+)\t([^\t]+)\t([^\t]+)\t([\d,]+(?:\.\d+)?\s*[¼½¾]?|[¼½¾])\s+(\S+)\t\(?\$([\d,]+\.\d{2})\)?/i)
+      : line.match(/^\d{1,2}\/\d{1,2}\/\d{4}\s+(.+?)\s+((?:Back )?Pool)\s+(.+?)\s+([\d,]+(?:\.\d+)?\s*[¼½¾]?|[¼½¾])\s+(\S+)\s+\(?\$([\d,]+\.\d{2})\)?/i);
     if (detail) {
       const [, technician, , name, quantity, unit, cost] = detail;
       const key = `${name.trim()}|${unit.toLowerCase()}`;
       const usages = technicianDetails.get(key) || [];
-      const existing = usages.find((usage) => usage.name.toLowerCase() === technician.trim().toLowerCase());
+      const technicianName = cleanChemicalTechnicianName(technician);
+      const existing = usages.find((usage) => usage.name.toLowerCase() === technicianName.toLowerCase());
       const value = quantityValue(quantity);
       const amount = Number(cost.replace(/,/g, ''));
       if (existing) { existing.quantity += value; existing.cost = Math.round((existing.cost + amount) * 100) / 100; }
-      else usages.push({ name: technician.trim(), quantity: value, cost: amount });
+      else usages.push({ name: technicianName, quantity: value, cost: amount });
       technicianDetails.set(key, usages);
-      lastDetailUsage = usages[usages.length - 1];
+      lastDetailUsage = line.includes('\t') ? null : existing || usages[usages.length - 1];
       continue;
     }
     const summary = line.match(/^(.+?)\s+([\d,]+(?:\.\d+)?\s*[¼½¾]?|[¼½¾])\s+(\S+)\s+\(?\$([\d,]+\.\d{2})\)?\s+\$[\d,.]+/);
