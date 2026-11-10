@@ -12,6 +12,8 @@ import { ComplaintsPage } from './ComplaintsPage';
 import { QualityInspectionsPage } from './QualityInspectionsPage';
 import { QualityFindingPhotos } from './QualityFindingPhotos';
 import './App.css';
+import './PropertyHistoryPage.css';
+import { WorkspaceIcon } from './WorkspaceIcon';
 
 type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports' | 'complaints' | 'quality';
 type PropertyTab = 'overview' | 'commercial' | 'estimates' | 'contracts' | 'quality';
@@ -2515,6 +2517,7 @@ function App() {
           <img className="sidebar-logo" src="/blue-life-logo.png" alt="Blue Life Pool Service" decoding="async" />
           <div><strong>BlueLife</strong><small>Internal App</small></div>
         </div>
+        {activeArea === 'home' && <p className="history-sidebar-caption">WORKSPACE</p>}
         <div className="mobile-sidebar-session">
           <div><strong>{appSession?.user.name}</strong><small>{appSession?.user.role.toLowerCase()}</small></div>
           <button type="button" onClick={() => void logoutApp()}>Log out</button>
@@ -2528,7 +2531,7 @@ function App() {
               key={area.id}
               onClick={() => navigateToArea(area.id)}
             >
-              <span aria-hidden="true">{area.icon}</span>
+              <span aria-hidden="true">{activeArea === 'home' ? <WorkspaceIcon name={area.id} /> : area.icon}</span>
               {area.label}
             </button>
           ))}
