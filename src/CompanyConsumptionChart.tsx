@@ -1,4 +1,5 @@
 import { companyChemicalMetrics, companyChemicalStatus, companyPropertyStatus, sortCompanyProperties, companyReportMonthLabel, type CompanyConsumptionReport } from './chemicalCompanyReport';
+import { englishChemicalName } from './chemicalConsumptionAlerts';
 
 const quantity = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 const percent = (value: number) => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
@@ -20,6 +21,7 @@ export function CompanyConsumptionChart({ report }: { report: CompanyConsumption
     <div className="company-chart-axis" aria-hidden="true"><span>0%</span><span>{percent(scale)} of maximum</span></div>
     <div className="company-chart-rows">
       {report.chemicals.map((chemical) => {
+        const displayName = englishChemicalName(chemical.name);
         const status = companyChemicalStatus(chemical, report.thresholds);
         const usage = companyChemicalMetrics(chemical);
         const manual = chemical.maximumSource === 'MANUAL_COMPANY';
@@ -32,8 +34,8 @@ export function CompanyConsumptionChart({ report }: { report: CompanyConsumption
           ? `Base maximum: ${quantity(chemical.baseMaximum)} ${chemical.unit}. ${global ? 'Sum of the individually adjusted monthly maximums.' : `${report.uploadedProperties} reported properties / ${report.basePropertyCount} base properties.`}` : undefined;
         const recorded = chemical.recordedQuantity === null ? global ? 'No data for included months' : 'No data for this month' : `${quantity(chemical.recordedQuantity)} ${chemical.unit}`;
         return <article className={`company-chart-row company-chart-${status.level}`} key={chemical.id}>
-          <div className="company-chart-row-heading"><h4>{chemical.name} <small>({chemical.unit})</small></h4><p>Skimmer total: <strong>{recorded}</strong><span aria-hidden="true"> | </span><span title={adjustment}>{maximumLabel}: <strong>{maximum}{manual && ' (manual)'}</strong></span></p></div>
-          <div className="company-chart-track" role="img" aria-label={`${chemical.name}: Skimmer total ${recorded}; ${maximumLabel.toLowerCase()} ${maximum}${usage.percent === null ? '' : `; ${percent(usage.percent)} of company maximum`}. ${status.label}.`}>
+          <div className="company-chart-row-heading"><h4>{displayName} <small>({chemical.unit})</small></h4><p>Skimmer total: <strong>{recorded}</strong><span aria-hidden="true"> | </span><span title={adjustment}>{maximumLabel}: <strong>{maximum}{manual && ' (manual)'}</strong></span></p></div>
+          <div className="company-chart-track" role="img" aria-label={`${displayName}: Skimmer total ${recorded}; ${maximumLabel.toLowerCase()} ${maximum}${usage.percent === null ? '' : `; ${percent(usage.percent)} of company maximum`}. ${status.label}.`}>
             {usage.percent !== null && <>
               <div className="company-chart-fill" style={{ width: `${Math.min(100, Math.max(0, usage.percent / scale * 100))}%` }}>
                 {usage.percent / scale >= .12 && <span>{percent(usage.percent)}</span>}

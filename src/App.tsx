@@ -21,6 +21,7 @@ import './CommercialDashboard.css';
 import { CommercialPropertyOverview } from './CommercialPropertyOverview';
 import './CommercialPropertyOverview.css';
 import './WorkspaceSidebar.css';
+import './ChemicalsWorkspace.css';
 
 type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports' | 'complaints' | 'quality';
 type PropertyTab = 'overview' | 'commercial' | 'estimates' | 'contracts' | 'quality';
@@ -2496,7 +2497,7 @@ function App() {
         <div className="sidebar-footer">
           <img className="sidebar-logo" src="/blue-life-logo.png" alt="" aria-hidden="true" decoding="async" />
           <div className="sidebar-account"><strong>{appSession?.user.name}</strong><small>{appSession?.user.role.toLowerCase()}</small></div>
-          <button className="sidebar-logout" type="button" onClick={() => void logoutApp()}>Salir</button>
+          <button className="sidebar-logout" type="button" onClick={() => void logoutApp()}>Log out</button>
         </div>
       </aside>
       {sidebarCollapsed && <button className="sidebar-expand-button workspace-sidebar-toggle" type="button" onClick={() => setSidebarCollapsed(false)} aria-label="Show navigation" title="Show navigation">›</button>}

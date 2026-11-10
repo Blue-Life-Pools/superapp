@@ -40,6 +40,11 @@ const paths = {
   map: <><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2ZM9 3v16m6-14v16" /></>,
   contract: <><path d="M14 2H5v20h15V8Z" /><path d="M14 2v6h6M8 12h8m-8 4h4m2 4 4-4" /></>,
   'arrow-left': <path d="M20 12H4m6-6-6 6 6 6" />,
+  upload: <><path d="M12 16V3m-5 5 5-5 5 5M3 15v6h18v-6" /></>,
+  sheet: <><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M3 15h18M9 3v18m6-18v18" /></>,
+  coins: <><ellipse cx="9" cy="8" rx="7" ry="3" /><path d="M2 8v5a7 3 0 0 0 14 0V8M2 13v5a7 3 0 0 0 14 0v-5M16 15a6 3 0 0 0 6-3V5" /><ellipse cx="16" cy="5" rx="6" ry="3" /></>,
+  percent: <><circle cx="12" cy="12" r="9" /><path d="m8 16 8-8" /><circle cx="8" cy="8" r="1" /><circle cx="16" cy="16" r="1" /></>,
+  drop: <path d="M12 2S4 11 4 16a8 8 0 0 0 16 0c0-5-8-14-8-14Z" />,
 } satisfies Record<string, ReactNode>;
 
 export function WorkspaceIcon({ name, className = '' }: { name: keyof typeof paths; className?: string }) {

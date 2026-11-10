@@ -1,3 +1,4 @@
+import { WorkspaceIcon } from './WorkspaceIcon';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 
 import { API_URL, apiFetch as fetch, getAppToken } from './api';
@@ -226,7 +227,7 @@ export function ChemicalsPage({
   const [initialTechnicianToken] = useState(technicianTokenFromSharedLink);
   const [technicianToken, setTechnicianToken] = useState(initialTechnicianToken);
   const [technicianAccessMode] = useState(technicianAccessModeFromLink);
-  const [activeTab, setActiveTab] = useState<'register' | 'technicians' | 'consumption' | 'reports'>('register');
+  const [activeTab, setActiveTab] = useState<'register' | 'technicians' | 'consumption' | 'reports'>('consumption');
   const [lockedTechnician, setLockedTechnician] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [accessing, setAccessing] = useState(false);
@@ -639,7 +640,7 @@ export function ChemicalsPage({
   }
 
   return (
-    <div className={`page chemicals-page ${isSharedForm ? 'chemicals-shared-page' : 'app-page'}`}>
+    <div lang="en" className={`page chemicals-page chemicals-design ${isSharedForm ? 'chemicals-shared-page' : 'app-page'}`}>
       {!isSharedForm && sidebar}
 
       {editingTechnician && (
@@ -650,7 +651,7 @@ export function ChemicalsPage({
         <header className="area-page-header chemicals-page-header">
           <div>
             <span className="area-eyebrow">OPERATIONS</span>
-            <h1>Chemicals</h1>
+            <div className="chemicals-title-row"><span className="chemicals-title-icon"><WorkspaceIcon name="chemicals" /></span><div><h1>Chemicals</h1><p>Chemical consumption, costs and monthly allocation by property.</p></div></div>
           </div>
         </header>
       )}
@@ -658,10 +659,10 @@ export function ChemicalsPage({
       {!isSharedForm && (
         <>
           <nav className="chemicals-tabs" aria-label="Chemical sections">
-            <button className={activeTab === 'consumption' ? 'chemicals-tab-active' : ''} type="button" onClick={() => setActiveTab('consumption')}>Property consumption</button>
-            <button className={activeTab === 'reports' ? 'chemicals-tab-active' : ''} type="button" onClick={() => setActiveTab('reports')}>Reports</button>
-            <button className={activeTab === 'register' ? 'chemicals-tab-active' : ''} type="button" onClick={() => setActiveTab('register')}>Register</button>
-            <button className={activeTab === 'technicians' ? 'chemicals-tab-active' : ''} type="button" onClick={() => { setActiveTab('technicians'); if (ownerToken) void loadManagedTechnicians().catch((error) => setTechnicianMessage(error instanceof Error ? error.message : 'Unable to load the directory.')); }}>Technicians</button>
+            <button className={activeTab === 'consumption' ? 'chemicals-tab-active' : ''} type="button" aria-label="Property consumption" aria-pressed={activeTab === 'consumption'} onClick={() => setActiveTab('consumption')}>Consumption</button>
+            <button className={activeTab === 'reports' ? 'chemicals-tab-active' : ''} type="button" aria-pressed={activeTab === 'reports'} onClick={() => setActiveTab('reports')}>Reports</button>
+            <button className={activeTab === 'register' ? 'chemicals-tab-active' : ''} type="button" aria-pressed={activeTab === 'register'} onClick={() => setActiveTab('register')}>Register</button>
+            <button className={activeTab === 'technicians' ? 'chemicals-tab-active' : ''} type="button" aria-pressed={activeTab === 'technicians'} onClick={() => { setActiveTab('technicians'); if (ownerToken) void loadManagedTechnicians().catch((error) => setTechnicianMessage(error instanceof Error ? error.message : 'Unable to load the directory.')); }}>Technicians</button>
           </nav>
 
           {(activeTab === 'register' || activeTab === 'technicians') && <><section className="chemicals-kpis">

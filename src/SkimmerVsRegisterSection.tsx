@@ -7,6 +7,7 @@ import './SkimmerVsRegisterSection.css';
 
 type ConsumptionDashboard = { periods: CompanyConsumptionPeriod[] };
 
+const chemicalLabels: Record<string, string> = { liquidchlorine: 'Liquid Chlorine', muriaticacid: 'Muriatic Acid', tablets: 'Chlorine Tablets', stabilizer: 'Stabilizer', de: 'D.E. Powder' };
 const formatQuantity = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 20 });
 
 export function SkimmerVsRegisterSection() {
@@ -26,13 +27,13 @@ export function SkimmerVsRegisterSection() {
       apiFetch(`${API_URL}/chemicals/reports?month=${month}`, { signal: controller.signal }),
     ]).then(async ([skimmerResponse, registerResponse]) => {
       const [skimmerData, registerData] = await Promise.all([skimmerResponse.json(), registerResponse.json()]);
-      if (!skimmerResponse.ok) throw new Error(skimmerData.message || 'No fue posible cargar Skimmer.');
-      if (!registerResponse.ok) throw new Error(registerData.message || 'No fue posible cargar los registros de técnicos.');
+      if (!skimmerResponse.ok) throw new Error(skimmerData.message || 'Unable to load Skimmer consumption.');
+      if (!registerResponse.ok) throw new Error(registerData.message || 'Unable to load technician records.');
       if (controller.signal.aborted) return;
       setSkimmer(skimmerData as ConsumptionDashboard);
       setRegister(registerData as CompanyRegisterReport[]);
     }).catch((cause) => {
-      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'No fue posible cargar la comparación.');
+      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Unable to load the comparison.');
     }).finally(() => {
       if (!controller.signal.aborted) setLoading(false);
     });
@@ -46,26 +47,26 @@ export function SkimmerVsRegisterSection() {
 
   return <section className="reports-chemical-comparison" aria-labelledby="skimmer-register-heading">
     <div className="reports-section-heading reports-chemical-comparison-heading">
-      <div><h2 id="skimmer-register-heading">2. Total empresa — Skimmer vs. salidas de bodega</h2><p>Totales del mes: todo el consumo cargado en Property consumption y todas las salidas registradas en Register.</p></div>
-      <div className="reports-chemical-comparison-actions"><label>Mes<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label><button type="button" className="reports-table-download-button" onClick={() => setRefresh((value) => value + 1)}>Actualizar</button></div>
+      <div><h2 id="skimmer-register-heading">2. Total company — Skimmer vs. warehouse withdrawals</h2><p>Monthly totals: all uploaded Skimmer consumption and all warehouse withdrawals recorded in Register.</p></div>
+      <div className="reports-chemical-comparison-actions"><label>Month<input aria-label="Company comparison month" lang="en" type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label><button type="button" className="reports-table-download-button" onClick={() => setRefresh((value) => value + 1)}>Refresh</button></div>
     </div>
-    {loading && <p className="reports-empty">Cargando comparación…</p>}
+    {loading && <p className="reports-empty">Loading comparison…</p>}
     {error && <p className="reports-message" role="alert">{error}</p>}
-    {!loading && !error && !hasData && <p className="reports-empty">No hay datos de Skimmer ni registros de técnicos para este mes.</p>}
+    {!loading && !error && !hasData && <p className="reports-empty">No Skimmer consumption or technician records are available for this month.</p>}
     {!loading && !error && hasData && <>
-      <div className="reports-chemical-chart" role="img" aria-label="Comparación de Skimmer y salidas de bodega por químico">
+      <div className="reports-chemical-chart" role="img" aria-label="Skimmer consumption and warehouse withdrawals by chemical">
         <div className="reports-chemical-chart-area">
           {rows.map((row) => <div className="reports-chemical-chart-group" key={row.key}>
             <div className="reports-chemical-column-pair">
               <div className="reports-chemical-column"><b>{formatQuantity(row.skimmer)}</b><i className="reports-chemical-bar-skimmer" style={{ height: `${row.skimmer ? Math.max(3, row.skimmer / maximum * 100) : 0}%` }} /></div>
               <div className="reports-chemical-column"><b>{formatQuantity(row.register)}</b><i className="reports-chemical-bar-register" style={{ height: `${row.register ? Math.max(3, row.register / maximum * 100) : 0}%` }} /></div>
             </div>
-            <span>{row.label}</span>
+            <span>{chemicalLabels[row.key]}</span>
           </div>)}
         </div>
       </div>
-      <div className="reports-chemical-legend"><span><i className="reports-chemical-swatch reports-chemical-bar-skimmer" />Skimmer</span><span><i className="reports-chemical-swatch reports-chemical-bar-register" />Bodega</span></div>
-      <div className="reports-chemical-table-wrap"><table className="reports-chemical-table"><thead><tr><th>Químico</th><th>Skimmer</th><th>Bodega</th><th>Diferencia<br />(Bodega − Skimmer)</th></tr></thead><tbody>{rows.map((row) => <tr key={row.key}><th>{row.label}</th><td>{formatQuantity(row.skimmer)}</td><td>{formatQuantity(row.register)}</td><td className={row.register - row.skimmer >= 0 ? 'reports-chemical-positive' : 'reports-chemical-negative'}>{row.register - row.skimmer >= 0 ? '+' : ''}{formatQuantity(row.register - row.skimmer)}</td></tr>)}</tbody></table></div>
+      <div className="reports-chemical-legend"><span><i className="reports-chemical-swatch reports-chemical-bar-skimmer" />Skimmer</span><span><i className="reports-chemical-swatch reports-chemical-bar-register" />Warehouse</span></div>
+      <div className="reports-chemical-table-wrap"><table className="reports-chemical-table"><thead><tr><th>Chemical</th><th>Skimmer</th><th>Warehouse</th><th>Difference<br />(Warehouse − Skimmer)</th></tr></thead><tbody>{rows.map((row) => <tr key={row.key}><th>{chemicalLabels[row.key]}</th><td>{formatQuantity(row.skimmer)}</td><td>{formatQuantity(row.register)}</td><td className={row.register - row.skimmer >= 0 ? 'reports-chemical-positive' : 'reports-chemical-negative'}>{row.register - row.skimmer >= 0 ? '+' : ''}{formatQuantity(row.register - row.skimmer)}</td></tr>)}</tbody></table></div>
     </>}
   </section>;
 }

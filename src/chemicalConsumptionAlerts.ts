@@ -6,7 +6,7 @@ export function chemicalReportMonth(now = new Date()) {
 
 export function englishChemicalName(name: string) {
   const key = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const labels: Record<string, string> = { liquid: 'Liquid Chlorine', liquidchlorine: 'Liquid Chlorine', cloroliquido: 'Liquid Chlorine', cloro: 'Chlorine', tabs: 'Chlorine Tablets', tablets: 'Chlorine Tablets', estabilizador: 'Stabilizer', bicarbonato: 'Bicarbonate', sal: 'Salt', acidomuriatico: 'Muriatic Acid', cloroenpolvo: 'Chlorine Powder' };
+  const labels: Record<string, string> = { liquid: 'Liquid Chlorine', liquidchlorine: 'Liquid Chlorine', cloroliquido: 'Liquid Chlorine', cloro: 'Chlorine', tabs: 'Chlorine Tablets', tablets: 'Chlorine Tablets', tabletas: 'Chlorine Tablets', pastillas: 'Chlorine Tablets', cloroentabletas: 'Chlorine Tablets', estabilizador: 'Stabilizer', stabilizer: 'Stabilizer', bicarbonato: 'Bicarbonate', bicarbonate: 'Bicarbonate', sal: 'Salt', salt: 'Salt', acido: 'Muriatic Acid', acid: 'Muriatic Acid', muriatic: 'Muriatic Acid', muriaticacid: 'Muriatic Acid', acidomuriatico: 'Muriatic Acid', cloroenpolvo: 'Chlorine Powder', defilterpowder: 'D.E. Powder', depowder: 'D.E. Powder', de: 'D.E. Powder', choque: 'Shock', fosfatos: 'Phosphate Remover' };
   return labels[key] || name;
 }
 

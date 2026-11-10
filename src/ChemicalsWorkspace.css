@@ -1,0 +1,201 @@
+.chemicals-design { --chem-ink: #101828; --chem-muted: #64748b; --chem-border: #e0e6ef; --bluelife-border: #e0e6ef; background: radial-gradient(ellipse at 85% 0, #f0f7ff55, transparent 50%), #fbfcfe; color: var(--chem-ink); }
+.chemicals-design.app-page { padding-top: 27px; }
+.chemicals-design button, .chemicals-design input, .chemicals-design select, .chemicals-design textarea { font-family: inherit; }
+.chemicals-design button:focus-visible, .chemicals-design summary:focus-visible, .chemicals-design a:focus-visible { outline: 3px solid #74a9e6; outline-offset: 3px; }
+.chemicals-design .chemicals-page-header { margin-bottom: 23px; }
+.chemicals-design .chemicals-page-header .area-eyebrow { display: block; margin-bottom: 17px; color: #0875d4; font-size: 11px; font-weight: 700; letter-spacing: .07em; }
+.chemicals-title-row { display: flex; align-items: center; gap: 21px; }
+.chemicals-title-icon { display: grid; flex: 0 0 auto; place-items: center; width: 66px; height: 66px; border-radius: 50%; background: #eef6ff; color: #0875d4; }
+.chemicals-title-icon .workspace-icon { width: 34px; height: 34px; }
+.chemicals-design .chemicals-page-header h1 { margin: 0; color: #101828; font-size: clamp(30px, 2.6vw, 40px); font-weight: 760; letter-spacing: -.04em; line-height: 1.2; }
+.chemicals-design .chemicals-page-header p { margin: 7px 0 0; color: #65758e; font-size: 15px; line-height: 1.6; }
+.chemicals-design .chemicals-tabs { display: flex; gap: 13px; margin: 0 0 25px; padding: 0; border-bottom: 1px solid #e0e7f0; background: transparent; }
+.chemicals-design .chemicals-tabs button { flex: 0 0 auto; min-height: 46px; border: 0; border-bottom: 3px solid transparent; border-radius: 10px 10px 0 0; padding: 12px 20px; background: transparent; color: #63748e; font-size: 14px; font-weight: 600; }
+.chemicals-design .chemicals-tabs .chemicals-tab-active { border-bottom-color: #1484e8; background: #eff6ff; color: #0869c4; }
+.chemicals-design .chemicals-tabs button:hover { background: #f3f7fd; color: #0869c4; }
+.chemicals-design .primary-button, .chemicals-design .chemicals-whatsapp-button { border: 1px solid #0871cb; border-radius: 10px; background: linear-gradient(145deg, #0989db, #0869bf); color: #fff; box-shadow: 0 2px 5px #1f5b9220; font-size: 13px; }
+.chemicals-design .secondary-button, .chemicals-design .reports-table-download-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; border: 1px solid #d8e2ef; border-radius: 10px; padding: 9px 13px; background: #fff; color: #0875d4; box-shadow: 0 1px 2px #21385806; font-size: 13px; font-weight: 600; }
+.chemicals-design .secondary-button > .workspace-icon { width: 19px; height: 19px; }
+.chemicals-design .secondary-button:hover, .chemicals-design .reports-table-download-button:hover { border-color: #a5c2e3; background: #f5f9ff; }
+.chemicals-design .consumption-dashboard { gap: 22px; margin: 0; border: 0; border-radius: 0; padding: 0; background: transparent; color: #253650; box-shadow: none; }
+.consumption-toolbar { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.chemicals-design .consumption-month-field { display: grid; flex: 0 0 auto; gap: 6px; width: 204px; color: #536982; font-size: 12px; font-weight: 600; }
+.consumption-month-input { position: relative; display: block; }
+.consumption-month-input > .workspace-icon { position: absolute; z-index: 1; top: 50%; left: 13px; width: 18px; height: 18px; color: #647a98; transform: translateY(-50%); pointer-events: none; }
+.chemicals-design .consumption-month-input input { min-height: 42px; border-color: #d8e2ef; border-radius: 10px; padding: 8px 12px 8px 40px; background: #fff; color: #253650; font-size: 13px; font-weight: 550; }
+.chemicals-design .consumption-import-actions { align-items: center; justify-content: flex-end; gap: 10px; }
+.chemicals-design .consumption-import-actions label { font-size: 13px; font-weight: 600; }
+.consumption-import-help, .consumption-reference-notes, .chemicals-design .consumption-history-details, .consumption-allocation-method { color: #7a899f; font-size: 11px; line-height: 1.65; }
+.consumption-import-help { margin-top: -10px; }
+.consumption-import-help summary, .consumption-reference-notes summary, .consumption-history-details summary, .consumption-allocation-method summary { cursor: pointer; }
+.consumption-import-help p, .consumption-reference-notes p, .consumption-allocation-method p { margin-top: 8px; }
+.chemicals-design .consumption-kpis { gap: 14px; }
+.chemicals-design .consumption-company-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.chemicals-design .consumption-kpis .consumption-metric { display: flex; align-items: center; gap: 20px; min-width: 0; min-height: 112px; border: 1px solid #dfe7f2; border-radius: 15px; padding: 22px; background: #ffffffb8; }
+.chemicals-design .consumption-metric > .workspace-icon { width: 32px; height: 32px; color: #1385e8; }
+.chemicals-design .consumption-metric > div { display: grid; gap: 8px; min-width: 0; }
+.chemicals-design .consumption-metric > div > span { color: #60748f; font-size: 13px; line-height: 1.4; }
+.chemicals-design .consumption-metric strong { color: #101828; font-size: 34px; font-weight: 750; letter-spacing: -.035em; line-height: 1.15; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.chemicals-design .consumption-metric small { color: #8190a6; font-size: 10px; line-height: 1.5; }
+.chemicals-design .consumption-kpis .consumption-metric-alert { border-color: #f4d8dc; background: #fff5f6; }
+.chemicals-design .consumption-metric-alert > .workspace-icon { color: #ca6676; }
+.chemicals-design .consumption-metric-alert strong { color: #793c49; }
+.chemicals-design .consumption-overview { gap: 15px; border: 0; border-top: 1px solid #e0e7f0; border-radius: 0; padding: 22px 0 0; background: transparent; }
+.consumption-overview-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 13px; }
+.chemicals-design .consumption-overview-heading h2 { margin: 0; color: #15233c; font-size: 22px; font-weight: 740; letter-spacing: -.025em; }
+.consumption-count-badge { border-radius: 20px; padding: 4px 10px; background: #fff0f2; color: #bd5365; font-size: 11px; font-weight: 650; }
+.consumption-overage-table-wrap { overflow: auto; max-height: 440px; }
+.consumption-overage-table { width: 100%; min-width: 660px; border-collapse: collapse; color: #253650; font-size: 13px; }
+.consumption-overage-table thead { position: sticky; z-index: 1; top: 0; }
+.consumption-overage-table thead th { border-bottom: 1px solid #e4eaf3; padding: 12px 15px; background: #fbfcfe; color: #697d98; font-size: 12px; font-weight: 500; text-align: center; }
+.consumption-overage-table thead th:first-child { text-align: left; }
+.consumption-overage-table tbody th, .consumption-overage-table td { border-bottom: 1px solid #e4eaf3; padding: 13px 15px; background: transparent; text-align: center; font-variant-numeric: tabular-nums; }
+.consumption-overage-table tbody th { position: relative; width: 39%; padding-left: 22px; text-align: left; }
+.consumption-overage-table tbody th::before { position: absolute; top: 16%; bottom: 16%; left: 5px; width: 4px; border-radius: 5px; background: #ce596e; content: ''; }
+.consumption-overage-table th button { border: 0; padding: 0; background: transparent; color: #253650; font-size: 14px; font-weight: 650; text-align: left; cursor: pointer; }
+.consumption-overage-table th button:hover { color: #0875d4; text-decoration: underline; }
+.consumption-overage-table th > small { display: block; margin-top: 4px; color: #8190a6; font-size: 10px; font-weight: 400; line-height: 1.5; }
+.consumption-overage-table td { white-space: nowrap; font-weight: 600; }
+.consumption-overage-table td small { color: #7a8ba1; font-size: 10px; font-weight: 400; }
+.chemicals-design .consumption-excess { color: #c2576b; font-weight: 700; }
+.consumption-variation { display: inline-flex; align-items: center; justify-content: center; width: fit-content; border-radius: 18px; padding: 4px 9px; background: #ffe8ec; color: #be5266; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.consumption-empty { padding: 15px 0; color: #8190a6; font-size: 13px; line-height: 1.6; }
+.consumption-property-card { display: grid; gap: 18px; min-width: 0; border: 1px solid #e0e7f1; border-radius: 16px; padding: 23px; background: #fff; box-shadow: 0 2px 6px #1d385904; }
+.consumption-property-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 18px; min-width: 0; }
+.consumption-property-heading > div:first-child { flex: 1 1 250px; min-width: 0; }
+.chemicals-design .consumption-property-heading h2 { margin: 0; color: #15233c; font-size: 25px; font-weight: 740; letter-spacing: -.03em; line-height: 1.3; overflow-wrap: anywhere; }
+.chemicals-design .consumption-property-heading p { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 9px; color: #6f829e; font-size: 12px; }
+.consumption-property-heading p .workspace-icon { width: 16px; height: 16px; }
+.chemicals-design .consumption-property-select { display: block; flex: 0 1 300px; width: 300px; min-width: 0; }
+.chemicals-design .consumption-property-select > label { display: grid; gap: 6px; font-size: 11px; font-weight: 550; color: #71849e; }
+.chemicals-design .consumption-report-divider { height: 1px; margin: 0; background: #e6ecf4; }
+.chemicals-design .consumption-property-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.chemicals-design .consumption-property-kpis .consumption-metric { align-items: flex-start; gap: 12px; min-height: 92px; padding: 16px 13px; border-radius: 12px; }
+.chemicals-design .consumption-property-kpis .consumption-metric > .workspace-icon { width: 25px; height: 25px; }
+.chemicals-design .consumption-property-kpis .consumption-metric > div { gap: 8px; }
+.chemicals-design .consumption-property-kpis .consumption-metric > div > span { font-size: 11px; }
+.chemicals-design .consumption-property-kpis .consumption-metric strong { font-size: 23px; }
+.chemicals-design .consumption-property-kpis .consumption-metric-compact strong { font-size: 14px; line-height: 1.5; font-weight: 600; letter-spacing: 0; }
+.consumption-property-settings { padding-bottom: 14px; border-bottom: 1px solid #e6ecf4; }
+.consumption-property-settings > summary { display: flex; align-items: center; gap: 8px; width: fit-content; color: #70829b; font-size: 11px; cursor: pointer; }
+.consumption-property-settings > summary .workspace-icon { width: 15px; height: 15px; }
+.chemicals-design .consumption-settings { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; margin-top: 15px; }
+.chemicals-design .consumption-settings label { gap: 6px; color: #6c819e; font-size: 12px; font-weight: 500; }
+.chemicals-design .consumption-settings input { min-height: 40px; border-color: #d8e2ef; color: #253650; font-size: 14px; }
+.consumption-property-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; min-width: 0; }
+.consumption-property-columns > section { display: grid; align-content: start; gap: 17px; min-width: 0; }
+.chemicals-design .consumption-property-columns h3 { margin: 0; color: #15233c; font-size: 20px; font-weight: 730; letter-spacing: -.025em; }
+.consumption-property-allocation { border-left: 1px solid #e3eaf3; padding-left: 24px; }
+.chemicals-design .consumption-chemical-list { gap: 10px; }
+.chemicals-design .consumption-chemical { display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; border: 1px solid #dfe7f2; border-radius: 12px; padding: 13px 15px; background: #fff; }
+.chemicals-design .consumption-chemical.consumption-high { border-color: #f3dce0; background: #fff3f5 !important; }
+.chemicals-design .consumption-chemical > .consumption-chemical-summary { display: flex; align-items: center; gap: 14px; }
+.consumption-chemical-summary > .workspace-icon { width: 24px; height: 24px; color: #7186a1; }
+.consumption-high .consumption-chemical-summary > .workspace-icon { color: #cb6375; }
+.consumption-chemical-summary > div { display: grid; flex: 1; gap: 5px; min-width: 0; }
+.consumption-chemical-summary strong { color: #253650; font-size: 14px; font-weight: 650; }
+.chemicals-design .consumption-chemical-summary span { color: #6a809e; font-size: 12px; }
+.chemicals-design .consumption-chemical-details { color: #71849d; font-size: 11px; line-height: 1.65; }
+.consumption-chemical-details summary { width: fit-content; cursor: pointer; }
+.consumption-chemical-details p { padding-top: 8px; }
+.chemicals-design .consumption-technician-split { border-color: #e0e7f0; }
+.chemicals-design .consumption-body-list { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.chemicals-design .consumption-body-list article { border-color: #dfe7f2; border-radius: 13px; padding: 16px; background: #fff; }
+.consumption-body-content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: center; gap: 15px; }
+.chemicals-design .consumption-body-list header { align-items: center; justify-content: flex-start; gap: 12px; }
+.consumption-body-list header > .workspace-icon { width: 26px; height: 26px; color: #1385e8; }
+.chemicals-design .consumption-body-list h4 { color: #253650; font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+.chemicals-design .consumption-body-list small { color: #7387a2; font-size: 11px; line-height: 1.5; }
+.chemicals-design .consumption-body-list dl { gap: 11px; margin: 0; border-left: 1px solid #e0e7f0; padding-left: 15px; }
+.chemicals-design .consumption-body-list dl div { align-items: center; gap: 10px; }
+.chemicals-design .consumption-body-list dt { color: #7387a2; font-size: 11px; }
+.chemicals-design .consumption-body-list dd { color: #253650; font-size: 15px; font-weight: 650; white-space: nowrap; }
+.chemicals-design .consumption-body-list details { margin-top: 13px; color: #71849d; }
+.chemicals-design .consumption-body-list summary { font-size: 10px; font-weight: 500; }
+.chemicals-design .consumption-import-preview { border-color: #dfe7f2; background: #f5f9ff; }
+.chemicals-design .consumption-preview-list label { border-color: #e0e7f0; }
+.chemicals-design .consumption-error, .chemicals-design .chemicals-form-error { border: 1px solid #f4d8dc; background: #fff3f5; color: #bc5669; }
+.chemicals-design .consumption-message, .chemicals-design .chemicals-form-success { border: 1px solid #dceafa; background: #f2f8ff; color: #597da7; }
+/* Reports retain their charts, table filters and exact source values. */
+.chemicals-design .chemicals-reports-view { gap: 22px; margin: 0; }
+.chemicals-design .chemicals-reports-panel, .chemicals-design .reports-chemical-comparison, .chemicals-design .reports-technician-comparison { min-width: 0; margin: 0; border: 1px solid #e0e7f1; border-radius: 16px; padding: 23px; background: #fff; color: #253650; box-shadow: 0 2px 6px #1d385904; }
+.chemicals-design .chemicals-reports-panel h2, .chemicals-design .reports-chemical-comparison-heading h2, .chemicals-design .reports-technician-comparison-heading h2 { color: #15233c; font-size: 22px; font-weight: 740; letter-spacing: -.025em; }
+.chemicals-design .reports-chemical-comparison-heading p, .chemicals-design .reports-technician-comparison-heading p { color: #74869e; font-size: 12px; line-height: 1.6; }
+.chemicals-design .company-report-header-actions label, .chemicals-design .reports-chemical-comparison-actions label, .chemicals-design .reports-technician-actions label { color: #667c99; font-size: 11px; font-weight: 550; }
+.chemicals-design .company-report-header-actions select, .chemicals-design .reports-chemical-comparison-actions input, .chemicals-design .reports-technician-actions input, .chemicals-design .reports-technician-actions select { min-height: 39px; border-color: #d8e2ef; border-radius: 10px; background: #fff; color: #354d6e; font-size: 12px; font-weight: 500; }
+.chemicals-design .company-chart { --company-normal: #1385df; --company-warning: #b99b43; --company-attention: #ce8753; --company-high: #cf6678; --company-empty: #94a3b8; }
+.chemicals-design .company-chart-heading h3 { color: #253650; font-size: 18px; }
+.chemicals-design .company-chart-track { background: #edf2f9; border-radius: 8px; }
+.chemicals-design .company-chart-fill { border-radius: 8px; }
+.chemicals-design .company-chart-row-heading h4 { color: #253650; }
+.chemicals-design .company-chart-row-heading p, .chemicals-design .company-chart-coverage, .chemicals-design .company-chart-method { color: #71849e; }
+.chemicals-design .reports-chemical-bar-register { background: #1284df; }
+.chemicals-design .reports-chemical-bar-skimmer { background: #8797ae; }
+.chemicals-design .reports-chemical-table thead th, .chemicals-design .reports-technician-table thead th, .chemicals-design .company-chart-table-wrap thead th { border-color: #e2e9f2; background: #f7f9fd; color: #607693; font-size: 11px; font-weight: 600; text-align: center; }
+.chemicals-design .reports-chemical-table th, .chemicals-design .reports-chemical-table td, .chemicals-design .reports-technician-table th, .chemicals-design .reports-technician-table td { border: 0; border-bottom: 1px solid #e5ebf3; padding: 12px; }
+.chemicals-design .reports-chemical-table tbody tr:nth-child(even), .chemicals-design .reports-technician-table tbody tr:nth-child(even) { background: #f8faff; }
+.chemicals-design .reports-chemical-table tbody th, .chemicals-design .reports-technician-table tbody th { color: #354d6e; font-weight: 600; }
+.chemicals-design .reports-technician-positive strong, .chemicals-design .reports-chemical-positive { color: #1680ce; }
+.chemicals-design .reports-technician-negative strong, .chemicals-design .reports-chemical-negative { color: #7f8ca1; }
+.chemicals-design .reports-technician-footnote { color: #8290a5; font-size: 11px; line-height: 1.7; }
+/* Register, access forms and technician management use the same surfaces. */
+.chemicals-design .chemicals-form-card, .chemicals-design .chemicals-history-card, .chemicals-design .chemicals-technicians-card, .chemicals-design .chemicals-owner-modal { border: 1px solid #e0e7f1; border-radius: 16px; background: #fff; box-shadow: 0 2px 6px #1d385904; }
+.chemicals-design .chemicals-card-heading { border-color: #e4ebf3; background: transparent; }
+.chemicals-design .chemicals-card-heading h2 { color: #253650; font-size: 21px; font-weight: 730; }
+.chemicals-design .chemicals-card-heading > div > span, .chemicals-design .chemicals-card-heading small { color: #7990ac; }
+.chemicals-design .chemicals-kpis article { border: 1px solid #dfe7f2; border-radius: 14px; background: #fff; }
+.chemicals-design .chemicals-kpis strong { color: #253650; }
+.chemicals-design .chemicals-kpis span, .chemicals-design .chemicals-kpis small { color: #7488a1; }
+.chemicals-design .chemicals-share-panel { border: 1px solid #dce9f9; border-radius: 14px; background: #f4f9ff; }
+.chemicals-design .chemicals-share-panel h2 { color: #356494; font-size: 17px; }
+.chemicals-design .chemicals-share-panel > div > span, .chemicals-design .chemicals-share-panel p { color: #7489a4; }
+.chemicals-design .form-field label, .chemicals-design .chemicals-section-title h3 { color: #5d7493; }
+.chemicals-design .form-field input, .chemicals-design .form-field select { border-color: #d8e2ef; border-radius: 10px; color: #354d6e; }
+.chemicals-design .chemical-quantity-card { border: 1px solid #e0e7f1; border-radius: 12px; background: #fff; }
+.chemicals-design .chemical-quantity-card label { color: #6b819e; }
+.chemicals-design .chemical-quantity-control input { border-color: #d8e2ef; border-radius: 9px; background: #fff; color: #354d6e; }
+.chemicals-design .chemical-unit-label { border-color: #d7e7fa; border-radius: 9px; background: #eef6ff; color: #4d7bab; }
+.chemicals-design .chemical-report-quantities span { border-color: #dce9f8; background: #f3f8ff; color: #6c84a2; }
+.chemicals-design .chemical-report-quantities strong { color: #4b7bac; }
+.chemicals-design .chemicals-report-list > article, .chemicals-design .chemicals-technician-row { border-color: #e4ebf3; }
+.chemicals-design .chemical-report-topline strong, .chemicals-design .chemicals-technician-row strong { color: #354d6e; }
+.chemicals-design .chemical-report-edit { color: #327cc0; }
+.chemicals-design .chemical-report-delete { color: #bf6878; }
+.chemicals-design .chemicals-page-tools { border-top: 1px solid #e1e8f2; margin-top: 24px; padding-top: 16px; }
+.chemicals-design .chemicals-page-tools button { border-color: #d8e2ef; border-radius: 10px; background: #fff; color: #50769d; }
+.chemicals-design .chemicals-technicians-locked { background: transparent; color: #6c819f; }
+@media (max-width: 1250px) {
+  .chemicals-design .consumption-property-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .consumption-property-columns { grid-template-columns: minmax(0, 1fr); }
+  .consumption-property-allocation { border-left: 0; border-top: 1px solid #e3eaf3; padding: 20px 0 0; }
+}
+@media (max-width: 1000px) { .chemicals-design .consumption-company-kpis .consumption-metric { align-items: flex-start; flex-direction: column; gap: 13px; padding: 18px; }.chemicals-design .consumption-company-kpis .consumption-metric strong { font-size: 29px; } }
+@media (max-width: 800px) {
+  .chemicals-design.app-page { padding: 23px 16px calc(198px + env(safe-area-inset-bottom)); }
+  .chemicals-title-row { align-items: flex-start; gap: 14px; }
+  .chemicals-title-icon { width: 50px; height: 50px; }
+  .chemicals-title-icon .workspace-icon { width: 28px; height: 28px; }
+  .chemicals-design .chemicals-page-header h1 { font-size: 30px; }
+  .chemicals-design .chemicals-page-header p { font-size: 12px; }
+  .chemicals-design .chemicals-tabs { gap: 2px; overflow-x: auto; }
+  .chemicals-design .chemicals-tabs button { padding: 11px 13px; font-size: 12px; }
+  .consumption-toolbar { align-items: stretch; flex-direction: column; }
+  .chemicals-design .consumption-month-field { width: 100%; }
+  .chemicals-design .consumption-import-actions { justify-content: flex-start; }
+  .chemicals-design .consumption-import-actions .secondary-button { flex: 1 1 auto; font-size: 11px; }
+  .chemicals-design .consumption-property-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .consumption-property-card { gap: 16px; padding: 16px; }
+  .chemicals-design .consumption-property-select { flex: 1 1 100%; width: 100%; }
+  .chemicals-design .consumption-property-heading h2 { font-size: 22px; }
+  .chemicals-design .consumption-settings { grid-template-columns: minmax(0, 1fr); }
+  .consumption-body-content { grid-template-columns: minmax(0, 1fr); }
+  .chemicals-design .consumption-body-list dl { border-left: 0; border-top: 1px solid #e0e7f0; padding: 13px 0 0; }
+  .chemicals-design .chemicals-reports-panel, .chemicals-design .reports-chemical-comparison, .chemicals-design .reports-technician-comparison { padding: 16px; }
+  .chemicals-design .chemicals-reports-panel h2, .chemicals-design .reports-chemical-comparison-heading h2, .chemicals-design .reports-technician-comparison-heading h2 { font-size: 19px; }
+}
+@media (max-width: 580px) {
+  .chemicals-design .consumption-company-kpis { grid-template-columns: minmax(0, 1fr); }
+  .chemicals-design .consumption-company-kpis .consumption-metric { align-items: center; flex-direction: row; min-height: 96px; }
+  .chemicals-design .consumption-property-kpis .consumption-metric { flex-direction: column; }
+}
+.chemicals-design.chemicals-shared-page { max-width: 780px; margin: 0 auto; padding: 24px 16px; }
