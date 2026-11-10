@@ -1,0 +1,24 @@
+/* One sidebar appearance for every area and property view. */
+.app-sidebar.workspace-sidebar .workspace-sidebar-caption { display: none; }
+@media (min-width: 801px) {
+  .app-sidebar.workspace-sidebar { border-right-color: #e2e8f0; background: linear-gradient(180deg, #fff, #fbfcfe); color: #182b49; box-shadow: 2px 0 12px #25385803; }
+  .app-sidebar.workspace-sidebar .sidebar-brand { justify-content: center; padding: 0 0 12px; }
+  .app-sidebar.workspace-sidebar .sidebar-brand .sidebar-logo { width: 164px; height: 112px; padding: 0; }
+  .app-sidebar.workspace-sidebar .sidebar-brand > div { display: none; }
+  .app-sidebar.workspace-sidebar .workspace-sidebar-caption { display: block; margin: 20px 12px 10px; color: #65758e; font-size: 10px; font-weight: 750; letter-spacing: .11em; }
+  .app-sidebar.workspace-sidebar nav { gap: 8px; margin-top: 0; }
+  .app-sidebar.workspace-sidebar nav button { gap: 14px; min-height: 48px; padding: 11px 14px; border-radius: 10px; color: #43536d; font-size: 14px; font-weight: 550; }
+  .app-sidebar.workspace-sidebar nav button > span { width: 23px; height: 25px; background: transparent; color: #63718b; }
+  .app-sidebar.workspace-sidebar nav .workspace-icon { width: 22px; height: 22px; }
+  .app-sidebar.workspace-sidebar nav button:hover { background: #f1f6fd; color: #0756ad; }
+  .app-sidebar.workspace-sidebar nav button.sidebar-active { background: linear-gradient(100deg, #e5f1ff, #eef5ff); color: #123c70; box-shadow: none; font-weight: 700; }
+  .app-sidebar.workspace-sidebar nav .sidebar-active > span { color: #0756ad; }
+  .app-sidebar.workspace-sidebar .sidebar-footer { padding-top: 18px; border-top-color: #e6ebf2; }
+  .app-sidebar.workspace-sidebar .sidebar-footer strong { color: #263b59; }
+  .app-sidebar.workspace-sidebar .sidebar-logout { border-color: #dce4ef; background: #fff; color: #35567b; }
+  .app-sidebar.workspace-sidebar .sidebar-collapse-button, .workspace-sidebar-toggle { background: #175ba6; box-shadow: 0 3px 8px #173c7120; }
+}
+@media (max-width: 800px) {
+  .app-sidebar.workspace-sidebar { border-top: 1px solid #dfe6f0; background: #fffffffa; }
+  .app-sidebar.workspace-sidebar nav .workspace-icon { width: 23px; height: 23px; }
+}

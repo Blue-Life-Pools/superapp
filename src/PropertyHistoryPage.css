@@ -17,33 +17,6 @@
 .property-history-workspace button:focus-visible,
 .property-history-workspace input:focus-visible,
 .property-history-workspace select:focus-visible { outline: 3px solid #64a8ed; outline-offset: 3px; }
-.history-sidebar-caption { display: none; }
-
-@media (min-width: 801px) {
-  :is(.property-history-workspace, .commercial-workspace) .app-sidebar {
-    border-right-color: #e2e8f0;
-    background: linear-gradient(180deg, #fff, #fbfcfe);
-    color: #182b49;
-    box-shadow: 2px 0 12px #25385803;
-  }
-  :is(.property-history-workspace, .commercial-workspace) .sidebar-brand { justify-content: center; padding: 0 0 12px; }
-  :is(.property-history-workspace, .commercial-workspace) .sidebar-brand .sidebar-logo { width: 164px; height: 112px; padding: 0; }
-  :is(.property-history-workspace, .commercial-workspace) .sidebar-brand > div { display: none; }
-  :is(.property-history-workspace, .commercial-workspace) .history-sidebar-caption { display: block; margin: 20px 12px 10px; color: #65758e; font-size: 10px; font-weight: 750; letter-spacing: .11em; }
-  :is(.property-history-workspace, .commercial-workspace) .app-sidebar nav { gap: 8px; margin-top: 0; }
-  :is(.property-history-workspace, .commercial-workspace) .app-sidebar nav button { gap: 14px; min-height: 48px; padding: 11px 14px; border-radius: 10px; color: #43536d; font-size: 14px; font-weight: 550; }
-  :is(.property-history-workspace, .commercial-workspace) .app-sidebar nav button > span { width: 23px; height: 25px; background: transparent; color: #63718b; }
-  :is(.property-history-workspace, .commercial-workspace) .app-sidebar nav .workspace-icon { width: 22px; height: 22px; }
-  :is(.property-history-workspace, .commercial-workspace) .app-sidebar nav button:hover { background: #f1f6fd; color: #0756ad; }
-  :is(.property-history-workspace, .commercial-workspace) .app-sidebar nav button.sidebar-active { background: linear-gradient(100deg, #e5f1ff, #eef5ff); color: #123c70; box-shadow: none; font-weight: 700; }
-  :is(.property-history-workspace, .commercial-workspace) .app-sidebar nav .sidebar-active > span { color: #0756ad; }
-  :is(.property-history-workspace, .commercial-workspace) .sidebar-footer { padding-top: 18px; border-top-color: #e6ebf2; }
-  :is(.property-history-workspace, .commercial-workspace) .sidebar-footer strong { color: #263b59; }
-  :is(.property-history-workspace, .commercial-workspace) .sidebar-logout { border-color: #dce4ef; background: #fff; color: #35567b; }
-  :is(.property-history-workspace, .commercial-workspace) .sidebar-collapse-button,
-  :is(.property-history-workspace, .commercial-workspace) .sidebar-expand-button { background: #175ba6; box-shadow: 0 3px 8px #173c7120; }
-}
-
 .property-history-workspace > .history-page-header { align-items: center; gap: 24px; margin-bottom: 30px; }
 .property-history-workspace .history-heading-copy { min-width: 0; }
 .property-history-workspace .area-eyebrow { display: block; margin-bottom: 14px; color: #0756ad; font-size: 13px; font-weight: 750; letter-spacing: .11em; }
@@ -202,7 +175,6 @@
   .property-history-workspace .history-property-grid { gap: 16px; }
   .property-history-workspace .history-property-card { padding: 20px; }
   .property-history-workspace .history-pagination-bottom > span { flex: 1 0 100%; }
-  .property-history-workspace .app-sidebar { border-top: 1px solid #dfe6f0; background: #fffffffa; }
 }
 
 @media (prefers-reduced-motion: reduce) {

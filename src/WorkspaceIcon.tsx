@@ -27,6 +27,19 @@ const paths = {
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v6l4 2" /></>,
   trash: <><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" /></>,
   bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></>,
+  pool: <><path d="M3 14c2-3 4 3 6 0s4 3 6 0 4 3 6 0M3 19c2-3 4 3 6 0s4 3 6 0 4 3 6 0M14 11V5a2 2 0 0 1 4 0v1M8 11V5a2 2 0 0 1 4 0M8 7h6m-6 3h6" /></>,
+  pin: <><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></>,
+  info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v6m0-10h.01" /></>,
+  edit: <><path d="m16 3 5 5M4 15 16 3a2 2 0 0 1 5 5L9 20l-6 1Z" /></>,
+  folder: <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v11H3Z" />,
+  external: <><path d="M14 3h7v7m-1-6L10 14M10 4H4v16h16v-6" /></>,
+  mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 6 9 7 9-7" /></>,
+  phone: <path d="m6 3 4 5-3 3a15 15 0 0 0 6 6l3-3 5 4c0 4-3 4-5 3A23 23 0 0 1 3 8C2 6 2 3 6 3Z" />,
+  more: <><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></>,
+  tag: <><path d="M3 3h9l9 9-9 9-9-9Z" /><circle cx="8" cy="8" r="1" /></>,
+  map: <><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2ZM9 3v16m6-14v16" /></>,
+  contract: <><path d="M14 2H5v20h15V8Z" /><path d="M14 2v6h6M8 12h8m-8 4h4m2 4 4-4" /></>,
+  'arrow-left': <path d="M20 12H4m6-6-6 6 6 6" />,
 } satisfies Record<string, ReactNode>;
 
 export function WorkspaceIcon({ name, className = '' }: { name: keyof typeof paths; className?: string }) {

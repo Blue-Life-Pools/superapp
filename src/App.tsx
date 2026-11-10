@@ -18,6 +18,9 @@ import { SearchField } from './SearchField';
 import { CommercialDashboard, CommercialPeriodFilter } from './CommercialDashboard';
 import { buildCommercialStats, commercialProposalMonths, commercialProposalTrend, proposalInPeriod } from './commercialDashboardData';
 import './CommercialDashboard.css';
+import { CommercialPropertyOverview } from './CommercialPropertyOverview';
+import './CommercialPropertyOverview.css';
+import './WorkspaceSidebar.css';
 
 type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports' | 'complaints' | 'quality';
 type PropertyTab = 'overview' | 'commercial' | 'estimates' | 'contracts' | 'quality';
@@ -274,6 +277,7 @@ function deduplicateProperties(rows: Property[]) {
 
 type Property = {
   id: string;
+  createdAt?: string;
   name: string;
   code: string | null;
   lifecycleStatus: string;
@@ -2441,14 +2445,14 @@ function App() {
 
   function renderAppSidebar() {
     if (sharedChemicalAccess) return null;
-    const allAreas: Array<{ id: AppArea; label: string; icon: string }> = [
-      { id: 'home', label: 'Home', icon: '⌂' },
-      { id: 'commercial', label: 'Commercial', icon: '◎' },
-      { id: 'chemicals', label: 'Chemicals', icon: '⚗' },
-      { id: 'health', label: 'Health Dept.', icon: '♥' },
-      { id: 'reports', label: 'Reports', icon: '!' },
-      { id: 'complaints', label: 'Calls', icon: '◌' },
-      { id: 'quality', label: 'Quality', icon: '✓' },
+    const allAreas: Array<{ id: AppArea; label: string }> = [
+      { id: 'home', label: 'Home' },
+      { id: 'commercial', label: 'Commercial' },
+      { id: 'chemicals', label: 'Chemicals' },
+      { id: 'health', label: 'Health Dept.' },
+      { id: 'reports', label: 'Reports' },
+      { id: 'complaints', label: 'Calls' },
+      { id: 'quality', label: 'Quality' },
     ];
     const role = appSession?.user.role;
     const assignedArea = role?.toLowerCase();
@@ -2464,13 +2468,13 @@ function App() {
         : area.id === 'home' || area.id === 'complaints' || area.id === 'quality' || area.id === assignedArea);
 
     return (<>
-      <aside className={`app-sidebar${sidebarCollapsed ? ' app-sidebar-collapsed' : ''}`} data-area-count={areas.length} aria-label="BlueLife areas">
+      <aside className={`app-sidebar workspace-sidebar${sidebarCollapsed ? ' app-sidebar-collapsed' : ''}`} data-area-count={areas.length} aria-label="BlueLife areas">
         <button className="sidebar-collapse-button" type="button" onClick={() => setSidebarCollapsed(true)} aria-label="Hide navigation and use full screen" title="Hide navigation">‹</button>
         <div className="sidebar-brand">
           <img className="sidebar-logo" src="/blue-life-logo.png" alt="Blue Life Pool Service" decoding="async" />
           <div><strong>BlueLife</strong><small>Internal App</small></div>
         </div>
-        {(activeArea === 'home' || activeArea === 'commercial') && <p className="history-sidebar-caption">WORKSPACE</p>}
+        <p className="workspace-sidebar-caption">WORKSPACE</p>
         <div className="mobile-sidebar-session">
           <div><strong>{appSession?.user.name}</strong><small>{appSession?.user.role.toLowerCase()}</small></div>
           <button type="button" onClick={() => void logoutApp()}>Log out</button>
@@ -2484,7 +2488,7 @@ function App() {
               key={area.id}
               onClick={() => navigateToArea(area.id)}
             >
-              <span aria-hidden="true">{activeArea === 'home' || activeArea === 'commercial' ? <WorkspaceIcon name={area.id === 'commercial' ? 'chart' : area.id} /> : area.icon}</span>
+              <span aria-hidden="true"><WorkspaceIcon name={area.id === 'commercial' ? 'chart' : area.id} /></span>
               {area.label}
             </button>
           ))}
@@ -2495,7 +2499,7 @@ function App() {
           <button className="sidebar-logout" type="button" onClick={() => void logoutApp()}>Salir</button>
         </div>
       </aside>
-      {sidebarCollapsed && <button className="sidebar-expand-button" type="button" onClick={() => setSidebarCollapsed(false)} aria-label="Show navigation" title="Show navigation">›</button>}
+      {sidebarCollapsed && <button className="sidebar-expand-button workspace-sidebar-toggle" type="button" onClick={() => setSidebarCollapsed(false)} aria-label="Show navigation" title="Show navigation">›</button>}
     </>);
   }
 
@@ -2669,8 +2673,16 @@ function App() {
   ) {
     const approvedProposals = selectedProperty.salesActivities.filter((activity) => activity.status === 'APPROVED').length;
     const isClient = selectedProperty.lifecycleStatus === 'CLIENT';
+    const serviceStartLabel = selectedProperty.serviceStartDate ? new Date(selectedProperty.serviceStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : '—';
+    const journey = [
+      { label: 'Property Created', complete: true, date: selectedProperty.createdAt ? new Date(selectedProperty.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null },
+      { label: 'Proposal', complete: isClient || selectedProperty.salesActivities.length > 0, date: null },
+      { label: 'Contract', complete: isClient || approvedProposals > 0, date: null },
+      { label: 'Service Start', complete: isClient, date: selectedProperty.serviceStartDate ? serviceStartLabel : null },
+    ];
+    const currentStage = journey.findIndex((stage) => !stage.complete);
     return (
-      <div className="page app-page">
+      <div className="page app-page property-workspace">
         {renderAppSidebar()}
         <div className="property-detail-nav">
         <button
@@ -2684,84 +2696,35 @@ function App() {
             setEditForm(null);
           }}
         >
-          ← Back to Properties
+          <WorkspaceIcon name="arrow-left" />Properties
         </button>
           {renderProposalReminderCenter()}
         </div>
 
         <header className="property-header">
-          <div>
-            <h1>
-              {selectedProperty.name}
-            </h1>
-
-            <p>
-              {selectedProperty.city ??
-                '-'}
-
-              {selectedProperty.state
-                ? `, ${selectedProperty.state}`
-                : ''}
-            </p>
-          </div>
-
+          <div className="property-heading-identity"><span className="property-heading-icon"><WorkspaceIcon name="pool" /></span><div>
+            <h1>{selectedProperty.name}</h1>
+            <p><WorkspaceIcon name="pin" />{[selectedProperty.city, selectedProperty.state].filter(Boolean).join(', ') || 'Location not assigned'}</p>
+          </div></div>
           <div className="property-header-actions">
             <div className="property-lifecycle-summary">
-              <span className={`lifecycle-badge lifecycle-${selectedProperty.lifecycleStatus === 'INACTIVE' ? 'inactive' : isClient ? 'client' : 'lead'}`}>
-                {selectedProperty.lifecycleStatus === 'INACTIVE' ? 'Inactive' : isClient ? 'Client' : 'Lead'}
-              </span>
-              {selectedProperty.serviceStartDate && (
-                <small>
-                  Service since{' '}
-                  {new Date(selectedProperty.serviceStartDate).toLocaleDateString('en-US')}
-                </small>
-              )}
+              <span className={`lifecycle-badge lifecycle-${selectedProperty.lifecycleStatus === 'INACTIVE' ? 'inactive' : isClient ? 'client' : 'lead'}`}>{selectedProperty.lifecycleStatus === 'INACTIVE' ? 'Inactive' : isClient ? 'Client' : 'Lead'}</span>
+              {selectedProperty.serviceStartDate && <small className="property-service-since"><WorkspaceIcon name="calendar" />Service since {serviceStartLabel}</small>}
             </div>
-            {!isEditing && (
-              <button
-                className="danger-button"
-                onClick={moveSelectedPropertyToTrash}
-                disabled={saving}
-              >
-                Delete Property
-              </button>
-            )}
-
+            {!isEditing && <details className="property-more-menu"><summary aria-label="Property actions"><WorkspaceIcon name="more" /></summary><div><button className="danger-button" onClick={moveSelectedPropertyToTrash} disabled={saving}><WorkspaceIcon name="trash" />Delete Property</button></div></details>}
           </div>
         </header>
 
         <nav className="property-tabs" aria-label="Property workspace">
           {([
-            ['overview', 'Overview'],
-            ['commercial', 'Commercial'],
-            ['estimates', 'Estimates'],
-            ['contracts', 'Contracts'],
-            ['quality', 'Quality'],
-          ] as Array<[PropertyTab, string]>).map(([tab, label]) => (
-            <button type="button" className={propertyTab === tab ? 'property-tab-active' : ''} key={tab} onClick={() => setPropertyTab(tab)}>
-              {label}
-            </button>
-          ))}
+            ['overview', 'Overview'], ['commercial', 'Commercial'], ['estimates', 'Estimates'], ['contracts', 'Contracts'], ['quality', 'Quality'],
+          ] as Array<[PropertyTab, string]>).map(([tab, label]) => <button type="button" className={propertyTab === tab ? 'property-tab-active' : ''} key={tab} aria-pressed={propertyTab === tab} onClick={() => setPropertyTab(tab)}><WorkspaceIcon name={({ overview: 'home', commercial: 'commercial', estimates: 'reports', contracts: 'contract', quality: 'quality' } as const)[tab]} />{label}</button>)}
         </nav>
 
-        {propertyTab === 'overview' && (
-          <section className="property-command-center">
-            <div className="property-command-heading">
-              <h2>Property Journey</h2>
-            </div>
-            <div className="property-processes">
-              <div>
-                <div className="process-title"><strong>Proposal journey</strong><span>{isClient ? 'Active client' : approvedProposals ? 'Contract stage' : 'Commercial stage'}</span></div>
-                <div className="process-track">
-                  <span className="process-complete">Property created</span>
-                  <span className={isClient || selectedProperty.salesActivities.length ? 'process-complete' : ''}>Proposal</span>
-                  <span className={isClient || approvedProposals ? 'process-complete' : ''}>Contract</span>
-                  <span className={isClient ? 'process-complete' : ''}>Service start</span>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
+        {propertyTab === 'overview' && <section className="property-command-center" aria-label="Property journey">
+          <div className="property-command-heading"><h2><WorkspaceIcon name="layers" />Property Journey</h2></div>
+          <div className="property-processes"><div className="process-track">{journey.map((stage, index) => <span className={stage.complete ? 'process-complete' : index === currentStage ? 'process-current' : ''} aria-current={index === currentStage ? 'step' : undefined} key={stage.label}>{stage.complete && <WorkspaceIcon name="check" />}{stage.label}{stage.date && <small>{stage.date}</small>}</span>)}</div></div>
+        </section>}
 
         {(propertyTab === 'overview' || propertyTab === 'commercial') && (propertyTab === 'overview' && isEditing &&
         editForm ? (
@@ -3216,291 +3179,7 @@ function App() {
           </section>
         ) : (
           <div className="property-grid">
-            <section className={`detail-card detail-card-wide property-overview-card ${propertyTab !== 'overview' ? 'tab-panel-hidden' : ''}`}>
-              <div className="overview-header">
-                <div>
-                  <h2>Property information</h2>
-                  <p>General details, location and key contacts.</p>
-                </div>
-
-                <button
-                  className="primary-button"
-                  onClick={startEditing}
-                >
-                  Edit information
-                </button>
-              </div>
-
-              <div className="overview-grid">
-            <div className="detail-section">
-              <h2>
-                General Information
-              </h2>
-
-              <div className="detail-list">
-                <div>
-                  <span>
-                    Property Type
-                  </span>
-
-                  <strong>
-                    {formatLabel(
-                      selectedProperty
-                        .propertyType,
-                    )}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    Segment
-                  </span>
-
-                  <strong>
-                    {formatLabel(
-                      selectedProperty
-                        .segment,
-                    )}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    Lead Source
-                  </span>
-
-                  <strong>
-                    {formatLabel(
-                      selectedProperty
-                        .leadSource,
-                    )}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>Commercial Status</span>
-                  <strong>{selectedProperty.lifecycleStatus === 'INACTIVE' ? 'Inactive' : selectedProperty.lifecycleStatus === 'CLIENT' ? 'Client' : 'Lead'}</strong>
-                </div>
-
-                <div>
-                  <span>Service Start</span>
-                  <strong>
-                    {selectedProperty.serviceStartDate
-                      ? new Date(selectedProperty.serviceStartDate).toLocaleDateString('en-US')
-                      : '-'}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    Management Company
-                  </span>
-
-                  <strong>
-                    {selectedProperty
-                      .managementCompany
-                      ?.name ?? '-'}
-                  </strong>
-                </div>
-              </div>
-            </div>
-
-            <div className="detail-section">
-              <h2>
-                Address
-              </h2>
-
-              <div className="detail-list">
-                <div>
-                  <span>
-                    Address
-                  </span>
-
-                  <strong>
-                    {selectedProperty
-                      .addressLine1 ??
-                      '-'}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    City
-                  </span>
-
-                  <strong>
-                    {selectedProperty
-                      .city ?? '-'}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    County
-                  </span>
-
-                  <strong>
-                    {selectedProperty
-                      .county ?? '-'}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    State / ZIP
-                  </span>
-
-                  <strong>
-                    {selectedProperty
-                      .state ?? '-'}{' '}
-                    {selectedProperty
-                      .zipCode ?? ''}
-                  </strong>
-                </div>
-              </div>
-            </div>
-
-            <div className="detail-section detail-section-wide">
-              <h2>
-                Contacts
-              </h2>
-
-              {selectedProperty
-                .contacts.length ===
-              0 ? (
-                <p className="empty-text">
-                  No contacts
-                  registered.
-                </p>
-              ) : (
-                <div className="contact-grid">
-                  {selectedProperty
-                    .contacts.map(
-                      (relation) => (
-                        <div
-                          className="contact-item"
-                          key={
-                            relation.id
-                          }
-                        >
-                          <div>
-                            <strong>
-                              {relation
-                                .contact
-                                .firstName ??
-                                'Unnamed Contact'}
-                            </strong>
-
-                            <span>
-                              {formatLabel(
-                                relation.role,
-                              )}
-                            </span>
-                          </div>
-
-                          <p>
-                            {relation
-                              .contact
-                              .email ??
-                              '-'}
-                          </p>
-
-                          <p>
-                            {relation
-                              .contact
-                              .phone ??
-                              '-'}
-                          </p>
-                        </div>
-                      ),
-                    )}
-                </div>
-              )}
-            </div>
-
-            <div className="detail-section">
-              <h2>
-                Water Bodies
-              </h2>
-
-              {selectedProperty
-                .waterBodies.length ===
-              0 ? (
-                <p className="empty-text">
-                  No water bodies
-                  registered.
-                </p>
-              ) : (
-                <div className="water-body-details">
-                  <strong className="water-body-total">
-                    {selectedProperty.waterBodies.length} total
-                  </strong>
-                  <div className="tag-list">
-                    {selectedProperty
-                      .waterBodies.map(
-                      (
-                        waterBody,
-                      ) => (
-                        <span
-                          className="tag"
-                          key={
-                            waterBody.id
-                          }
-                        >
-                          {formatLabel(waterBody.type)}: {waterBody.name}
-                          {waterBody.size
-                            && waterBody.type !== 'SPA'
-                            ? ` · ${formatLabel(waterBody.size)}`
-                            : ''}
-                          {waterBody.gallons
-                            ? ` · ${waterBody.gallons.toLocaleString('en-US')} gal`
-                            : ''}
-                        </span>
-                      ),
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="detail-section">
-              <h2>
-                SharePoint
-              </h2>
-
-              {selectedProperty
-                .sharepointFolderUrl ? (
-                <a
-                  className="sharepoint-link"
-                  href={
-                    selectedProperty
-                      .sharepointFolderUrl
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open Property Folder
-                </a>
-              ) : (
-                <div className="sharepoint-pending">
-                  <p className="empty-text">
-                    The SharePoint folder is not available yet.
-                  </p>
-                  <button
-                    className="secondary-button"
-                    onClick={retrySharePointFolder}
-                    disabled={creatingSharePointFolder}
-                  >
-                    {creatingSharePointFolder
-                      ? 'Creating folder...'
-                      : 'Retry SharePoint'}
-                  </button>
-                </div>
-              )}
-            </div>
-
-              </div>
-            </section>
+            {propertyTab === 'overview' && <CommercialPropertyOverview property={selectedProperty} serviceStart={serviceStartLabel} formatLabel={formatLabel} onEdit={startEditing} onRetrySharePoint={() => void retrySharePointFolder()} creatingSharePoint={creatingSharePointFolder} />}
 
             <section
               id="sales-activity"
