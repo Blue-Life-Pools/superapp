@@ -14,6 +14,10 @@ import { QualityFindingPhotos } from './QualityFindingPhotos';
 import './App.css';
 import './PropertyHistoryPage.css';
 import { WorkspaceIcon } from './WorkspaceIcon';
+import { SearchField } from './SearchField';
+import { CommercialDashboard, CommercialPeriodFilter } from './CommercialDashboard';
+import { buildCommercialStats, commercialProposalMonths, commercialProposalTrend, proposalInPeriod } from './commercialDashboardData';
+import './CommercialDashboard.css';
 
 type AppArea = 'home' | 'commercial' | 'chemicals' | 'health' | 'reports' | 'complaints' | 'quality';
 type PropertyTab = 'overview' | 'commercial' | 'estimates' | 'contracts' | 'quality';
@@ -791,6 +795,8 @@ function App() {
   const [search, setSearch] =
     useState('');
 
+  const [commercialMonth, setCommercialMonth] = useState('all');
+
   const [proposalStatusFilter, setProposalStatusFilter] =
     useState<SalesActivityStatus | null>(null);
 
@@ -1168,68 +1174,15 @@ function App() {
     }, [properties, search]);
 
   const displayedProperties = useMemo(() => {
-    if (!proposalStatusFilter) {
-      return filteredProperties;
-    }
+    if (!proposalStatusFilter && commercialMonth === 'all') return filteredProperties;
+    return filteredProperties.filter((property) => property.salesActivities.some((activity) =>
+      proposalInPeriod(activity, commercialMonth) && (!proposalStatusFilter || (activity.status ?? 'CREATED') === proposalStatusFilter),
+    ));
+  }, [filteredProperties, proposalStatusFilter, commercialMonth]);
 
-    return filteredProperties.filter((property) =>
-      property.salesActivities.some(
-        (activity) =>
-          activity.type === 'PROPOSAL' &&
-          (activity.status ?? 'CREATED') === proposalStatusFilter,
-      ),
-    );
-  }, [filteredProperties, proposalStatusFilter]);
-
-  const dashboardStats = useMemo(() => {
-    const typeCounts = filteredProperties.reduce<Record<string, number>>((counts, property) => {
-      const type = property.propertyType ?? 'UNSPECIFIED';
-      counts[type] = (counts[type] ?? 0) + 1;
-      return counts;
-    }, {});
-    const managementCounts = filteredProperties.reduce<Record<string, number>>((counts, property) => {
-      const company = property.managementCompany?.name ?? 'Unassigned';
-      counts[company] = (counts[company] ?? 0) + 1;
-      return counts;
-    }, {});
-    const proposalCounts: Record<string, number> = {};
-    const proposalValues: Record<string, number> = {};
-    filteredProperties.forEach((property) => {
-      property.salesActivities
-        .filter((activity) => activity.type === 'PROPOSAL')
-        .forEach((activity) => {
-          const status = activity.status ?? 'CREATED';
-          const monthlyValue = Math.max(
-            0,
-            Number(activity.proposalData?.totalMonthlyInvestment) || 0,
-          );
-          proposalCounts[status] = (proposalCounts[status] ?? 0) + 1;
-          proposalValues[status] = (proposalValues[status] ?? 0) + monthlyValue;
-        });
-    });
-    const totalProposalValue = Object.values(proposalValues)
-      .reduce((sum, value) => sum + value, 0);
-    return {
-      typeCounts,
-      managementCounts,
-      proposalCounts,
-      proposalValues,
-      totalProposals: Object.values(proposalCounts).reduce((sum, count) => sum + count, 0),
-      totalProposalValue,
-      propertyCount: filteredProperties.length,
-      clientCount: filteredProperties.filter(
-        (property) => property.lifecycleStatus === 'CLIENT',
-      ).length,
-    };
-  }, [filteredProperties]);
-
-  const createdProposalCount = dashboardStats.proposalCounts.CREATED ?? 0;
-  const approvedProposalCount = dashboardStats.proposalCounts.APPROVED ?? 0;
-  const createdProposalValue = dashboardStats.proposalValues.CREATED ?? 0;
-  const approvedProposalValue = dashboardStats.proposalValues.APPROVED ?? 0;
-  const proposalPoolFill = createdProposalCount > 0
-    ? Math.min(100, (approvedProposalCount / createdProposalCount) * 100)
-    : 0;
+  const dashboardStats = useMemo(() => buildCommercialStats(filteredProperties, commercialMonth), [filteredProperties, commercialMonth]);
+  const commercialMonths = useMemo(() => commercialProposalMonths(properties), [properties]);
+  const commercialTrend = useMemo(() => commercialProposalTrend(filteredProperties, commercialMonth), [filteredProperties, commercialMonth]);
 
   const proposalReminders = useMemo(() => {
     const followUpThreshold = reminderReferenceTime - 30 * 24 * 60 * 60 * 1000;
@@ -2517,7 +2470,7 @@ function App() {
           <img className="sidebar-logo" src="/blue-life-logo.png" alt="Blue Life Pool Service" decoding="async" />
           <div><strong>BlueLife</strong><small>Internal App</small></div>
         </div>
-        {activeArea === 'home' && <p className="history-sidebar-caption">WORKSPACE</p>}
+        {(activeArea === 'home' || activeArea === 'commercial') && <p className="history-sidebar-caption">WORKSPACE</p>}
         <div className="mobile-sidebar-session">
           <div><strong>{appSession?.user.name}</strong><small>{appSession?.user.role.toLowerCase()}</small></div>
           <button type="button" onClick={() => void logoutApp()}>Log out</button>
@@ -2531,7 +2484,7 @@ function App() {
               key={area.id}
               onClick={() => navigateToArea(area.id)}
             >
-              <span aria-hidden="true">{activeArea === 'home' ? <WorkspaceIcon name={area.id} /> : area.icon}</span>
+              <span aria-hidden="true">{activeArea === 'home' || activeArea === 'commercial' ? <WorkspaceIcon name={area.id === 'commercial' ? 'chart' : area.id} /> : area.icon}</span>
               {area.label}
             </button>
           ))}
@@ -2567,7 +2520,7 @@ function App() {
           aria-expanded={showProposalReminders}
           onClick={() => setShowProposalReminders((current) => !current)}
         >
-          <span aria-hidden="true">&#128276;</span>
+          <span aria-hidden="true"><WorkspaceIcon name="bell" /></span>
           {totalReminderCount > 0 && (
             <strong>{totalReminderCount > 99 ? '99+' : totalReminderCount}</strong>
           )}
@@ -4591,33 +4544,18 @@ function App() {
   }
 
   return (
-    <div className="page app-page">
+    <div className="page app-page commercial-workspace">
       {renderAppSidebar()}
-      <header className="header">
+      <header className="header commercial-page-header">
         <div>
-          <h1>
-            Commercial
-          </h1>
-
-          <p>
-            BlueLife CRM · Property Management
-          </p>
+          <span className="commercial-eyebrow">COMMERCIAL</span>
+          <div className="commercial-page-title"><WorkspaceIcon name="chart" /><div><h1>Commercial Dashboard</h1><p>Property portfolio, proposals and commercial performance.</p></div></div>
         </div>
-
-        <div className="header-actions">
+        <div className="header-actions commercial-header-actions">
+          <CommercialPeriodFilter month={commercialMonth} months={commercialMonths} onChange={setCommercialMonth} name="Commercial proposal period" />
           {renderProposalReminderCenter()}
-          <button
-            className="secondary-button"
-            onClick={() => setShowDeleted(true)}
-          >
-            Deleted Properties ({deletedProperties.length})
-          </button>
-          <button
-            className="primary-button"
-            onClick={() => openCreateForm()}
-          >
-            + New Property
-          </button>
+          <button className="secondary-button commercial-trash-button" onClick={() => setShowDeleted(true)}><WorkspaceIcon name="trash" />Deleted Properties ({deletedProperties.length})</button>
+          <button className="primary-button" onClick={() => openCreateForm()}><WorkspaceIcon name="plus" />New Property</button>
         </div>
       </header>
 
@@ -4994,195 +4932,19 @@ function App() {
         </div>
       )}
 
-      <section className="dashboard-section">
-        <div className="section-header dashboard-header">
-          <div>
-            <h2>Property Insights</h2>
-            <p>Portfolio and proposal activity for the current search.</p>
-          </div>
-        </div>
-        <div className="dashboard-kpis">
-          <div className="dashboard-kpi">
-            <span>Active properties</span>
-            <strong>{dashboardStats.propertyCount}</strong>
-          </div>
-          <div className="dashboard-kpi">
-            <span>Management companies</span>
-            <strong>{Object.keys(dashboardStats.managementCounts).filter((name) => name !== 'Unassigned').length}</strong>
-          </div>
-          <div className="dashboard-kpi dashboard-kpi-proposals">
-            <span>Total proposals</span>
-            <strong>{dashboardStats.totalProposals}</strong>
-            <small>{formatDashboardCurrency(dashboardStats.totalProposalValue)} monthly value</small>
-          </div>
-          <div className="dashboard-kpi">
-            <span>Clients</span>
-            <strong>{dashboardStats.clientCount}</strong>
-          </div>
-        </div>
-
-        <div className="dashboard-charts">
-          <div className="dashboard-chart-card">
-            <h3>Properties by type</h3>
-            <div className="donut-chart-wrap">
-              <div
-                className="donut-chart"
-                style={{
-                  background: (() => {
-                    const entries = Object.entries(dashboardStats.typeCounts);
-                    if (!entries.length) return '#cfe5f0';
-                    let cursor = 0;
-                    const colors = ['#0c71c3', '#2ea3f2', '#34e2e4', '#82c0c7'];
-                    return `conic-gradient(${entries.map(([, count], index) => {
-                      const start = cursor;
-                      cursor += (count / dashboardStats.propertyCount) * 100;
-                      return `${colors[index % colors.length]} ${start}% ${cursor}%`;
-                    }).join(', ')})`;
-                  })(),
-                }}
-              />
-              <div className="chart-legend">
-                {Object.entries(dashboardStats.typeCounts).map(([type, count], index) => (
-                  <div key={type}>
-                    <span className="legend-dot" style={{ background: ['#0c71c3', '#2ea3f2', '#34e2e4', '#82c0c7'][index % 4] }} />
-                    <span>{formatLabel(type)}</span>
-                    <strong>{count}</strong>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="dashboard-chart-card">
-            <h3>Properties by management</h3>
-            <div className="bar-chart">
-              {Object.entries(dashboardStats.managementCounts)
-                .sort(([, first], [, second]) => second - first)
-                .slice(0, 6)
-                .map(([company, count]) => {
-                  const maximum = Math.max(...Object.values(dashboardStats.managementCounts), 1);
-                  return (
-                    <div className="bar-row" key={company}>
-                      <span title={company}>{company}</span>
-                      <div className="bar-track"><i style={{ width: `${(count / maximum) * 100}%` }} /></div>
-                      <strong>{count}</strong>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-
-          <div className="dashboard-chart-card proposal-pool-chart">
-            <div className="proposal-pool-heading">
-              <div>
-                <span>COMMERCIAL POOL</span>
-                <h3>Monthly proposal value</h3>
-                <p>The pool capacity is Created proposals; Approved proposals fill the water.</p>
-              </div>
-              <div className="proposal-pool-capacity">
-                <span>Created capacity</span>
-                <strong>{formatDashboardCurrency(createdProposalValue)}</strong>
-                <small>{createdProposalCount} {createdProposalCount === 1 ? 'proposal' : 'proposals'}</small>
-              </div>
-            </div>
-
-            <div className="proposal-pool-layout">
-              <div className="proposal-pool-visual-wrap">
-                <div className="proposal-pool-shell">
-                  <div
-                    className="proposal-pool-water"
-                    style={{ height: `${proposalPoolFill}%` }}
-                    aria-hidden="true"
-                  >
-                    <i className="proposal-pool-wave proposal-pool-wave-one" />
-                    <i className="proposal-pool-wave proposal-pool-wave-two" />
-                    <i className="proposal-pool-bubble proposal-pool-bubble-one" />
-                    <i className="proposal-pool-bubble proposal-pool-bubble-two" />
-                  </div>
-                  <div className="proposal-pool-lanes" aria-hidden="true"><i /><i /><i /></div>
-                  <div className="proposal-pool-readout">
-                    <span>Approved</span>
-                    <strong>{formatDashboardCurrency(approvedProposalValue)}</strong>
-                    <small>
-                      {approvedProposalCount} {approvedProposalCount === 1 ? 'proposal' : 'proposals'}
-                    </small>
-                  </div>
-                </div>
-              </div>
-
-              <div className="proposal-pool-controls" aria-label="Proposal value stage">
-                {proposalBoardStatuses
-                  .map((status) => {
-                    const count = dashboardStats.proposalCounts[status] ?? 0;
-                    const value = dashboardStats.proposalValues[status] ?? 0;
-                    return (
-                      <button
-                        type="button"
-                        aria-pressed={proposalStatusFilter === status}
-                        className={`proposal-pool-option ${proposalStatusFilter === status ? 'proposal-pool-option-selected ' : ''}${status === 'CREATED' ? 'proposal-pool-option-capacity ' : ''}${status === 'APPROVED' ? 'proposal-pool-option-water ' : ''}status-${status.toLowerCase()}`}
-                        key={status}
-                        onClick={() =>
-                          setProposalStatusFilter((currentStatus) =>
-                            currentStatus === status ? null : status,
-                          )
-                        }
-                      >
-                        <i />
-                        <span>
-                          <strong>{proposalStatusLabel(status)}</strong>
-                          <small>{count} {count === 1 ? 'proposal' : 'proposals'}</small>
-                        </span>
-                        <b>{formatDashboardCurrency(value)}</b>
-                      </button>
-                    );
-                  })}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <CommercialDashboard stats={dashboardStats} trend={commercialTrend} month={commercialMonth} months={commercialMonths} onMonthChange={setCommercialMonth} selectedStatus={proposalStatusFilter} onStatusChange={(status) => setProposalStatusFilter((current) => current === status ? null : status)} />
 
       <section className="properties-section">
         <div className="section-header">
           <div>
-            <h2>
-              Properties
-            </h2>
-
-            <p>
-              Prospects and properties
-              registered in BlueLife.
-            </p>
-
-            {proposalStatusFilter && (
-              <div className="property-proposal-filter">
-                <span className={`proposal-status status-${proposalStatusFilter.toLowerCase()}`}>
-                  {proposalStatusLabel(proposalStatusFilter)}
-                </span>
-                <span>
-                  {displayedProperties.length}{' '}
-                  {displayedProperties.length === 1 ? 'property' : 'properties'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setProposalStatusFilter(null)}
-                >
-                  Show all
-                </button>
-              </div>
-            )}
+            <div className="commercial-directory-title"><WorkspaceIcon name="properties" /><div><h2>Properties</h2><p>Prospects and properties registered in BlueLife.</p></div></div>
+            {proposalStatusFilter && <div className="property-proposal-filter">
+              <span className={`proposal-status status-${proposalStatusFilter.toLowerCase()}`}>{proposalStatusLabel(proposalStatusFilter)}</span>
+              <span>{displayedProperties.length} {displayedProperties.length === 1 ? 'property' : 'properties'}</span>
+              <button type="button" onClick={() => setProposalStatusFilter(null)}>Show all</button>
+            </div>}
           </div>
-
-          <input
-            className="search"
-            placeholder="Search by property, city, management..."
-            value={search}
-            onChange={(event) =>
-              setSearch(
-                event.target.value,
-              )
-            }
-          />
+          <SearchField wrapperClassName="workspace-search-toolbar" aria-label="Search commercial properties" placeholder="Search by property, city, management…" value={search} onChange={(event) => setSearch(event.target.value)} />
         </div>
 
         <div className="table-container">
@@ -5224,6 +4986,8 @@ function App() {
                       ? 'No properties have proposals in this status.'
                       : search.trim()
                         ? 'No properties match this search.'
+                        : commercialMonth !== 'all'
+                          ? 'No properties have proposals in this month.'
                         : 'No properties registered yet.'}
                   </td>
                 </tr>
@@ -5290,7 +5054,7 @@ function App() {
                     <td>
                       <span className="proposal-count">
                         {property.salesActivities.filter(
-                          (activity) => activity.type === 'PROPOSAL',
+                          (activity) => proposalInPeriod(activity, commercialMonth),
                         ).length}
                       </span>
                     </td>

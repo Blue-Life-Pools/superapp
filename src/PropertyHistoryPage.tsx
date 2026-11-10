@@ -1,3 +1,4 @@
+import { SearchField } from './SearchField';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { API_URL, apiFetch as fetch } from './api';
@@ -699,7 +700,7 @@ export function PropertyHistoryPage({ sidebar, properties, canEdit, onOpenHealth
       <div className="history-directory-heading" id="history-directory-start">
         <div className="history-directory-summary"><h2><WorkspaceIcon name="properties" />Properties</h2><span>{loading ? 'Loading property history…' : `Showing ${propertyPage.from}–${propertyPage.to} of ${propertyPage.total} properties`}</span></div>
         <div className="history-directory-tools">
-          <label className="history-search-field"><WorkspaceIcon name="search" /><input type="search" aria-label="Search properties" placeholder="Search property, address…" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} /></label>
+          <SearchField wrapperClassName="history-search-field" aria-label="Search properties" placeholder="Search property, address…" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
           {paginationControls('top')}
         </div>
       </div>

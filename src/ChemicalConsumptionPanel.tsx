@@ -1,3 +1,4 @@
+import { SearchField } from './SearchField';
 import { useEffect, useState } from 'react';
 import { API_URL, apiFetch } from './api';
 import type { ConsumptionFile, ConsumptionImportRow, ConsumptionChemical } from './chemicalConsumptionImport';
@@ -126,7 +127,8 @@ export function ChemicalConsumptionPanel() {
     </section>}
     <div className="consumption-property-select">
       <label>Property
-        <input
+        <SearchField
+          aria-label="Search consumption properties"
           list="consumption-properties"
           placeholder="Type or select a property"
           autoComplete="off"

@@ -20,6 +20,13 @@ const paths = {
   'chevron-left': <path d="m15 5-7 7 7 7" />,
   'chevron-right': <path d="m9 5 7 7-7 7" />,
   'arrow-right': <path d="M4 12h16m-6-6 6 6-6 6" />,
+  chart: <><path d="M4 21V14M10 21V8M16 21V3M22 21V11" /></>,
+  users: <><circle cx="9" cy="7" r="4" /><path d="M2 21v-3a6 6 0 0 1 12 0v3M17 3a4 4 0 0 1 0 8M17 14a5 5 0 0 1 5 5v2" /></>,
+  check: <path d="m5 12 4 4L19 6" />,
+  close: <path d="m6 6 12 12M6 18 18 6" />,
+  clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v6l4 2" /></>,
+  trash: <><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" /></>,
+  bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></>,
 } satisfies Record<string, ReactNode>;
 
 export function WorkspaceIcon({ name, className = '' }: { name: keyof typeof paths; className?: string }) {

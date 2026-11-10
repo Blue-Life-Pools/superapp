@@ -1,0 +1,20 @@
+.app-page .workspace-search { position: relative; display: block; min-width: 0; width: 100%; }
+.app-page .workspace-search > .workspace-icon { position: absolute; z-index: 1; top: 50%; left: 14px; width: 19px; height: 19px; color: #718099; transform: translateY(-50%); pointer-events: none; }
+.app-page .workspace-search > input.workspace-search-input { box-sizing: border-box; display: block; width: 100%; max-width: none; min-width: 0; min-height: 43px; margin: 0; border: 1px solid #d5deea; border-radius: 10px; padding: 11px 13px 11px 42px; background: #fff; color: #25344e; font-family: inherit; font-size: 14px; font-weight: 400; line-height: 1.4; box-shadow: 0 1px 3px #1e355509; text-transform: none; letter-spacing: normal; }
+.app-page .workspace-search > input.workspace-search-input::placeholder { color: #8290a5; opacity: 1; }
+.app-page .workspace-search > input.workspace-search-input:focus { border-color: #75a7df; outline: 3px solid #dceaff; outline-offset: 1px; box-shadow: 0 1px 3px #1e355509; }
+.app-page .workspace-search > input.workspace-search-input:disabled { background: #f6f8fb; color: #8290a5; cursor: wait; }
+.app-page .workspace-search-toolbar { flex: 1 1 260px; max-width: 350px; }
+.app-page .health-ticket-filters > .workspace-search { flex: 1 1 220px; max-width: 350px; }
+.app-page .complaint-filters > .workspace-search { flex: 1 1 240px; max-width: 350px; }
+.app-page .complaints-card > .health-card-heading { flex-wrap: wrap; }
+.app-page .complaint-filters { flex: 1 1 300px; min-width: 0; }
+.app-page .quality-filter-grid > .quality-search-field { grid-column: span 2; }
+@media (max-width: 800px) {
+  .app-page .workspace-search-toolbar, .app-page .health-ticket-filters > .workspace-search, .app-page .complaint-filters > .workspace-search { max-width: none; }
+  .app-page .calls-main-grid { grid-template-columns: minmax(0, 1fr); }
+  .app-page .complaints-card { min-width: 0; }
+  .app-page .complaint-filters > .workspace-search { flex-basis: 100%; }
+  .app-page .complaint-filters > select { flex: 1; min-width: 0; }
+}
+@media (max-width: 480px) { .app-page .quality-filter-grid > .quality-search-field { grid-column: 1 / -1; } }

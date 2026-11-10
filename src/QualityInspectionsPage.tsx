@@ -1,3 +1,4 @@
+import { SearchField } from './SearchField';
 import {
   useEffect,
   useMemo,
@@ -238,6 +239,7 @@ export function QualityInspectionsPage({
 }) {
   const [items, setItems] = useState<Inspection[]>([]);
   const [editing, setEditing] = useState<Form | null>(null);
+  const [directorySearch, setDirectorySearch] = useState("");
   const [propertySearch, setPropertySearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [originalFindings, setOriginalFindings] = useState<Finding[]>([]);
@@ -287,12 +289,12 @@ export function QualityInspectionsPage({
     void loadTechnicians().catch(() => setTechnicians([]));
   }, []);
   const qualityFilteredItems = useMemo(
-    () => filterQualityInspections(items, {
+    () => filterQualityInspections(items.filter((item) => !directorySearch.trim() || [item.property?.name, item.technicianName].some((value) => value?.toLowerCase().includes(directorySearch.trim().toLowerCase()))), {
       property: propertyFilter, technician: technicianFilter, status: findingStatusFilter,
       severity: severityFilter, estimate: estimateFilter, dashboard: dashboardFilter,
       dateBasis: dateFilterBasis, dateMode: dateFilterMode, day: dateFilterDay, from: dateFilterFrom, to: dateFilterTo,
     }),
-    [dashboardFilter, dateFilterBasis, dateFilterDay, dateFilterFrom, dateFilterMode, dateFilterTo, estimateFilter, findingStatusFilter, items, propertyFilter, severityFilter, technicianFilter],
+    [directorySearch, dashboardFilter, dateFilterBasis, dateFilterDay, dateFilterFrom, dateFilterMode, dateFilterTo, estimateFilter, findingStatusFilter, items, propertyFilter, severityFilter, technicianFilter],
   );
   const activeDateBasis = qualityDateBasis({ dateBasis: dateFilterBasis, dashboard: dashboardFilter, status: findingStatusFilter });
   const allFindings = useMemo(() => qualityFilteredItems.flatMap((inspection) => inspection.findings), [qualityFilteredItems]);
@@ -552,9 +554,10 @@ export function QualityInspectionsPage({
       <section className="quality-filter-panel" aria-label="Quality filters">
         <div className="quality-filter-heading">
           <div><h2>Filters</h2><p>Dates filter by {activeDateBasis === "RESOLVED" ? "finding resolution" : "inspection visit"} date (Colombia time).</p></div>
-          <button type="button" onClick={() => { setPropertyFilter("ALL"); setTechnicianFilter("ALL"); setFindingStatusFilter("ALL"); setSeverityFilter("ALL"); setEstimateFilter("ALL"); setDashboardFilter("ALL"); setDateFilterMode("ALL"); setDateFilterBasis("AUTO"); setDateFilterDay(""); setDateFilterFrom(""); setDateFilterTo(""); }}>Clear filters</button>
+          <button type="button" onClick={() => { setDirectorySearch(""); setPropertyFilter("ALL"); setTechnicianFilter("ALL"); setFindingStatusFilter("ALL"); setSeverityFilter("ALL"); setEstimateFilter("ALL"); setDashboardFilter("ALL"); setDateFilterMode("ALL"); setDateFilterBasis("AUTO"); setDateFilterDay(""); setDateFilterFrom(""); setDateFilterTo(""); }}>Clear filters</button>
         </div>
         <div className="quality-filter-grid">
+          <label className="quality-search-field"><span>Quick search</span><SearchField aria-label="Search quality inspections" placeholder="Search property or technician…" value={directorySearch} onChange={(event) => setDirectorySearch(event.target.value)} /></label>
           <label><span>Property</span><select value={propertyFilter} onChange={(event) => setPropertyFilter(event.target.value)}><option value="ALL">All properties</option>{properties.map((property) => <option value={property.id} key={property.id}>{property.name}</option>)}</select></label>
           <label><span>Technician</span><select value={technicianFilter} onChange={(event) => setTechnicianFilter(event.target.value)}><option value="ALL">All technicians</option>{technicians.map((technician) => <option value={technician} key={technician}>{technician}</option>)}</select></label>
           <label><span>Finding status</span><select value={findingStatusFilter} onChange={(event) => setFindingStatusFilter(event.target.value)}><option value="ALL">All statuses</option><option value="OPEN">Open</option><option value="IN_PROGRESS">In progress</option><option value="RESOLVED">Resolved</option></select></label>
@@ -675,7 +678,8 @@ export function QualityInspectionsPage({
               {message && <p className="quality-wide health-sync-message" role="alert">{message}</p>}
               <label>
                 Property
-                <input
+                <SearchField
+                  aria-label="Search inspection property"
                   list="quality-properties"
                   required
                   autoComplete="off"
