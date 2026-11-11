@@ -170,9 +170,8 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
       ['Estimate number', ticket.estimateNumber], ['Estimate status', data['Estado Estimado']], ['Final report', data['Estado Final']],
     ].filter(([, value]) => value);
     const summaryIcon = (label: string) => (label === 'Inspection' || label === 'Reinspection deadline' ? 'calendar' : label === 'Violations' ? 'warning' : label === 'Chemical' ? 'chemicals' : label === 'Flow meter / Flow rate' ? 'pool' : label === 'Requires estimate' ? 'layers' : label === 'Estimate number' || label === 'Estimate status' ? 'tag' : 'reports') as Parameters<typeof WorkspaceIcon>[0]['name'];
-    const estimateLabels = new Set(['Requires estimate', 'Estimate number', 'Estimate status']);
     const renderItem = ([label, value]: string[]) => <div className={'health-summary-chip' + (label === 'Estimate number' ? ' health-summary-estimate-number' : label === 'Estimate status' ? ' health-summary-estimate-status' : '')} key={label}><WorkspaceIcon name={summaryIcon(label)} /><span className="health-summary-copy"><b>{label}</b><strong>{value}</strong></span></div>;
-    return <div className="health-ticket-summary-sections"><div className="health-ticket-summary health-ticket-summary-main">{items.filter(([label]) => !estimateLabels.has(label)).map(renderItem)}</div>{items.some(([label]) => estimateLabels.has(label)) && <div className="health-estimate-section"><h4>Estimate details</h4><div className="health-ticket-summary health-estimate-summary">{items.filter(([label]) => estimateLabels.has(label)).map(renderItem)}</div></div>}</div>;
+    return <div className="health-ticket-summary">{items.map(renderItem)}</div>;
   }
   return <div className="page app-page health-page">{sidebar}
     <header className="area-page-header health-header"><div><span className="area-eyebrow">COMPLIANCE & SERVICE</span><h1>Health Department</h1></div><div className="health-header-actions"><button className="secondary-button" disabled={busy} onClick={() => void sync()}>Sync</button><button className="primary-button" onClick={newTicket}>+ New ticket</button></div></header>
