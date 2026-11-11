@@ -5521,3 +5521,13 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-page .health-estimate-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
 .health-page .health-estimate-section h4 { margin: 0 0 16px; color: #4b5563; font-size: 15px; font-weight: 600; }
 .health-page .health-estimate-summary { padding-top: 0; border-top: 0; border-bottom: 0; }
+
+/* Compact metric cards: icon on top, label below, result in bold. */
+.health-page .health-ticket-summary { padding: 18px 0; }
+.health-page .health-summary-chip, .health-page .health-summary-chip:nth-child(2n), .health-page .health-summary-chip:nth-child(3n) { min-height: 92px; align-items: flex-start; justify-content: flex-start; flex-direction: column; gap: 7px; padding: 0 18px; }
+.health-page .health-summary-chip > .workspace-icon { flex: 0 0 28px; width: 28px; height: 28px; margin: 0; }
+.health-page .health-summary-copy { display: grid; gap: 5px; }
+.health-page .health-summary-copy b { line-height: 1.2; }
+.health-page .health-summary-copy strong { line-height: 1.25; }
+.health-page .health-estimate-section { margin-top: 18px; padding-top: 16px; }
+.health-page .health-estimate-section h4 { margin-bottom: 12px; }
