@@ -5531,3 +5531,16 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-page .health-summary-copy strong { line-height: 1.25; }
 .health-page .health-estimate-section { margin-top: 18px; padding-top: 16px; }
 .health-page .health-estimate-section h4 { margin-bottom: 12px; }
+
+/* Top filter row without the extra inbox panel. */
+.health-page .health-tickets-card > .health-card-heading { display: block; margin: 0 0 18px; padding: 0; border: 0 !important; border-radius: 0; background: transparent !important; box-shadow: none !important; }
+.health-page .health-tickets-card > .health-card-heading > div:first-child { display: none; }
+.health-page .health-ticket-filters { display: grid; width: 100%; grid-template-columns: minmax(260px, 1.5fr) minmax(120px, .65fr) minmax(150px, .85fr) minmax(150px, .85fr); align-items: center; justify-content: stretch; gap: 10px; }
+.health-page .health-ticket-filters input, .health-page .health-ticket-filters select { width: 100%; min-width: 0; min-height: 46px; }
+.health-page .health-ticket h3 { font-size: 22px !important; }
+.health-page .health-ticket-received { font-size: 17px !important; }
+.health-page .health-summary-estimate-number .health-summary-copy strong, .health-page .health-summary-estimate-status .health-summary-copy strong { color: #b4234b !important; }
+.health-page .health-upcoming-row > span:last-child { font-size: 12px; }
+.health-page .health-upcoming-row small, .health-page .health-upcoming-row em { font-size: 10px; }
+@media (max-width: 900px) { .health-page .health-ticket-filters { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 650px) { .health-page .health-ticket-filters { grid-template-columns: 1fr; } }
