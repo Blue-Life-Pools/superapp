@@ -5592,6 +5592,14 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-page .health-upcoming { position: static; z-index: auto; min-width: 0; }
 @media (max-width: 1200px) { .health-page .health-ticket-summary { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 
+/* Horizontal detail navigation keeps each metric readable on narrow ticket cards. */
+.health-page .health-summary-carousel { display: grid; grid-template-columns: 28px minmax(0, 1fr) 28px; align-items: stretch; gap: 6px; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+.health-page .health-summary-carousel .health-ticket-summary { display: flex; min-width: 0; overflow-x: hidden; gap: 0; padding: 9px 0; border: 0; scrollbar-width: none; }
+.health-page .health-summary-carousel .health-ticket-summary::-webkit-scrollbar { display: none; }
+.health-page .health-summary-carousel .health-summary-chip, .health-page .health-summary-carousel .health-summary-chip:nth-child(2n), .health-page .health-summary-carousel .health-summary-chip:nth-child(3n) { flex: 0 0 132px; min-height: 70px; border-right: 1px solid #e5e7eb; }
+.health-page .health-summary-arrow { align-self: center; width: 28px; height: 38px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; color: #111827; font-size: 24px; line-height: 1; cursor: pointer; }
+.health-page .health-summary-arrow:hover { background: #f3f4f6; }
+
 /* Dense ticket view: preserve every field while fitting multiple tickets in the viewport. */
 .health-page .health-ticket { padding: 16px 24px 14px; }
 .health-page .health-ticket-top { min-height: 36px; padding-bottom: 12px; }
