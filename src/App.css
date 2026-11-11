@@ -5582,3 +5582,16 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-page .health-upcoming .health-inspection-info { gap: 4px; }
 .health-page .health-upcoming .health-inspection-info > strong { font-size: 12px; line-height: 1.25; }
 .health-page .health-upcoming .health-inspection-info > small, .health-page .health-upcoming .health-inspection-countdown { font-size: 10px; line-height: 1.35; }
+
+/* Restrained pink only on ticket outlines and checkbox groups; editor stays neutral. */
+.health-page .health-ticket { border-color: #f1cbd3 !important; }
+.health-page .health-editor-modal { color: #111827; background: #fff; border-color: #d1d5db; }
+.health-page .health-editor-modal .edit-panel-header { background: #fff !important; border-color: #e5e7eb !important; }
+.health-page .health-editor-modal .edit-panel-header h2, .health-page .health-editor-modal label, .health-page .health-editor-modal legend { color: #111827 !important; }
+.health-page .health-editor-modal input:not([type="checkbox"]), .health-page .health-editor-modal select, .health-page .health-editor-modal textarea { border-color: #9ca3af !important; background: #fff !important; color: #111827 !important; }
+.health-page .health-editor-modal fieldset { border-color: #f1cbd3 !important; background: #fff; }
+.health-page .health-editor-modal .health-option { color: #374151 !important; }
+.health-page .health-editor-modal input[type="checkbox"] { accent-color: #111827 !important; }
+.health-page .health-editor-modal .modal-actions { border-color: #e5e7eb; }
+.health-page .health-editor-modal .secondary-button, .health-page .health-editor-modal .modal-close { border-color: #9ca3af !important; background: #fff !important; color: #111827 !important; }
+.health-page .health-editor-modal .primary-button { border-color: #111827 !important; background: #111827 !important; color: #fff !important; }
