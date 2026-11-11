@@ -10,7 +10,7 @@ export function CompanyConsumptionChart({ report }: { report: CompanyConsumption
   const workbookReferences = !!report.maximumReferenceSources?.length;
   return <section className="company-chart" aria-labelledby="company-chart-title">
     <header className="company-chart-heading">
-      <h3 id="company-chart-title">Total company — Skimmer vs. estimated maximum · {global ? 'Global' : companyReportMonthLabel(report.month)}</h3>
+      <h3 id="company-chart-title">1. Total company — Skimmer vs. estimated maximum · {global ? 'Global' : companyReportMonthLabel(report.month)}</h3>
     </header>
     <div className="company-chart-legend" aria-label="Consumption alert levels">
       <span className="company-legend-normal" title="Within range">&lt; {report.thresholds.warning}%</span>
