@@ -1,0 +1,24 @@
+.chemical-monthly-fee-alert { gap: 18px; }
+.chemical-alert-actions { grid-template-columns: repeat(4, minmax(120px, 1fr)) auto; align-items: end; }
+.chemical-alert-actions label { min-width: 0; }
+.chemical-alert-actions input, .chemical-alert-actions select { box-sizing: border-box; width: 100%; min-height: 34px; border: 1px solid #bfd9e7; border-radius: 8px; padding: 7px 8px; background: #fff; color: #123e63; font: inherit; font-size: 11px; }
+.chemical-alert-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.chemical-alert-kpis span { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid #d5e5eb; border-radius: 9px; background: #f7fbfd; }
+.chemical-alert-kpis small { color: #667085; font-size: 10px; }
+.chemical-alert-kpis strong { color: #075477; font-size: 18px; }
+.chemical-alert-kpis .is-alert strong { color: #b42318; }
+.chemical-alert-table th, .chemical-alert-table td { min-width: 110px; }
+.chemical-alert-table tbody tr.chemical-alert-row > * { background: #fff1f0; color: #b42318; border-bottom-color: #fecaca; }
+.chemical-alert-table tbody tr.chemical-alert-row th { color: #b42318; }
+.chemical-alert-status { display: inline-flex; border-radius: 999px; padding: 5px 8px; font-size: 10px; font-weight: 800; }
+.chemical-alert-status.is-alert { background: #ffd9d6; color: #b42318; }
+.chemical-alert-status.is-normal { background: #eaf7ef; color: #18794e; }
+.chemical-alert-footnote { margin: 0; color: #667085; font-size: 11px; line-height: 1.6; }
+@media (max-width: 900px) {
+  .chemical-alert-actions { grid-template-columns: repeat(2, minmax(120px, 1fr)); width: 100%; }
+  .chemical-alert-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 599px) {
+  .chemical-alert-actions { grid-template-columns: 1fr; }
+  .chemical-alert-kpis { grid-template-columns: 1fr 1fr; }
+}
