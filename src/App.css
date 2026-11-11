@@ -5544,3 +5544,27 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-page .health-upcoming-row small, .health-page .health-upcoming-row em { font-size: 10px; }
 @media (max-width: 900px) { .health-page .health-ticket-filters { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 650px) { .health-page .health-ticket-filters { grid-template-columns: 1fr; } }
+
+/* Reduce ticket height so the list remains scannable on one screen. */
+.health-page .health-ticket { padding: 22px 34px 20px; }
+.health-page .health-ticket-top { min-height: 42px; padding-bottom: 17px; }
+.health-page .health-ticket-icon { width: 40px; height: 40px; flex-basis: 40px; }
+.health-page .health-ticket-id { font-size: 19px; }
+.health-page .health-ticket .health-status { padding: 8px 15px; }
+.health-page .health-ticket h3 { margin: 18px 0 16px; font-size: 21px !important; }
+.health-page .health-ticket-property-select { margin-bottom: 18px; }
+.health-page .health-ticket-property-select select { min-height: 46px; }
+.health-page .health-ticket-summary { padding: 13px 0; }
+.health-page .health-summary-chip, .health-page .health-summary-chip:nth-child(2n), .health-page .health-summary-chip:nth-child(3n) { min-height: 72px; gap: 5px; padding: 0 14px; }
+.health-page .health-summary-chip > .workspace-icon { width: 24px; height: 24px; flex-basis: 24px; }
+.health-page .health-summary-copy { gap: 3px; }
+.health-page .health-summary-copy b { font-size: 13px !important; }
+.health-page .health-summary-copy strong { font-size: 14px !important; }
+.health-page .health-estimate-section { margin-top: 12px; padding-top: 12px; }
+.health-page .health-estimate-section h4 { margin-bottom: 8px; font-size: 14px; }
+.health-page .health-estimate-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.health-page .health-estimate-summary .health-summary-chip { min-height: 70px; }
+.health-page .health-summary-estimate-status .health-summary-copy strong { white-space: nowrap; }
+.health-page .health-ticket-actions { margin-top: 16px; }
+.health-page .health-ticket-actions button { min-height: 44px; padding: 9px 19px; }
+@media (max-width: 650px) { .health-page .health-ticket { padding: 18px 16px; } .health-page .health-estimate-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
