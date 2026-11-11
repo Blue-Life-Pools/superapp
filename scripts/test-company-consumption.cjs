@@ -43,7 +43,7 @@ assert.doesNotMatch(html, /class="company-chart-row-summary"|class="company-char
 assert.doesNotMatch(html, /Monthly maximum =|Company totals include all uploaded usage|The dashed line marks|below the comparable maximum|Reference:|Exceeds comparable maximum by/);
 assert.match(html, /Georky tank refill: 30 gal/);
 assert.match(html, /Example Pool/);
-assert.match(html, /<th aria-sort="descending">Skimmer \(gal\)<\/th>/);
+assert.match(html, /<th aria-sort="descending">Excess \(gal\)<\/th>/);
 const missing = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: '2026-01', baselineYear: 2025, thresholds, chemicals: [{ ...chemical, recordedQuantity: null, percent: null }] } }));
 assert.match(missing, /No data for this month/);
 assert.doesNotMatch(missing, /class="company-chart-fill"/);
@@ -58,7 +58,7 @@ assert.equal(companyChemicalStatus(manualChemical, thresholds).label, 'Overconsu
 const manual = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: '2026-01', baselineYear: 2025, thresholds, chemicals: [manualChemical] } }));
 assert.match(manual, /170 scoop \(manual\)/);
 assert.match(manual, /117\.6% of company maximum/);
-assert.match(manual, /<th aria-sort="descending">Skimmer \(scoop\)<\/th>/);
+assert.match(manual, /<th>Skimmer \(scoop\)<\/th>/);
 assert.doesNotMatch(manual, /<th>Maximum|<th>Excess|Compared:/, 'A company manual limit must not become a per-property allowance');
 const acid = { ...chemical, name: 'Muriatic Acid', recordedQuantity: 685.25, maximum: 643.6674910612855, comparableQuantity: 445.5, comparisonMaximum: 599.3778879406699, percent: 74.3, coverageComplete: false };
 assert.equal(companyChemicalMetrics(acid).percent.toFixed(1), '106.5');
@@ -121,7 +121,7 @@ for (const [recordedQuantity, maximum, level] of [[0, 100, 'normal'], [80, 100, 
 const propertyRow = (name, recordedQuantity, maximum) => ({ propertyId: name, propertyName: name, recordedQuantity, maximum, referenceMaximum: 1000, maximumSource: 'WORKBOOK_PROPERTY' });
 const tableProperties = [propertyRow('Yellow pool', 95, 100), propertyRow('No report', null, 100), propertyRow('Red pool', 120, 100), propertyRow('Ordinary pool', 80, 100), propertyRow('No reference', 200, null), propertyRow('Zero pool', 0, 10)];
 const originalRows = JSON.stringify(tableProperties);
-assert.deepEqual(sortCompanyProperties(tableProperties).map((row) => row.propertyName), ['No reference', 'Red pool', 'Yellow pool', 'Ordinary pool', 'Zero pool', 'No report']);
+assert.deepEqual(sortCompanyProperties(tableProperties).map((row) => row.propertyName), ['Red pool', 'Ordinary pool', 'Yellow pool', 'Zero pool', 'No reference', 'No report']);
 assert.equal(JSON.stringify(tableProperties), originalRows, 'Sorting does not mutate API data or company totals');
 assert.deepEqual(sortCompanyProperties([propertyRow('Zeta', 5, 10), propertyRow('Alpha', 5, 10)]).map((row) => row.propertyName), ['Alpha', 'Zeta']);
 for (const scope of ['month', 'global']) {
@@ -129,7 +129,7 @@ for (const scope of ['month', 'global']) {
     const tableHtml = renderToStaticMarkup(React.createElement(CompanyConsumptionChart, { report: { month: scope === 'global' ? 'global' : '2026-09', scope, baselineYear: 2025, thresholds, chemicals: [{ ...chemical, maximumSource, properties: tableProperties }] } }));
     const body = tableHtml.match(/<tbody>([^]*?)<\/tbody>/)[1];
     const renderedRows = [...body.matchAll(/<tr([^>]*)>([^]*?)<\/tr>/g)].map((match) => ({ attributes: match[1], name: match[2].match(/<th scope="row">([^]*?)<\/th>/)[1] }));
-    assert.deepEqual(renderedRows.map((row) => row.name), ['No reference', 'Red pool', 'Yellow pool', 'Ordinary pool', 'Zero pool', 'No report']);
+    assert.deepEqual(renderedRows.map((row) => row.name), ['Red pool', 'Ordinary pool', 'Yellow pool', 'Zero pool', 'No reference', 'No report']);
     assert.match(renderedRows.find((row) => row.name === 'Red pool').attributes, /class="company-property-high"/);
     assert.match(renderedRows.find((row) => row.name === 'Yellow pool').attributes, /class="company-property-warning"/);
     for (const name of ['No reference', 'Ordinary pool', 'Zero pool', 'No report']) assert.doesNotMatch(renderedRows.find((row) => row.name === name).attributes, /class=/, `${name} stays unhighlighted`);

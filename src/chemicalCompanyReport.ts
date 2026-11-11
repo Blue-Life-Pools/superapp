@@ -63,10 +63,21 @@ type PropertyConsumption = CompanyChemicalTotal['properties'][number];
 
 export function sortCompanyProperties(properties: readonly PropertyConsumption[]) {
   return [...properties].sort((a, b) => {
-    const aRecorded = a.recordedQuantity !== null && Number.isFinite(a.recordedQuantity);
-    const bRecorded = b.recordedQuantity !== null && Number.isFinite(b.recordedQuantity);
-    if (aRecorded !== bRecorded) return aRecorded ? -1 : 1;
-    if (aRecorded && bRecorded && a.recordedQuantity !== b.recordedQuantity) return b.recordedQuantity! - a.recordedQuantity!;
+    const comparable = (property: PropertyConsumption) => property.recordedQuantity !== null && Number.isFinite(property.recordedQuantity) && property.maximum !== null && Number.isFinite(property.maximum);
+    const excess = (property: PropertyConsumption) => {
+      if (!comparable(property)) return null;
+      return Math.max(0, property.recordedQuantity! - property.maximum!);
+    };
+    const aComparable = comparable(a);
+    const bComparable = comparable(b);
+    if (aComparable !== bComparable) return aComparable ? -1 : 1;
+    const aExcess = excess(a);
+    const bExcess = excess(b);
+    if (aExcess !== null || bExcess !== null) {
+      if (aExcess === null) return 1;
+      if (bExcess === null) return -1;
+      if (aExcess !== bExcess) return bExcess - aExcess;
+    }
     return a.propertyName.localeCompare(b.propertyName);
   });
 }
