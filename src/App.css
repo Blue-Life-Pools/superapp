@@ -5583,6 +5583,15 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-page .health-upcoming .health-inspection-info > strong { font-size: 12px; line-height: 1.25; }
 .health-page .health-upcoming .health-inspection-info > small, .health-page .health-upcoming .health-inspection-countdown { font-size: 10px; line-height: 1.35; }
 
+/* Keep the calendar column independent and keep estimate fields on the same metric row. */
+.health-page .health-main-grid > *, .health-page .health-tickets-card, .health-page .health-ticket, .health-page .health-ticket-top { min-width: 0; }
+.health-page .health-ticket { overflow: hidden; }
+.health-page .health-ticket-summary { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+.health-page .health-summary-estimate-status .health-summary-copy { min-width: 0; }
+.health-page .health-summary-estimate-status .health-summary-copy strong { display: inline-flex; align-items: center; white-space: nowrap; }
+.health-page .health-upcoming { position: static; z-index: auto; min-width: 0; }
+@media (max-width: 1200px) { .health-page .health-ticket-summary { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+
 /* Dense ticket view: preserve every field while fitting multiple tickets in the viewport. */
 .health-page .health-ticket { padding: 16px 24px 14px; }
 .health-page .health-ticket-top { min-height: 36px; padding-bottom: 12px; }
