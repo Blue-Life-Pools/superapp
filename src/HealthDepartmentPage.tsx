@@ -41,6 +41,35 @@ const searchKey = (value: string) => value.normalize('NFD').replace(/[\u0300-\u0
 function ticketTitle(ticket: Ticket) {
   return ticket.name;
 }
+const analyticsMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function analyticsDate(ticket: Ticket) {
+  const value = ticket.visitDate || ticket.receivedAt;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+function HealthLineChart({ values, comparison }: { values: number[]; comparison?: number[] }) {
+  const all = [...values, ...(comparison || [])];
+  const max = Math.max(1, ...all);
+  const points = (series: number[]) => series.map((value, index) => `${(index / 11) * 100},${92 - (value / max) * 78}`).join(' ');
+  return <svg className="health-analytics-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 92H100" className="health-chart-axis" />{comparison && <polyline points={points(comparison)} className="health-chart-line health-chart-line-previous" />}{<polyline points={points(values)} className="health-chart-line health-chart-line-current" />}</svg>;
+}
+function HealthAnalytics({ tickets }: { tickets: Ticket[] }) {
+  const monthTickets = analyticsMonths.map((_, month) => tickets.filter((ticket) => { const date = analyticsDate(ticket); return date?.getFullYear() === 2026 && date.getMonth() === month; }));
+  const estimateStatuses = ['Converted', 'Sent', 'Approved'];
+  const reportCounts = monthTickets.map((monthRows) => monthRows.filter((ticket) => estimateStatuses.includes(ticket.healthData['Estado Estimado']?.trim() || '')).length);
+  const estimateCounts = estimateStatuses.map((status) => tickets.filter((ticket) => { const date = analyticsDate(ticket); return date?.getFullYear() === 2026 && ticket.healthData['Estado Estimado']?.trim() === status; }).length);
+  const outcomeSeries = ['Closed', 'Satisfactory', 'Unsatisfactory'].map((outcome) => [2025, 2026].map((year) => analyticsMonths.map((_, month) => tickets.filter((ticket) => { const date = analyticsDate(ticket); return date?.getFullYear() === year && date.getMonth() === month && ticket.healthData.Estado?.trim() === outcome; }).length)));
+  const propertyCounts = [...new Map(tickets.filter((ticket) => analyticsDate(ticket)?.getFullYear() === 2026).map((ticket) => [ticket.property || ticket.name, 1])).keys()].map((name) => ({ name, count: tickets.filter((ticket) => { const date = analyticsDate(ticket); return (ticket.property || ticket.name) === name && date?.getFullYear() === 2026; }).length })).sort((a, b) => b.count - a.count).slice(0, 10);
+  const maxReport = Math.max(1, ...reportCounts);
+  const maxEstimate = Math.max(1, ...estimateCounts);
+  return <section className="health-analytics" aria-label="Inspection analytics">
+    <div className="health-analytics-heading"><div><h2>Inspection Analytics</h2><p>Year-over-year compliance, inspection, and estimate performance.</p></div><span>2025 / 2026</span></div>
+    <div className="health-analytics-kpis"><div><b>Reports (2026)</b><strong>{reportCounts.reduce((sum, value) => sum + value, 0)}</strong></div><div><b>Closed (2026)</b><strong>{outcomeSeries[0][1].reduce((sum, value) => sum + value, 0)}</strong></div><div><b>Satisfactory (2026)</b><strong>{outcomeSeries[1][1].reduce((sum, value) => sum + value, 0)}</strong></div><div><b>Unsatisfactory (2026)</b><strong>{outcomeSeries[2][1].reduce((sum, value) => sum + value, 0)}</strong></div></div>
+    <div className="health-analytics-top-grid"><article className="health-analytics-card health-analytics-bars"><h3>Reports by month 2026</h3><p>Converted, sent, and approved estimate reports.</p><div className="health-bar-chart">{reportCounts.map((count, index) => <div className="health-bar-column" key={analyticsMonths[index]}><strong>{count}</strong><span style={{ height: `${Math.max(3, (count / maxReport) * 100)}%` }} /><small>{analyticsMonths[index]}</small></div>)}</div></article><article className="health-analytics-card health-analytics-bars"><h3>Estimate status 2026</h3><p>Estimate count by status.</p><div className="health-bar-chart health-bar-chart-estimates">{estimateStatuses.map((status, index) => <div className="health-bar-column" key={status}><strong>{estimateCounts[index]}</strong><span style={{ height: `${Math.max(3, (estimateCounts[index] / maxEstimate) * 100)}%` }} /><small>{status}</small></div>)}</div></article></div>
+    <div className="health-analytics-outcomes">{['Closed', 'Satisfactory', 'Unsatisfactory'].map((outcome, index) => <article className="health-analytics-card health-analytics-line-card" key={outcome}><div className="health-line-heading"><h3>{outcome}</h3><span><i className="health-chart-dot health-chart-dot-previous" />2025 <i className="health-chart-dot health-chart-dot-current" />2026</span></div><HealthLineChart values={outcomeSeries[index][1]} comparison={outcomeSeries[index][0]} /><div className="health-line-labels">{analyticsMonths.map((month) => <small key={month}>{month}</small>)}</div></article>)}</div>
+    <article className="health-analytics-card health-analytics-properties"><h3>Inspected properties 2026</h3>{propertyCounts.length === 0 && <p>No inspected properties in the selected data.</p>}{propertyCounts.map((item) => <div className="health-property-bar" key={item.name}><span title={item.name}>{item.name}</span><i style={{ width: `${Math.max(3, (item.count / Math.max(1, propertyCounts[0]?.count || 1)) * 100)}%` }} /><strong>{item.count}</strong></div>)}</article>
+  </section>;
+}
 async function request(path: string, options?: RequestInit) {
   const response = await fetch(API_URL + path, options);
   const data = await response.json().catch(() => ({}));
@@ -179,6 +208,7 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
     {message && <p role="status" className="health-sync-message">{message}</p>}
     {unassignedOnly && <div className="health-unassigned-banner"><span>Showing {filtered.length} tickets without a Commercial property assignment.</span><button type="button" onClick={onClearUnassignedFilter}>Show all tickets</button></div>}
     {urgent.length > 0 && <div className="health-alert-banner"><span className="health-alert-icon">!</span><div><strong>{urgent.length} reinspections within 10 days</strong><p>Based only on assigned reinspection deadlines.</p></div></div>}
+    <HealthAnalytics tickets={filtered} />
     <div className="health-main-grid">
       <section className="health-card health-tickets-card"><div className="health-card-heading"><div><h2>Ticket inbox</h2><p>Inspection reports and follow-up.</p></div><div className="health-ticket-filters"><SearchField aria-label="Search by property name" placeholder="Search property" value={propertySearch} onChange={(event) => setPropertySearch(event.target.value)} /><select aria-label="Filter tickets" value={filter} onChange={(event) => setFilter(event.target.value)}><option>All</option><option value="NEW">New</option><option value="IN_PROGRESS">In progress</option><option value="CLOSED">Closed</option></select><select className="health-estimate-filter" aria-label="Filter by estimate status" value={estimateFilter} onChange={(event) => setEstimateFilter(event.target.value)}><option value="ALL">All estimates</option><option value="PENDING">Pending decision</option><option value="NOT_REQUIRED">Not required</option><option value="REQUIRED">Requires estimate</option>{estimateDetailOptions.map((status) => <option key={status} value={`STATUS:${status}`}>Estimate: {status}</option>)}</select><select className="health-report-filter" aria-label="Filter by initial report status" value={initialReportFilter} onChange={(event) => setInitialReportFilter(event.target.value)}><option value="ALL">All initial reports</option>{initialReportOptions.map((status) => <option key={status} value={status}>{status}</option>)}</select></div></div>
         <div className="health-ticket-list">{filtered.length === 0 && <p className="health-empty">No tickets to display.</p>}{filtered.map((ticket) => <article className="health-ticket" key={ticket.id}>
