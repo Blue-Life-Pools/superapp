@@ -16,6 +16,9 @@ const groups: Array<[string, string, string[]]> = [
   ['Gauges, gutters, Plugs', 'Gauges / Gutters / Plugs', ['Vacuum gauge', 'Skimmer gutter', 'Return', 'Plug', 'Gutter grate', 'Thermometer', 'pressure gauge']],
   ['Rules / Water level', 'Rules / Water level', ['Rules', 'Water level', 'water clarity']],
   ['Step / Handrail', 'Step / Handrail', ['Step', 'Handrail']],
+  ['ORP', 'ORP', ['ORP']],
+  ['Tile', 'Tile', ['Tile']],
+  ['Filters', 'Filters', ['Filters']],
 ];
 const dateValue = healthDate;
 function asList(value: string) {
