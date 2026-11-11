@@ -2,12 +2,12 @@
 .chemical-monthly-fee-alert .reports-section-heading { display: grid; gap: 16px; }
 .chemical-monthly-fee-alert .reports-section-heading > div:first-child h2 { margin: 0; color: #102a4a; font-size: clamp(20px, 1.6vw, 27px); letter-spacing: -0.025em; line-height: 1.15; }
 .chemical-monthly-fee-alert .reports-section-heading > div:first-child p { margin: 7px 0 0; color: #66758c; font-size: 12px; }
-.chemical-alert-actions { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)) auto; align-items: end; gap: 10px; width: 100%; }
+.chemical-alert-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; align-items: end; gap: 10px; width: 100%; min-width: 0; }
 .chemical-alert-actions label { display: grid; gap: 5px; min-width: 0; color: #526783; font-size: 11px; font-weight: 700; }
 .chemical-alert-actions input, .chemical-alert-actions select { box-sizing: border-box; width: 100%; min-height: 38px; border: 1px solid #d1dce9; border-radius: 8px; padding: 7px 9px; background: #fff; color: #172d4a; font: inherit; font-size: 12px; box-shadow: 0 1px 2px rgb(16 42 74 / 4%); }
-.chemical-alert-refresh { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; border: 0; border-radius: 8px; padding: 0 15px; background: #102f53; color: #fff; font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; box-shadow: 0 3px 8px rgb(16 47 83 / 14%); }
-.chemical-alert-refresh:hover { background: #0b2440; }
-.chemical-alert-refresh .workspace-icon { width: 22px; height: 22px; }
+.chemical-alert-refresh { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 34px; border: 1px solid #bfd9e7; border-radius: 8px; padding: 0 11px; background: #fff; color: #0671ce; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+.chemical-alert-refresh:hover { background: #f4fafc; }
+.chemical-alert-refresh .workspace-icon { width: 16px; height: 16px; }
 .chemical-alert-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .chemical-alert-kpis span { position: relative; display: grid; gap: 5px; min-height: 58px; padding: 11px 13px; border: 1px solid #d8e0e9; border-radius: 9px; background: #fff; box-shadow: 0 1px 2px rgb(16 42 74 / 3%); }
 .chemical-alert-kpis small { color: #62738b; font-size: 10px; }
@@ -16,7 +16,14 @@
 .chemical-alert-kpis .is-alert strong { color: #c42c24; }
 .chemical-alert-kpis .is-alert .workspace-icon { color: #e98d8a; }
 .chemical-alert-kpis .is-alert strong { color: #b42318; }
-.chemical-alert-table th, .chemical-alert-table td { min-width: 110px; }
+.chemical-alert-table { table-layout: fixed; min-width: 0; }
+.chemical-alert-table th, .chemical-alert-table td { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chemical-alert-table th:nth-child(1) { width: 24%; }
+.chemical-alert-table th:nth-child(2) { width: 17%; }
+.chemical-alert-table th:nth-child(3) { width: 16%; }
+.chemical-alert-table th:nth-child(4), .chemical-alert-table th:nth-child(5) { width: 13%; }
+.chemical-alert-table th:nth-child(6) { width: 9%; }
+.chemical-alert-table th:nth-child(7) { width: 8%; }
 .chemical-alert-table thead th { padding: 10px 11px; color: #526783; font-size: 11px; }
 .chemical-alert-table tbody th, .chemical-alert-table tbody td { padding: 11px; color: #172d4a; font-size: 12px; }
 .chemical-alert-table tbody th { font-weight: 750; }
@@ -32,7 +39,7 @@
   .chemical-alert-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
-  .chemical-alert-actions { grid-template-columns: repeat(2, minmax(120px, 1fr)); width: 100%; }
+  .chemical-alert-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   .chemical-alert-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 599px) {
@@ -40,4 +47,10 @@
   .chemical-monthly-fee-alert .reports-section-heading > div:first-child h2 { font-size: 20px; }
   .chemical-alert-actions { grid-template-columns: 1fr; }
   .chemical-alert-kpis { grid-template-columns: 1fr 1fr; }
+  .chemical-alert-table { display: block; }
+  .chemical-alert-table thead { display: none; }
+  .chemical-alert-table tbody, .chemical-alert-table tr { display: grid; }
+  .chemical-alert-table tr { grid-template-columns: 1fr 1fr; gap: 4px 12px; padding: 10px; border-bottom: 1px solid #d9e2e8; }
+  .chemical-alert-table tbody th, .chemical-alert-table tbody td { width: auto !important; padding: 3px 0; border: 0; text-align: left; white-space: normal; }
+  .chemical-alert-table tbody th { grid-column: 1 / -1; }
 }
