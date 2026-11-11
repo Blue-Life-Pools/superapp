@@ -2,14 +2,14 @@
 .chemical-monthly-fee-alert .reports-section-heading { display: grid; gap: 16px; }
 .chemical-monthly-fee-alert .reports-section-heading > div:first-child h2 { margin: 0; color: #102a4a; font-size: clamp(20px, 1.6vw, 27px); letter-spacing: -0.025em; line-height: 1.15; }
 .chemical-monthly-fee-alert .reports-section-heading > div:first-child p { margin: 7px 0 0; color: #66758c; font-size: 12px; }
-.chemical-alert-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; align-items: end; gap: 10px; width: 100%; min-width: 0; padding-top: 4px; }
+.chemical-alert-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; align-items: end; gap: 10px; width: 100%; min-width: 0; padding-top: 4px; margin-bottom: 10px; }
 .chemical-alert-actions label { display: grid; gap: 5px; min-width: 0; color: #526783; font-size: 11px; font-weight: 700; line-height: 1.2; }
 .chemical-alert-actions input, .chemical-alert-actions select { box-sizing: border-box; width: 100%; min-height: 38px; border: 1px solid #d1dce9; border-radius: 8px; padding: 7px 9px; background: #fff; color: #172d4a; font: inherit; font-size: 12px; box-shadow: 0 1px 2px rgb(16 42 74 / 4%); }
 .chemical-alert-refresh { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 34px; border: 1px solid #bfd9e7; border-radius: 8px; padding: 0 11px; background: #fff; color: #0671ce; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
 .chemical-alert-refresh:hover { background: #f4fafc; }
 .chemical-alert-refresh .workspace-icon { width: 16px; height: 16px; }
-.chemical-alert-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 2px; }
-.chemical-alert-kpis span { position: relative; display: grid; gap: 5px; min-height: 58px; padding: 11px 13px; border: 1px solid #d8e0e9; border-radius: 9px; background: #fff; box-shadow: 0 1px 2px rgb(16 42 74 / 3%); }
+.chemical-alert-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+.chemical-alert-kpis span { position: relative; display: grid; align-content: center; gap: 5px; min-height: 64px; padding: 11px 13px; border: 1px solid #d8e0e9; border-radius: 9px; background: #fff; box-shadow: 0 1px 2px rgb(16 42 74 / 3%); }
 .chemical-alert-kpis small { color: #62738b; font-size: 10px; }
 .chemical-alert-kpis strong { color: #102a4a; font-size: 21px; line-height: 1; }
 .chemical-alert-kpis .workspace-icon { position: absolute; right: 11px; top: 19px; width: 20px; height: 20px; color: #9aa9bb; }
