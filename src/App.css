@@ -5461,3 +5461,18 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-page .health-main-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(260px, .75fr); gap: 20px; align-items: start; }
 .health-page .health-upcoming { display: block; margin-top: 0; }
 @media (max-width: 900px) { .health-page .health-main-grid { grid-template-columns: 1fr; } .health-page .health-upcoming { margin-top: 20px; } }
+
+/* Commercial Home surface and reference-style inspection metrics. */
+html:has(.health-page), body:has(.health-page) { background: linear-gradient(180deg, #f2faff 0, #f8fcfe 280px, #f4f9fb 100%) !important; }
+.health-page { background: transparent !important; }
+.health-page .health-ticket-summary { align-items: stretch; }
+.health-page .health-summary-chip { display: flex; flex-direction: row; align-items: flex-start; gap: 12px; text-align: left; }
+.health-page .health-summary-chip > .workspace-icon { flex: 0 0 27px; width: 27px; height: 27px; color: #475467; }
+.health-page .health-summary-copy { display: grid; gap: 7px; min-width: 0; }
+.health-page .health-summary-copy b { line-height: 1.2; text-transform: none; }
+.health-page .health-summary-copy strong { color: #101b42; font-size: 16px; line-height: 1.25; overflow-wrap: anywhere; }
+.health-page .health-summary-estimate-number > .workspace-icon, .health-page .health-summary-estimate-status > .workspace-icon { color: #596277; }
+.health-page .health-summary-estimate-number .health-summary-copy strong { color: #b4234b; }
+.health-page .health-summary-estimate-status .health-summary-copy strong { width: fit-content; border-radius: 999px; padding: 8px 15px; background: #fff0f3; color: #b4234b; }
+.health-page .health-card-heading, .health-page .health-ticket { box-shadow: 0 10px 28px rgb(76 125 153 / 5%); }
+@media (max-width: 1100px) { .health-page .health-summary-chip { padding-left: 14px; padding-right: 14px; } }
