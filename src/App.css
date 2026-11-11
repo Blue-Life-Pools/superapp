@@ -5514,3 +5514,10 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-page .health-summary-chip { align-items: flex-start; }
 .health-page .health-summary-chip > .workspace-icon { flex: 0 0 28px; width: 28px; height: 28px; margin-top: 0; }
 .health-page .health-summary-estimate-status .health-summary-copy strong { white-space: nowrap; }
+
+/* Estimate information is its own subsection instead of sharing the inspection row. */
+.health-page .health-ticket-summary-sections { margin-top: 0; }
+.health-page .health-ticket-summary-main { border-bottom: 0 !important; }
+.health-page .health-estimate-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
+.health-page .health-estimate-section h4 { margin: 0 0 16px; color: #4b5563; font-size: 15px; font-weight: 600; }
+.health-page .health-estimate-summary { padding-top: 0; border-top: 0; border-bottom: 0; }
