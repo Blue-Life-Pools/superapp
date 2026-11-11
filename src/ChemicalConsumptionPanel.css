@@ -34,3 +34,27 @@
 .consumption-follow-up-panel { margin: 12px 0; padding: 12px 0; border-top: 1px solid #d5e5eb; border-bottom: 1px solid #d5e5eb; }
 .consumption-follow-up-panel > summary { color: #075477; font-weight: 700; cursor: pointer; }
 .consumption-follow-up-panel > summary span { margin-left: 6px; color: #667085; font-size: 11px; }
+.consumption-disinfection-panel { display: grid; gap: 12px; margin: 16px 0 20px; padding: 16px; border: 1px solid #d5e5eb; border-radius: 10px; background: #fbfdfe; }
+.consumption-disinfection-panel > header { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.consumption-disinfection-panel h3 { margin: 0; color: #123e63; font-size: 17px; }
+.consumption-disinfection-panel header p { margin: 5px 0 0; color: #667085; font-size: 11px; line-height: 1.5; }
+.consumption-disinfection-panel header > span { color: #667085; font-size: 11px; white-space: nowrap; }
+.consumption-disinfection-chart { display: flex; align-items: end; gap: 10px; min-height: 150px; padding: 10px 8px 0; border-bottom: 1px solid #bfd9e7; }
+.consumption-disinfection-column { display: grid; flex: 1 1 0; min-width: 34px; gap: 5px; justify-items: center; }
+.consumption-disinfection-column strong { color: #667085; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.consumption-disinfection-bar { display: flex; flex-direction: column-reverse; justify-content: flex-start; width: min(38px, 70%); height: 120px; overflow: hidden; border-radius: 5px 5px 0 0; background: #edf1f3; }
+.consumption-disinfection-bar i { display: block; min-height: 0; }
+.disinfection-liquid { background: #1786d5; }
+.disinfection-tablets { background: #7b61b5; }
+.disinfection-powder { background: #d17d4d; }
+.disinfection-balance { background: #b9a13b; }
+.consumption-disinfection-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; color: #667085; font-size: 10px; }
+.consumption-disinfection-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.consumption-disinfection-legend i { width: 9px; height: 9px; border-radius: 50%; }
+.consumption-disinfection-table-wrap { overflow-x: auto; }
+.consumption-disinfection-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 11px; }
+.consumption-disinfection-table th, .consumption-disinfection-table td { padding: 8px 7px; border-top: 1px solid #e1ebef; text-align: right; white-space: nowrap; }
+.consumption-disinfection-table thead th { color: #526783; font-weight: 700; text-align: right; }
+.consumption-disinfection-table th:first-child, .consumption-disinfection-table td:first-child { text-align: left; }
+.consumption-disinfection-table tbody th { color: #123e63; }
+@media (max-width: 700px) { .consumption-disinfection-panel > header { display: grid; }.consumption-disinfection-chart { gap: 5px; }.consumption-disinfection-column strong { font-size: 9px; transform: rotate(-35deg); transform-origin: top center; margin-bottom: 8px; } }
