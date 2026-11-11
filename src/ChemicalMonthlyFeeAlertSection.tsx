@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { API_URL, apiFetch } from './api';
 import { chemicalReportMonth } from './chemicalConsumptionAlerts';
+import { WorkspaceIcon } from './WorkspaceIcon';
 import './ChemicalMonthlyFeeAlertSection.css';
 
 type Body = { id: string; name: string; type: string; technicianName?: string | null };
@@ -73,13 +74,13 @@ export function ChemicalMonthlyFeeAlertSection() {
         <label>Technician<select aria-label="Monthly fee alert technician" value={technician} onChange={(event) => setTechnician(event.target.value)}><option value="">All technicians</option>{technicians.map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
         <label>Property<select aria-label="Monthly fee alert property" value={property} onChange={(event) => setProperty(event.target.value)}><option value="">All properties</option>{(dashboard?.properties || []).slice().sort((a, b) => a.name.localeCompare(b.name)).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         <label>Water body<select aria-label="Monthly fee alert water body" value={bodyKind} onChange={(event) => setBodyKind(event.target.value)}><option value="">All types</option><option value="Piscina">Piscina</option><option value="Fuente">Fuente</option><option value="Spa">Spa</option></select></label>
-        <button type="button" className="reports-table-download-button" onClick={() => setRefresh((value) => value + 1)}>Refresh</button>
+        <button type="button" className="chemical-alert-refresh" onClick={() => setRefresh((value) => value + 1)}><WorkspaceIcon name="refresh" />Refresh</button>
       </div>
     </div>
     {loading && <p className="reports-empty">Loading monthly fee alerts…</p>}
     {error && <p className="reports-message" role="alert">{error}</p>}
     {!loading && !error && <>
-      <div className="chemical-alert-kpis"><span><small>Properties shown</small><strong>{propertyRows.length}</strong></span><span className={alerts ? 'is-alert' : ''}><small>Alerts &gt;20%</small><strong>{alerts}</strong></span><span><small>Selected chemical cost</small><strong>{money(totalCost)}</strong></span><span><small>Cost / monthly fee</small><strong>{pct(totalPercent)}</strong></span></div>
+      <div className="chemical-alert-kpis"><span><small>Properties shown</small><WorkspaceIcon name="properties" /><strong>{propertyRows.length}</strong></span><span className={alerts ? 'is-alert' : ''}><small>Alerts &gt;20%</small><WorkspaceIcon name="warning" /><strong>{alerts}</strong></span><span><small>Selected chemical cost</small><WorkspaceIcon name="chemicals" /><strong>{money(totalCost)}</strong></span><span><small>Cost / monthly fee</small><WorkspaceIcon name="percent" /><strong>{pct(totalPercent)}</strong></span></div>
       {!propertyRows.length ? <p className="reports-empty">No uploaded consumption or monthly fee data is available for this month.</p> : <div className="reports-technician-table-wrap"><table className="reports-technician-table chemical-alert-table"><thead><tr><th>Property</th><th>Water body</th><th>Technician</th><th>Monthly fee</th><th>Chemical cost</th><th>% of fee</th><th>Status</th></tr></thead><tbody>{propertyRows.map((row) => { const rowPercent = row.period.monthlyFee && row.period.monthlyFee > 0 ? row.cost / row.period.monthlyFee * 100 : null; const alert = rowPercent != null && rowPercent > 20; return <tr key={`${row.property.id}-${row.body.id}-${row.technician}`} className={alert ? 'chemical-alert-row' : ''}><th>{row.property.name}</th><td>{bodyLabel(row.body)}</td><td>{row.technician}</td><td>{money(row.period.monthlyFee)}</td><td>{money(row.cost)}</td><td><strong>{pct(rowPercent)}</strong></td><td><span className={`chemical-alert-status ${alert ? 'is-alert' : 'is-normal'}`}>{alert ? 'ALERT' : 'Normal'}</span></td></tr>; })}</tbody></table></div>}
       <p className="chemical-alert-footnote">Alert threshold: chemical cost greater than 20% of the property monthly fee. Water bodies are standardized from CRM data into Pool, Fountain and Spa categories.</p>
     </>}
