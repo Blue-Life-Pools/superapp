@@ -11,7 +11,7 @@
   --health-rose-100: #ffe4e8;
   --health-rose-050: #fff7f8;
   --health-border: #f1cbd3;
-  background: linear-gradient(180deg, #fff7f8 0, #fffafb 280px, #fff4f6 100%);
+  background: linear-gradient(180deg, #f2faff 0, #f8fcfe 280px, #f4f9fb 100%);
 }
 
 .health-page .area-eyebrow,
