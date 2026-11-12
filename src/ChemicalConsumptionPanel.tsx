@@ -1,6 +1,8 @@
 import { SearchField } from './SearchField';
 import { WorkspaceIcon } from './WorkspaceIcon';
 import { DisinfectionTrend } from './DisinfectionTrend';
+import { ConsumptionDetailEditor } from './ConsumptionDetailEditor';
+import type { ConsumptionEditMode } from './consumptionEditing';
 import type { ComponentProps, ReactNode } from 'react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { API_URL, apiFetch } from './api';
@@ -11,7 +13,7 @@ import './ChemicalConsumptionPanel.css';
 type Body = { id: string; name: string; technicianName: string | null; gallons: number | null; type: string; size: string | null; active: boolean };
 type Property = { id: string; name: string; code: string | null; lifecycleStatus: string; updatedAt: string; waterBodies: Body[] };
 type Chemical = ConsumptionChemical & { expectedMin: number | null; expectedMax: number | null; status: string; expectedQuantity?: number; expectedMean?: number; historicalMean?: number; historicalMonths?: number; historicalFactor?: number; excludedMonths?: number[]; seasonal?: boolean; excessQuantity?: number | null; excessPercent?: number | null; referenceSource?: string | null };
-type Period = { month?: string; propertyId: string; monthlyFee: number | null; feeSource: string | null; sourceName: string | null; budgetPercent?: number | null; seasonFactor?: number; references?: Array<{ name: string; unit: string; min?: number; max?: number }>; chemicals: Chemical[]; totalCost: number; costPercent: number | null; allocation: { basis: string; totalGallons: number | null; unallocatedFee: number; unallocatedCost: number; bodies: Array<Body & { share: number; monthlyFee: number | null; chemicalCost: number; costPercent: number | null; chemicals: Chemical[] }> } };
+type Period = { technicianOverride?: string | null; month?: string; propertyId: string; monthlyFee: number | null; feeSource: string | null; sourceName: string | null; budgetPercent?: number | null; seasonFactor?: number; references?: Array<{ name: string; unit: string; min?: number; max?: number }>; chemicals: Chemical[]; totalCost: number; costPercent: number | null; allocation: { basis: string; totalGallons: number | null; unallocatedFee: number; unallocatedCost: number; bodies: Array<Body & { share: number; monthlyFee: number | null; chemicalCost: number; costPercent: number | null; chemicals: Chemical[] }> } };
 type RecurringOverconsumption = { propertyId: string; propertyName: string; months: number; followUpCount?: number; resolved?: boolean; entries: Array<{ month: string; chemicalName: string; unit: string; quantity: number; threshold: number; excessPercent: number }> };
 export type Dashboard = { properties: Property[]; periods: Period[]; recurringOverconsumption?: RecurringOverconsumption[]; followUpCounts?: Record<string, number>; history?: { year: number; matchedProperties: number; unmatchedProperties: number; preliminary: boolean } };
 type Preview = ConsumptionImportRow & { matchedProperty: { id: string; name: string } | null; status: string; existing: boolean };
@@ -86,6 +88,7 @@ export function ChemicalConsumptionPanel() {
   const [error, setError] = useState('');
   const [monthlyFee, setMonthlyFee] = useState('');
   const [feeEditorKey, setFeeEditorKey] = useState<string | null>(null);
+  const [detailEditor, setDetailEditor] = useState<{ mode: ConsumptionEditMode; key: string } | null>(null);
   const feeEditorId = useId();
   const feeInputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<ConsumptionFile | null>(null);
@@ -98,6 +101,7 @@ export function ChemicalConsumptionPanel() {
 
   function openFeeEditor() {
     if (busy) return;
+    setDetailEditor(null);
     if (!feeEditorOpen) {
       setMonthlyFee(period?.monthlyFee == null ? '' : String(period.monthlyFee));
       setFeeEditorKey(feeKey);
@@ -153,9 +157,31 @@ export function ChemicalConsumptionPanel() {
     finally { setBusy(false); }
   }
 
+  function openDetailEditor(mode: ConsumptionEditMode) {
+    setFeeEditorKey(null);
+    setDetailEditor({ mode, key: feeKey });
+  }
+
+  async function saveDetail(path: string, data: unknown) {
+    setBusy(true);
+    try {
+      await request(path, { ...post(data), method: 'PATCH' });
+      setDetailEditor(null);
+      setMessage('Property information saved.');
+      const results = await Promise.allSettled([request<Dashboard>(`?month=${month}`), request<Dashboard>('?month=all')]);
+      if (results[0].status === 'fulfilled') setDashboard(results[0].value);
+      if (results[1].status === 'fulfilled') setTrendDashboard(results[1].value);
+      setError(results.some(result => result.status === 'rejected') ? 'Changes saved. Refresh to reload the latest data.' : '');
+    } finally { setBusy(false); }
+  }
+
+  function editAction(mode: ConsumptionEditMode, label: string) {
+    return <button type="button" className="consumption-fee-edit-button" disabled={busy} onClick={() => openDetailEditor(mode)}><WorkspaceIcon name="edit" />{label}</button>;
+  }
+
   const importedCost = dashboard.periods.reduce((sum, item) => sum + item.totalCost, 0);
-  const overconsumption = dashboard.periods.filter((item) => item.sourceName && item.monthlyFee != null && item.monthlyFee > 0 && (item.costPercent || 0) > 20).map((item) => ({ period: item, propertyName: dashboard.properties.find((property) => property.id === item.propertyId)?.name || item.propertyId, technician: primaryTechnician(item.chemicals) })).sort((a, b) => (b.period.costPercent || 0) - (a.period.costPercent || 0) || a.propertyName.localeCompare(b.propertyName));
-  const reportTechnician = period ? primaryTechnician(period.chemicals) : '';
+  const overconsumption = dashboard.periods.filter((item) => item.sourceName && item.monthlyFee != null && item.monthlyFee > 0 && (item.costPercent || 0) > 20).map((item) => ({ period: item, propertyName: dashboard.properties.find((property) => property.id === item.propertyId)?.name || item.propertyId, technician: item.technicianOverride || primaryTechnician(item.chemicals) })).sort((a, b) => (b.period.costPercent || 0) - (a.period.costPercent || 0) || a.propertyName.localeCompare(b.propertyName));
+  const reportTechnician = period ? period.technicianOverride || primaryTechnician(period.chemicals) : '';
 
   return <section className="consumption-panel consumption-dashboard" aria-label="Property consumption" aria-busy={loading}>
     <div className="consumption-toolbar"><label className="consumption-month-field"><span>Month</span><span className="consumption-month-input"><WorkspaceIcon name="calendar" /><input aria-label="Consumption month" type="month" value={month} disabled={busy} onChange={(event) => event.target.value && setMonth(event.target.value)} /></span></label><div className="consumption-import-actions"><label className="secondary-button"><WorkspaceIcon name="upload" />Upload Skimmer PDF<input aria-label="Upload Skimmer PDF" type="file" accept=".pdf" disabled={busy || loading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void readFile(file, 'pdf'); event.target.value = ''; }} /></label><button type="button" className="secondary-button" disabled={busy} onClick={() => void load()}><WorkspaceIcon name="refresh" />Refresh</button></div></div>
@@ -164,7 +190,7 @@ export function ChemicalConsumptionPanel() {
     <div className="consumption-kpis consumption-company-kpis"><ConsumptionMetric icon="pool" label="Properties with consumption" value={loading ? '—' : dashboard.periods.filter((item) => item.sourceName).length} /><ConsumptionMetric icon="coins" label="Total recorded cost" value={loading ? '—' : money(importedCost)} /><ConsumptionMetric icon="warning" label="Chemical cost over 20%" value={loading ? '—' : overconsumption.length} alert={overconsumption.length > 0} /></div>
     {!loading && <section className="consumption-overview"><div className="consumption-overview-heading"><h2>Overconsumption</h2><span className="consumption-count-badge">{overconsumption.length} {overconsumption.length === 1 ? 'property' : 'properties'}</span></div>{!dashboard.periods.some((item) => item.sourceName) ? <p className="consumption-empty">No consumption recorded for this month. Upload a Skimmer PDF to evaluate chemical cost.</p> : !overconsumption.length ? <p className="consumption-empty">No property has chemical cost above 20% of its monthly fee.</p> : <div className="consumption-overage-table-wrap"><table className="consumption-overage-table"><thead><tr><th>Property</th><th>Chemical cost</th><th>Monthly fee</th><th>% of fee</th><th>Technician</th></tr></thead><tbody>{overconsumption.map(({ period: item, propertyName, technician }) => { const property = dashboard.properties.find((entry) => entry.id === item.propertyId)!; return <tr key={item.propertyId}><th scope="row"><button type="button" onClick={() => { setPropertyId(item.propertyId); setSearch(propertyName); }}>{propertyName}</button>{inactiveLabel(property) && <small className="consumption-inactive-badge">{inactiveLabel(property)}</small>}<small>All chemicals · {dashboard.followUpCounts?.[item.propertyId] || 0} notes</small></th><td className="consumption-excess">{money(item.totalCost)}</td><td>{money(item.monthlyFee)}</td><td><span className="consumption-variation">{percent(item.costPercent)}</span></td><td>{technician || 'Not recorded'}</td></tr>; })}</tbody></table></div>}<details className="consumption-reference-notes"><summary>Reference and evaluation details</summary><p>Alert when total recorded chemical cost is greater than 20% of the property's monthly fee. Select a property to review allocation by water body and technician distribution by chemical.</p></details></section>}
     <section className="consumption-property-card" aria-label="Property consumption detail"><header className="consumption-property-heading"><div><h2>{selectedProperty?.name || 'Select a property'}</h2><p className="consumption-muted">{selectedProperty ? `${selectedProperty.code || 'No property code'} · ${selectedProperty.waterBodies.filter((body) => body.active).length} active water bodies` : 'Search for a property to review its consumption, costs and allocation.'}</p></div><div className="consumption-property-select"><label><span>{selectedProperty ? 'Change property' : 'Property'}</span><SearchField aria-label="Search consumption properties" list="consumption-properties" placeholder="Search or select a property…" autoComplete="off" value={search} disabled={loading || busy} onChange={(event) => { const value = event.target.value; setSearch(value); const match = dashboard.properties.find((property) => property.name.toLowerCase() === value.trim().toLowerCase()); setPropertyId(match?.id || ''); }} /><datalist id="consumption-properties">{dashboard.properties.map((property) => <option key={property.id} value={property.name} />)}</datalist></label></div></header><div className="consumption-report-divider" role="separator" />
-      {selectedProperty && !loading && <>{period && <div className="consumption-kpis consumption-property-kpis"><ConsumptionMetric icon="tag" label="Monthly fee" value={money(period.monthlyFee)} action={<button type="button" className="consumption-fee-edit-button" disabled={busy} aria-controls={feeEditorId} aria-expanded={feeEditorOpen} onClick={openFeeEditor}><WorkspaceIcon name="edit" />Edit monthly fee</button>} /><ConsumptionMetric icon="chemicals" label="Chemical cost" value={money(period.totalCost)} /><ConsumptionMetric icon="percent" label="% spent on chemicals" value={percent(period.costPercent)} alert={(period.costPercent || 0) > 20} /><ConsumptionMetric icon="drop" label="Water bodies" value={period.allocation.bodies.length} /><ConsumptionMetric icon="users" label="Technician" value={reportTechnician || 'Not recorded'} hint="Most usage entries" /></div>}<p className="consumption-property-status">{inactiveLabel(selectedProperty)}</p><details id={feeEditorId} className="consumption-property-settings" open={feeEditorOpen}>
+      {selectedProperty && !loading && <>{period && <div className="consumption-kpis consumption-property-kpis"><ConsumptionMetric icon="tag" label="Monthly fee" value={money(period.monthlyFee)} action={<button type="button" className="consumption-fee-edit-button" disabled={busy} aria-controls={feeEditorId} aria-expanded={feeEditorOpen} onClick={openFeeEditor}><WorkspaceIcon name="edit" />Edit monthly fee</button>} /><ConsumptionMetric icon="chemicals" label="Chemical cost" value={money(period.totalCost)} action={editAction('chemicals', 'Edit chemical cost')} /><ConsumptionMetric icon="percent" label="% spent on chemicals" value={percent(period.costPercent)} alert={(period.costPercent || 0) > 20} action={editAction('calculation', 'Edit calculation')} /><ConsumptionMetric icon="drop" label="Water bodies" value={period.allocation.bodies.length} action={editAction('waterBodies', 'Edit water bodies')} /><ConsumptionMetric icon="users" label="Technician" value={reportTechnician || 'Not recorded'} hint={period.technicianOverride ? 'Manual assignment' : 'Most usage entries'} action={editAction('technician', 'Edit technician')} /></div>}<p className="consumption-property-status">{inactiveLabel(selectedProperty)}</p><details id={feeEditorId} className="consumption-property-settings" open={feeEditorOpen}>
         <summary onClick={(event) => { event.preventDefault(); if (busy) return; if (feeEditorOpen) setFeeEditorKey(null); else openFeeEditor(); }}><WorkspaceIcon name="edit" />{period?.monthlyFee == null ? 'Add monthly fee' : 'Edit monthly fee'}<WorkspaceIcon name="chevron-right" className="consumption-fee-disclosure" /></summary>
         {feeEditorOpen && <form className="consumption-settings consumption-fee-form" onSubmit={(event) => { event.preventDefault(); void saveFee(); }}>
           <p id={`${feeEditorId}-scope`} className="consumption-fee-scope">Applies only to {selectedProperty.name} · {new Date(`${month}-01T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })}.</p>
@@ -176,5 +202,6 @@ export function ChemicalConsumptionPanel() {
     {selectedProperty && <DisinfectionTrend key={selectedProperty.id} periods={trendDashboard.periods.filter((item) => item.propertyId === selectedProperty.id)} />}
     {selectedProperty && <PropertyNotes propertyId={selectedProperty.id} />}
     </section>
+    {selectedProperty && period && detailEditor?.key === feeKey && <ConsumptionDetailEditor key={`${feeKey}:${detailEditor.mode}`} mode={detailEditor.mode} property={selectedProperty} period={period} month={month} automaticTechnician={primaryTechnician(period.chemicals)} onClose={() => setDetailEditor(null)} onSave={saveDetail} />}
   </section>;
 }
