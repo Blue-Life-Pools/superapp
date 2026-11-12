@@ -5602,7 +5602,8 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 
 /* Make the horizontal navigation controls unmistakable and keep them above the strip. */
 .health-page .health-summary-carousel { position: relative; overflow: visible; }
-.health-page .health-summary-arrow { display: grid !important; place-items: center; position: relative; z-index: 3; flex: 0 0 32px; width: 32px !important; height: 42px !important; margin: auto 0; padding: 0; border: 1px solid #9ca3af !important; border-radius: 9px; background: #111827 !important; color: #fff !important; font-size: 26px !important; font-weight: 700; line-height: 1; }
+.health-page .health-summary-arrow { display: grid !important; place-items: center; position: relative; z-index: 3; flex: 0 0 26px; width: 26px !important; height: 34px !important; margin: auto 0; padding: 0; border: 1px solid #d1d5db !important; border-radius: 7px; background: #f3f4f6 !important; color: #111827 !important; font-size: 20px !important; font-weight: 600; line-height: 1; }
+.health-page .health-summary-arrow:hover { background: #e5e7eb !important; color: #000 !important; }
 .health-page .health-summary-carousel .health-ticket-summary { overflow-x: hidden; }
 
 /* Never wrap the metric strip: arrows reveal the next horizontal group. */
