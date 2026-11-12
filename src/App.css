@@ -5801,7 +5801,7 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-outcome-chart .health-analytics-line { height: 175px; }
 .health-outcome-chart .health-line-labels small { font-size: 10px; }
 .health-outcome-chart .health-chart-grid { stroke: #e5edf3; stroke-width: .6; stroke-dasharray: 1.4 1.4; }
-.health-outcome-chart .health-chart-grid-label { fill: #667085; font-size: 3.2px; text-anchor: end; }
+.health-outcome-chart .health-chart-grid-label { fill: #667085; font-size: 3.2px; text-anchor: start; }
 .health-outcome-chart .health-chart-point-label-current { font-size: 5px; font-weight: 600; }
 .health-analytics-properties { gap: 8px; padding: 14px 16px; }
 .health-properties-heading { gap: 12px; }
