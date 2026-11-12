@@ -1,11 +1,20 @@
 .health-workspace-layout {
   min-width: 0;
   width: 100%;
-  container: health-workspace / inline-size;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.health-workspace-layout:focus-visible {
+  outline: 2px solid #62a8f5;
+  outline-offset: 2px;
 }
 
 .health-page .health-workspace-layout .health-main-grid {
   display: grid;
+  min-width: 960px;
   grid-template-columns: minmax(0, 1.45fr) minmax(260px, .75fr);
   align-items: start;
   gap: 20px;
@@ -36,13 +45,6 @@
   max-width: 100%;
   margin: 0;
   z-index: auto;
-}
-
-/* Respond to usable space, including sidebar changes and browser zoom. */
-@container health-workspace (max-width: 960px) {
-  .health-page .health-workspace-layout .health-main-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 @container health-tickets (max-width: 720px) {
