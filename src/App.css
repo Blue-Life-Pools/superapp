@@ -5740,6 +5740,29 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-analytics-line-card .health-chart-point-previous { fill: #174a7a; }
 .health-analytics-line-card .health-chart-point-current { fill: #62a8f5; }
 
+/* Combined inspection outcomes chart with a compact state filter. */
+.health-analytics-outcomes-card { display: grid; gap: 18px; }
+.health-outcomes-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.health-outcomes-heading h3 { margin: 0; color: #111827; font-size: 20px; }
+.health-outcomes-heading p { margin: 5px 0 0; color: #6b7280; font-size: 13px; }
+.health-outcome-tabs { display: inline-flex; overflow: hidden; border: 1px solid #dfe5ec; border-radius: 28px; }
+.health-outcome-tabs button { min-width: 145px; padding: 11px 18px; border: 0; border-right: 1px solid #dfe5ec; background: #fff; color: #344054; font-size: 14px; font-weight: 600; cursor: pointer; }
+.health-outcome-tabs button:last-child { border-right: 0; }
+.health-outcome-tabs button.is-active { background: #1d607e; color: #fff; }
+.health-outcome-tabs button:focus-visible { outline: 2px solid #62a8f5; outline-offset: -2px; }
+.health-outcomes-body { display: grid; grid-template-columns: 190px minmax(0, 1fr); align-items: stretch; gap: 24px; }
+.health-outcome-summary { display: grid; align-content: center; gap: 7px; border-right: 1px solid #e5e7eb; padding: 10px 24px 10px 4px; }
+.health-outcome-summary span, .health-outcome-summary small { color: #667085; font-size: 12px; }
+.health-outcome-summary strong { color: #172b4d; font-size: 21px; }
+.health-outcome-summary b { color: #172b4d; font-size: 48px; line-height: 1; }
+.health-outcome-chart { min-width: 0; }
+.health-outcome-chart .health-line-heading { justify-content: flex-end; }
+.health-outcome-chart .health-analytics-line { height: 190px; margin-top: 4px; }
+.health-outcome-chart .health-line-labels { font-size: 14px; }
+.health-outcome-chart .health-line-labels small { font-size: 13px; font-weight: 600; }
+@media (max-width: 850px) { .health-outcomes-heading { flex-direction: column; } .health-outcome-tabs { width: 100%; } .health-outcome-tabs button { flex: 1; min-width: 0; } }
+@media (max-width: 600px) { .health-outcomes-body { grid-template-columns: 1fr; gap: 12px; } .health-outcome-summary { border-right: 0; border-bottom: 1px solid #e5e7eb; padding: 0 0 12px; } .health-outcome-summary b { font-size: 34px; } }
+
 /* Keep the top analytics bars lighter and less dominant. */
 .health-analytics-bars .health-bar-column span { width: min(42px, 70%); }
 .health-analytics-bars .health-bar-chart-estimates .health-bar-column span { width: min(56px, 70%); }
