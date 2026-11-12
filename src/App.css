@@ -5723,11 +5723,11 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-analytics-line-card .health-line-labels small { font-size: 12px; font-weight: 600; }
 .health-analytics-line-card .health-chart-point-label-previous text,
 .health-analytics-line-card .health-chart-point-label-current text {
-  font-size: 6px;
-  font-weight: 800;
+  font-size: 5px;
+  font-weight: 500;
   paint-order: stroke;
   stroke: #fff;
-  stroke-width: 1.15px;
+  stroke-width: .55px;
   stroke-linejoin: round;
 }
 .health-analytics-line-card .health-chart-point-label-previous text { fill: #174a7a; }
