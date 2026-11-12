@@ -5723,7 +5723,7 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-analytics-line-card .health-line-labels small { font-size: 12px; font-weight: 600; }
 .health-analytics-line-card .health-chart-point-label-previous text,
 .health-analytics-line-card .health-chart-point-label-current text {
-  font-size: 6.5px;
+  font-size: 9px;
   font-weight: 400;
   paint-order: normal;
   stroke: none;
