@@ -5464,7 +5464,7 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 
 /* Commercial Home surface and reference-style inspection metrics. */
 html:has(.health-page), body:has(.health-page) { background: linear-gradient(180deg, #f2faff 0, #f8fcfe 280px, #f4f9fb 100%) !important; }
-.health-page { background: transparent !important; }
+.health-page { background: #f7fbfd !important; }
 .health-page .health-ticket-summary { align-items: stretch; }
 .health-page .health-summary-chip { display: flex; flex-direction: row; align-items: flex-start; gap: 12px; text-align: left; }
 .health-page .health-summary-chip > .workspace-icon { flex: 0 0 27px; width: 27px; height: 27px; color: #475467; }
