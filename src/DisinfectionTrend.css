@@ -1,0 +1,217 @@
+.consumption-disinfection-panel .disinfection-interaction-hint {
+  margin: -5px 0 0;
+  color: #667085;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.consumption-disinfection-panel .consumption-disinfection-chart {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.disinfection-segment-slot {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 0;
+}
+
+.consumption-disinfection-bar .disinfection-segment {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.consumption-disinfection-bar .disinfection-segment:hover,
+.consumption-disinfection-bar .disinfection-segment[aria-expanded="true"] {
+  filter: brightness(1.12);
+  box-shadow: inset 0 0 0 1px #ffffffb3;
+}
+
+.consumption-disinfection-bar .disinfection-segment:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px #fff;
+}
+
+.consumption-disinfection-panel .disinfection-detail-trigger {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.consumption-disinfection-panel .disinfection-detail-trigger:hover,
+.consumption-disinfection-panel .disinfection-detail-trigger[aria-expanded="true"] {
+  color: #0875d4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.disinfection-usage-popover {
+  position: fixed;
+  z-index: 2000;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: min(400px, calc(100vw - 24px));
+  max-height: min(420px, calc(100dvh - 24px));
+  overflow: hidden;
+  border: 1px solid #cfe0ec;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 32px #123e6329;
+  color: #253650;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.disinfection-usage-popover > header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px 10px;
+  border-bottom: 1px solid #e6eef4;
+}
+
+.disinfection-usage-popover > header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.disinfection-usage-popover > header strong {
+  color: #123e63;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.disinfection-usage-popover > header span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.disinfection-usage-popover > header > button {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  margin: -2px -3px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: #f2f6fa;
+  color: #526783;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.disinfection-usage-popover > header > button:focus-visible {
+  outline: 2px solid #62a8f5;
+  outline-offset: 2px;
+}
+
+.disinfection-usage-products {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 14px;
+}
+
+.disinfection-usage-product {
+  padding: 12px 0;
+}
+
+.disinfection-usage-product + .disinfection-usage-product {
+  border-top: 1px solid #e6eef4;
+}
+
+.disinfection-usage-product-heading {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 9px;
+}
+
+.disinfection-usage-product-heading strong {
+  color: #123e63;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.disinfection-usage-product-heading > span {
+  color: #526783;
+  font-variant-numeric: tabular-nums;
+}
+
+.disinfection-usage-headings,
+.disinfection-usage-person {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(70px, auto) minmax(54px, auto);
+  align-items: start;
+  gap: 10px;
+}
+
+.disinfection-usage-headings {
+  margin-bottom: 5px;
+  color: #8290a5;
+  font-size: 10px;
+}
+
+.disinfection-usage-person {
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.disinfection-usage-person > span:first-child {
+  overflow-wrap: anywhere;
+}
+
+.disinfection-usage-person small {
+  display: block;
+  color: #8290a5;
+  font-size: 10px;
+}
+
+.disinfection-usage-headings > span:not(:first-child),
+.disinfection-usage-person > span:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.disinfection-usage-empty {
+  color: #667085;
+}
+
+.disinfection-usage-popover > footer {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  border-top: 1px solid #e6eef4;
+  background: #f7fbfe;
+  color: #526783;
+  font-size: 12px;
+}
+
+.disinfection-usage-popover > footer strong {
+  color: #123e63;
+  font-weight: 600;
+}
