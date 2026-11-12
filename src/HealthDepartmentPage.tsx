@@ -1,6 +1,7 @@
 import { SearchField } from './SearchField';
 import { WorkspaceIcon } from './WorkspaceIcon';
 import { HealthLineChart } from './HealthLineChart';
+import { HealthBarChart } from './HealthBarChart';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { API_URL, apiFetch as fetch, getAppToken } from './api';
@@ -57,8 +58,6 @@ function HealthAnalytics({ tickets, activeInitialReportFilter, onInitialReportFi
   const outcomeSeries = ['Closed', 'Satisfactory', 'Unsatisfactory'].map((outcome) => [2025, 2026].map((year) => analyticsMonths.map((_, month) => tickets.filter((ticket) => { const date = analyticsDate(ticket); return date?.getFullYear() === year && date.getMonth() === month && ticket.healthData.Estado?.trim() === outcome; }).length)));
   const propertyCounts = [...new Map(tickets.filter((ticket) => analyticsDate(ticket)?.getFullYear() === 2026).map((ticket) => [ticket.property || ticket.name, 1])).keys()].map((name) => ({ name, count: tickets.filter((ticket) => { const date = analyticsDate(ticket); return (ticket.property || ticket.name) === name && date?.getFullYear() === 2026; }).length })).sort((a, b) => b.count - a.count).slice(0, 10);
   const propertyTotal = propertyCounts.reduce((sum, item) => sum + item.count, 0);
-  const maxReport = Math.max(1, ...reportCounts);
-  const maxEstimate = Math.max(1, ...estimateCounts);
   const selectedOutcomeIndex = ['Closed', 'Satisfactory', 'Unsatisfactory'].indexOf(selectedOutcome);
   const selectedOutcomeSeries = outcomeSeries[selectedOutcomeIndex] || outcomeSeries[0];
   const toggleInitialReportFilter = (value: string) => onInitialReportFilterChange(activeInitialReportFilter === value ? 'ALL' : value);
@@ -66,7 +65,16 @@ function HealthAnalytics({ tickets, activeInitialReportFilter, onInitialReportFi
   return <section className="health-analytics" aria-label="Inspection analytics">
     <div className="health-analytics-heading"><div><h2>Inspection Analytics</h2><p>Year-over-year compliance, inspection, and estimate performance.</p></div><span>2025 / 2026</span></div>
     <div className="health-analytics-kpis">{kpis.map(([label, value, filterValue]) => <button type="button" className={activeInitialReportFilter === filterValue ? 'is-active' : ''} aria-pressed={activeInitialReportFilter === filterValue} title={`Filter tickets by ${label}`} onClick={() => toggleInitialReportFilter(filterValue)} key={label}><b>{label}</b><strong>{value}</strong></button>)}</div>
-    <div className="health-analytics-top-grid"><article className="health-analytics-card health-analytics-bars"><h3>Reports by month 2026</h3><p>Converted, sent, and approved estimate reports.</p><div className="health-bar-chart">{reportCounts.map((count, index) => <div className="health-bar-column" key={analyticsMonths[index]}><strong>{count}</strong><span style={{ height: `${Math.max(3, (count / maxReport) * 100)}%` }} /><small>{analyticsMonths[index]}</small></div>)}</div></article><article className="health-analytics-card health-analytics-bars"><h3>Estimate status 2026</h3><p>Estimate count by status.</p><div className="health-bar-chart health-bar-chart-estimates">{estimateStatuses.map((status, index) => <div className="health-bar-column" key={status}><strong>{estimateCounts[index]}</strong><span style={{ height: `${Math.max(3, (estimateCounts[index] / maxEstimate) * 100)}%` }} /><small>{status}</small></div>)}</div></article></div>
+    <div className="health-analytics-top-grid">
+      <article className="health-analytics-card health-analytics-bars">
+        <h3>Reports by month 2026</h3><p>Total inspection reports by month.</p>
+        <HealthBarChart items={reportCounts.map((value, index) => ({ label: analyticsMonths[index], value }))} variant="reports" label="Inspection report counts by month in 2026" />
+      </article>
+      <article className="health-analytics-card health-analytics-bars">
+        <h3>Estimate status 2026</h3><p>Estimate count by status.</p>
+        <HealthBarChart items={estimateStatuses.map((label, index) => ({ label, value: estimateCounts[index] }))} variant="estimates" label="Estimate counts by status in 2026" />
+      </article>
+    </div>
     <article className="health-analytics-card health-analytics-outcomes-card">
       <div className="health-outcomes-heading">
         <div><h3>Inspection outcomes</h3><p>Monthly trend with comparison by year.</p></div>
