@@ -5722,7 +5722,14 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-analytics-line-card .health-line-labels { font-size: 14px; }
 .health-analytics-line-card .health-line-labels small { font-size: 12px; font-weight: 600; }
 .health-analytics-line-card .health-chart-point-label-previous text,
-.health-analytics-line-card .health-chart-point-label-current text { font-size: 3.2px; font-weight: 700; }
+.health-analytics-line-card .health-chart-point-label-current text {
+  font-size: 6px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 1.15px;
+  stroke-linejoin: round;
+}
 .health-analytics-line-card .health-chart-point-label-previous text { fill: #174a7a; }
 .health-analytics-line-card .health-chart-point-label-current text { fill: #62a8f5; }
 .health-analytics-line-card .health-chart-point-previous { fill: #174a7a; }
