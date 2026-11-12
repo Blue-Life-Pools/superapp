@@ -31,6 +31,16 @@
 .consumption-edit-button { padding: 3px 8px; border: 1px solid #bfd9e7; border-radius: 6px; background: #fff; color: #075477; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }.consumption-edit-form { display: grid; gap: 8px; margin-top: 8px; }.consumption-edit-form textarea { min-height: 70px; padding: 10px; border: 1px solid #bfd9e7; border-radius: 8px; resize: vertical; font: inherit; }.consumption-edit-form > div { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto auto; gap: 8px; }.consumption-follow-up-list article header > div { display: grid; gap: 3px; }.consumption-follow-up-list article header time { display: block; }
 .consumption-inactive-badge, .consumption-property-status { display: block; width: fit-content; margin-top: 4px; color: #9a3412; font-size: 10px; font-weight: 700; }
 .consumption-property-status:empty { display: none; }
+.chemicals-design .consumption-metric .consumption-fee-edit-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: fit-content; max-width: 100%; min-height: 26px; padding: 4px 7px; border: 1px solid #cfe0f1; border-radius: 6px; background: #f4f9ff; color: #0869bf; font: inherit; font-size: 11px; font-weight: 500; line-height: 1.3; text-align: left; cursor: pointer; }
+.consumption-fee-edit-button .workspace-icon { flex: 0 0 13px; width: 13px; height: 13px; }
+.chemicals-design .consumption-property-settings > summary { display: inline-flex; gap: 7px; color: #0869bf; font-size: 12px; font-weight: 500; }
+.consumption-property-settings .consumption-fee-disclosure { margin-left: 4px; transition: transform .15s ease; }
+.consumption-property-settings[open] .consumption-fee-disclosure { transform: rotate(90deg); }
+.chemicals-design .consumption-settings.consumption-fee-form { grid-template-columns: minmax(160px, 280px) minmax(0, 1fr); align-items: end; gap: 12px; padding: 14px; border: 1px solid #dce8f4; border-radius: 9px; background: #f8fbff; }
+.consumption-fee-form .consumption-fee-scope, .consumption-fee-form .consumption-error { grid-column: 1 / -1; font-size: 12px; line-height: 1.5; }
+.consumption-fee-form .consumption-fee-scope { color: #60748f; }
+.consumption-fee-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+@media (max-width: 600px) { .chemicals-design .consumption-settings.consumption-fee-form { grid-template-columns: minmax(0, 1fr); } }
 .consumption-follow-up-panel { margin: 12px 0; padding: 12px 0; border-top: 1px solid #d5e5eb; border-bottom: 1px solid #d5e5eb; }
 .consumption-follow-up-panel > summary { color: #075477; font-weight: 700; cursor: pointer; }
 .consumption-follow-up-panel > summary span { margin-left: 6px; color: #667085; font-size: 11px; }
