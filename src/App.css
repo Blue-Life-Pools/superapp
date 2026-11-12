@@ -5751,6 +5751,9 @@ body:has(.health-page),
   background: #f7fbfd !important;
   background-image: none !important;
 }
+.health-page .health-tickets-card {
+  background: #f7fbfd !important;
+}
 
 /* Keep every analytics bar, value, and label on the exact same center line. */
 .health-analytics-bars .health-bar-chart,
