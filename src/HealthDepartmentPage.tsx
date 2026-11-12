@@ -2,6 +2,7 @@ import { SearchField } from './SearchField';
 import { WorkspaceIcon } from './WorkspaceIcon';
 import { HealthLineChart } from './HealthLineChart';
 import { HealthBarChart } from './HealthBarChart';
+import './HealthDepartmentLayout.css';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { API_URL, apiFetch as fetch, getAppToken } from './api';
@@ -248,7 +249,7 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
     {unassignedOnly && <div className="health-unassigned-banner"><span>Showing {filtered.length} tickets without a Commercial property assignment.</span><button type="button" onClick={onClearUnassignedFilter}>Show all tickets</button></div>}
     {urgent.length > 0 && <div className="health-alert-banner"><span className="health-alert-icon">!</span><div><strong>{urgent.length} reinspections within 10 days</strong><p>Based only on assigned reinspection deadlines.</p></div></div>}
     <HealthAnalytics tickets={analyticsFiltered} activeInitialReportFilter={initialReportFilter} onInitialReportFilterChange={setInitialReportFilter} />
-    <div className="health-main-grid">
+    <div className="health-workspace-layout"><div className="health-main-grid">
       <section className="health-card health-tickets-card"><div className="health-card-heading"><div><h2>Ticket inbox</h2><p>Inspection reports and follow-up.</p></div><div className="health-ticket-filters"><SearchField aria-label="Search by property name" placeholder="Search property" value={propertySearch} onChange={(event) => setPropertySearch(event.target.value)} /><select aria-label="Filter tickets" value={filter} onChange={(event) => setFilter(event.target.value)}><option>All</option><option value="NEW">New</option><option value="IN_PROGRESS">In progress</option><option value="CLOSED">Closed</option></select><select className="health-estimate-filter" aria-label="Filter by estimate status" value={estimateFilter} onChange={(event) => setEstimateFilter(event.target.value)}><option value="ALL">All estimates</option><option value="PENDING">Pending decision</option><option value="NOT_REQUIRED">Not required</option><option value="REQUIRED">Requires estimate</option>{estimateDetailOptions.map((status) => <option key={status} value={`STATUS:${status}`}>Estimate: {status}</option>)}</select><select className="health-report-filter" aria-label="Filter by initial report status" value={initialReportFilter} onChange={(event) => setInitialReportFilter(event.target.value)}><option value="ALL">All initial reports</option>{initialReportOptions.map((status) => <option key={status} value={status}>{status}</option>)}</select></div></div>
         <div className="health-ticket-list">{filtered.length === 0 && <p className="health-empty">No tickets to display.</p>}{filtered.map((ticket) => <article className="health-ticket" key={ticket.id}>
           <div className="health-ticket-top"><span className="health-ticket-icon" aria-hidden="true"><WorkspaceIcon name="reports" /></span><span className="health-ticket-id">{ticket.id}</span><span className={'health-status health-status-' + statusLabel(ticket.status).toLowerCase().replace(' ', '-')}>{statusLabel(ticket.status)}</span><span className="health-ticket-received"><WorkspaceIcon name="calendar" />Received {new Date(ticket.receivedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></div>
@@ -272,7 +273,7 @@ export function HealthDepartmentPage({ sidebar, properties, unassignedOnly = fal
           </button>;
         })}
       </aside>
-    </div>
+    </div></div>
     {editing && <div className="modal-backdrop"><section role="dialog" aria-modal="true" aria-label={editing.id ? 'Edit ticket' : 'New ticket'} className="property-modal repair-request-modal health-editor-modal"><div className="edit-panel-header"><h2>{editing.id ? 'Edit ' + editing.id : 'New ticket'}</h2><button className="modal-close" aria-label="Close editor" onClick={() => setEditing(null)}>&times;</button></div><form onSubmit={(event) => void save(event)}><div className="health-detail-grid health-form-grid">
       <label className="health-ticket-name-field">Ticket name<input required maxLength={200} placeholder="Example: Sole on Central" value={editing.name} onChange={(event) => setEditing({ ...editing, name: event.target.value })} /></label>
       <label>Property<select required value={editing.property} onChange={(event) => setEditing({ ...editing, property: event.target.value })}><option value="">Select property</option>{editing.property && !properties.some((property) => property.name === editing.property) && <option>{editing.property}</option>}{properties.map((property) => <option key={property.id} value={property.name}>{property.name}</option>)}</select></label>
