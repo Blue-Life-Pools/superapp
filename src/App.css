@@ -5725,21 +5725,6 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-page .health-editor-modal .secondary-button, .health-page .health-editor-modal .modal-close { border-color: #9ca3af !important; background: #fff !important; color: #111827 !important; }
 .health-page .health-editor-modal .primary-button { border-color: #111827 !important; background: #111827 !important; color: #fff !important; }
 
-/* Make monthly labels and point totals easier to read in the outcome charts. */
-.health-analytics-line-card .health-line-labels { font-size: 14px; }
-.health-analytics-line-card .health-line-labels small { font-size: 12px; font-weight: 600; }
-.health-analytics-line-card .health-chart-point-label-previous text,
-.health-analytics-line-card .health-chart-point-label-current text {
-  font-size: 9px;
-  font-weight: 400;
-  paint-order: normal;
-  stroke: none;
-}
-.health-analytics-line-card .health-chart-point-label-previous text { fill: #174a7a; }
-.health-analytics-line-card .health-chart-point-label-current text { fill: #62a8f5; }
-.health-analytics-line-card .health-chart-point-previous { fill: #174a7a; }
-.health-analytics-line-card .health-chart-point-current { fill: #62a8f5; }
-
 /* Combined inspection outcomes chart with a compact state filter. */
 .health-analytics-outcomes-card { display: grid; gap: 18px; }
 .health-outcomes-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
@@ -5750,24 +5735,15 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-outcome-tabs button:last-child { border-right: 0; }
 .health-outcome-tabs button.is-active { background: #1d607e; color: #fff; }
 .health-outcome-tabs button:focus-visible { outline: 2px solid #62a8f5; outline-offset: -2px; }
-.health-outcomes-body { display: block; }
+.health-outcomes-body { display: block; min-width: 0; }
 .health-outcome-summary { display: grid; align-content: center; gap: 5px; border-right: 1px solid #e5e7eb; padding: 8px 18px 8px 2px; }
 .health-outcome-summary span, .health-outcome-summary small { color: #667085; font-size: 10px; }
 .health-outcome-summary strong { color: #172b4d; font-size: 17px; }
 .health-outcome-summary b { color: #172b4d; font-size: 32px; line-height: 1; }
 .health-outcome-chart { min-width: 0; }
-.health-outcome-chart .health-line-heading { justify-content: flex-end; }
-.health-outcome-chart .health-analytics-line { height: 160px; margin-top: 4px; }
-.health-outcome-chart .health-line-labels { font-size: 11px; }
-.health-outcome-chart .health-line-labels small { font-size: 11px; font-weight: 600; }
-.health-outcome-chart .health-chart-point-label-previous,
-.health-outcome-chart .health-chart-point-label-current { font-size: 5px; font-weight: 400; }
-.health-outcome-chart .health-chart-point-label-previous { fill: #174a7a; }
-.health-outcome-chart .health-chart-point-label-current { fill: #62a8f5; }
-.health-outcome-chart .health-chart-point-previous { fill: #fff; stroke: #174a7a; stroke-width: .55px; }
-.health-outcome-chart .health-chart-point-current { fill: #fff; stroke: #62a8f5; stroke-width: .55px; }
-.health-outcome-chart .health-chart-area-previous { fill: none; }
-.health-outcome-chart .health-chart-area-current { fill: #62a8f5; opacity: .10; stroke: none; }
+.health-outcome-legend { display: flex; justify-content: flex-end; gap: 18px; margin-bottom: 2px; color: #667085; font-size: 12px; }
+.health-outcome-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.health-outcome-legend .health-chart-dot { width: 8px; height: 8px; margin: 0; }
 @media (max-width: 850px) { .health-outcomes-heading { flex-direction: column; } .health-outcome-tabs { width: 100%; } .health-outcome-tabs button { flex: 1; min-width: 0; } }
 @media (max-width: 600px) { .health-outcome-tabs { border-radius: 18px; } .health-outcome-tabs button { padding: 7px 8px; font-size: 11px; } }
 
@@ -5798,11 +5774,7 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-outcomes-heading h3 { font-size: 15px; }
 .health-outcomes-heading p { font-size: 10px; }
 .health-outcome-tabs button { min-width: 105px; padding: 7px 12px; font-size: 11px; }
-.health-outcome-chart .health-analytics-line { height: 175px; }
-.health-outcome-chart .health-line-labels small { font-size: 10px; }
-.health-outcome-chart .health-chart-grid { stroke: #e5edf3; stroke-width: .6; stroke-dasharray: 1.4 1.4; }
-.health-outcome-chart .health-chart-grid-label { fill: #667085; font-size: 3.2px; text-anchor: start; }
-.health-outcome-chart .health-chart-point-label-current { font-size: 5px; font-weight: 600; }
+@media (max-width: 850px) { .health-outcome-tabs button { min-width: 0; } }
 .health-analytics-properties { gap: 8px; padding: 14px 16px; }
 .health-properties-heading { gap: 12px; }
 .health-properties-heading h3 { font-size: 15px; }

@@ -1,5 +1,6 @@
 import { SearchField } from './SearchField';
 import { WorkspaceIcon } from './WorkspaceIcon';
+import { HealthLineChart } from './HealthLineChart';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { API_URL, apiFetch as fetch, getAppToken } from './api';
@@ -47,16 +48,6 @@ function analyticsDate(ticket: Ticket) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
-function HealthLineChart({ values, comparison }: { values: number[]; comparison?: number[] }) {
-  const all = [...values, ...(comparison || [])];
-  const max = Math.max(1, ...all);
-  const axisMax = Math.max(5, Math.ceil(max / 5) * 5);
-  const point = (value: number, index: number) => ({ x: 12 + (index / 11) * 84, y: 88 - (value / axisMax) * 70 });
-  const points = (series: number[]) => series.map((value, index) => { const item = point(value, index); return `${item.x},${item.y}`; }).join(' ');
-  const pointLabels = (series: number[], pointClass: string, labelClass: string, offset: number, showMaximum: boolean) => series.map((value, index) => { const item = point(value, index); const y = Math.max(7, item.y + offset); const showLabel = showMaximum && value === Math.max(...series); return <g key={`${labelClass}-${index}`}><ellipse cx={item.x} cy={item.y} rx=".25" ry="1.35" className={pointClass} />{showLabel && <text className={labelClass} x="0" y="0" transform={`translate(${item.x} ${y}) scale(.25 1)`} textAnchor="middle">{value}</text>}</g>; });
-  const grid = Array.from({ length: axisMax / 5 + 1 }, (_, index) => { const value = index * 5; const y = 88 - (value / axisMax) * 70; return <g key={value}><line x1="12" x2="96" y1={y} y2={y} className="health-chart-grid" /><text x="0" y="0" transform={`translate(7 ${y + 1.5}) scale(.25 1)`} className="health-chart-grid-label">{value}</text></g>; });
-  return <svg className="health-analytics-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{grid}{comparison && <><polyline points={`${points(comparison)} 96,88 12,88`} className="health-chart-area-previous" /><polyline points={points(comparison)} className="health-chart-line health-chart-line-previous" />{pointLabels(comparison, 'health-chart-point-previous', 'health-chart-point-label-previous', -6, false)}</>}{<><polyline points={`${points(values)} 96,88 12,88`} className="health-chart-area-current" /><polyline points={points(values)} className="health-chart-line health-chart-line-current" />{pointLabels(values, 'health-chart-point-current', 'health-chart-point-label-current', -5, true)}</>}</svg>;
-}
 function HealthAnalytics({ tickets, activeInitialReportFilter, onInitialReportFilterChange }: { tickets: Ticket[]; activeInitialReportFilter: string; onInitialReportFilterChange: (value: string) => void }) {
   const [selectedOutcome, setSelectedOutcome] = useState('Closed');
   const monthTickets = analyticsMonths.map((_, month) => tickets.filter((ticket) => { const date = analyticsDate(ticket); return date?.getFullYear() === 2026 && date.getMonth() === month; }));
@@ -76,7 +67,20 @@ function HealthAnalytics({ tickets, activeInitialReportFilter, onInitialReportFi
     <div className="health-analytics-heading"><div><h2>Inspection Analytics</h2><p>Year-over-year compliance, inspection, and estimate performance.</p></div><span>2025 / 2026</span></div>
     <div className="health-analytics-kpis">{kpis.map(([label, value, filterValue]) => <button type="button" className={activeInitialReportFilter === filterValue ? 'is-active' : ''} aria-pressed={activeInitialReportFilter === filterValue} title={`Filter tickets by ${label}`} onClick={() => toggleInitialReportFilter(filterValue)} key={label}><b>{label}</b><strong>{value}</strong></button>)}</div>
     <div className="health-analytics-top-grid"><article className="health-analytics-card health-analytics-bars"><h3>Reports by month 2026</h3><p>Converted, sent, and approved estimate reports.</p><div className="health-bar-chart">{reportCounts.map((count, index) => <div className="health-bar-column" key={analyticsMonths[index]}><strong>{count}</strong><span style={{ height: `${Math.max(3, (count / maxReport) * 100)}%` }} /><small>{analyticsMonths[index]}</small></div>)}</div></article><article className="health-analytics-card health-analytics-bars"><h3>Estimate status 2026</h3><p>Estimate count by status.</p><div className="health-bar-chart health-bar-chart-estimates">{estimateStatuses.map((status, index) => <div className="health-bar-column" key={status}><strong>{estimateCounts[index]}</strong><span style={{ height: `${Math.max(3, (estimateCounts[index] / maxEstimate) * 100)}%` }} /><small>{status}</small></div>)}</div></article></div>
-    <article className="health-analytics-card health-analytics-outcomes-card"><div className="health-outcomes-heading"><div><h3>Inspection outcomes</h3><p>Monthly trend with comparison by year.</p></div><div className="health-outcome-tabs" role="tablist" aria-label="Inspection outcome filter">{['Closed', 'Satisfactory', 'Unsatisfactory'].map((outcome) => <button type="button" role="tab" aria-selected={selectedOutcome === outcome} className={selectedOutcome === outcome ? 'is-active' : ''} onClick={() => setSelectedOutcome(outcome)} key={outcome}>{outcome}</button>)}</div></div><div className="health-outcomes-body"><div className="health-outcome-chart"><div className="health-line-heading"><span><i className="health-chart-dot health-chart-dot-previous" />2025 <i className="health-chart-dot health-chart-dot-current" />2026</span></div><HealthLineChart values={selectedOutcomeSeries[1]} comparison={selectedOutcomeSeries[0]} /><div className="health-line-labels">{analyticsMonths.map((month) => <small key={month}>{month}</small>)}</div></div></div></article>
+    <article className="health-analytics-card health-analytics-outcomes-card">
+      <div className="health-outcomes-heading">
+        <div><h3>Inspection outcomes</h3><p>Monthly trend with comparison by year.</p></div>
+        <div className="health-outcome-tabs" role="tablist" aria-label="Inspection outcome filter">
+          {['Closed', 'Satisfactory', 'Unsatisfactory'].map((outcome) => <button type="button" role="tab" aria-selected={selectedOutcome === outcome} className={selectedOutcome === outcome ? 'is-active' : ''} onClick={() => setSelectedOutcome(outcome)} key={outcome}>{outcome}</button>)}
+        </div>
+      </div>
+      <div className="health-outcomes-body">
+        <div className="health-outcome-chart">
+          <div className="health-outcome-legend"><span><i className="health-chart-dot health-chart-dot-previous" />2025</span><span><i className="health-chart-dot health-chart-dot-current" />2026</span></div>
+          <HealthLineChart values={selectedOutcomeSeries[1]} comparison={selectedOutcomeSeries[0]} months={analyticsMonths} outcome={selectedOutcome} />
+        </div>
+      </div>
+    </article>
     <article className="health-analytics-card health-analytics-properties"><div className="health-properties-heading"><div><span className="health-properties-icon"><WorkspaceIcon name="properties" /></span><div><h3>Inspected properties 2026</h3><p>Number of inspections per property.</p></div></div><strong>Total <b>{propertyTotal}</b></strong></div>{propertyCounts.length === 0 && <p>No inspected properties in the selected data.</p>}{propertyCounts.map((item, index) => <div className="health-property-bar" key={item.name}><b>{index + 1}</b><span title={item.name}>{item.name}</span><i><em style={{ width: `${Math.max(3, (item.count / Math.max(1, propertyCounts[0]?.count || 1)) * 100)}%` }} /></i><strong>{item.count}</strong></div>)}</article>
   </section>;
 }

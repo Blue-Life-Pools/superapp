@@ -1,0 +1,62 @@
+.health-outcome-plot-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.health-outcome-plot-scroll:focus-visible {
+  outline: 2px solid #62a8f5;
+  outline-offset: 2px;
+}
+
+.health-outcome-plot-frame {
+  min-width: 680px;
+  width: 100%;
+}
+
+.health-outcome-plot {
+  display: block;
+  width: 100%;
+  height: 246px;
+  font-family: inherit;
+}
+
+.health-outcome-gridline {
+  stroke: #e5edf3;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.health-outcome-baseline {
+  stroke: #dfe6ec;
+  stroke-width: 1;
+}
+
+.health-outcome-axis-value,
+.health-outcome-month {
+  fill: #667085;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.health-outcome-series-line {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.health-outcome-marker {
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+
+.health-outcome-point-value {
+  font-size: 13px;
+  font-weight: 400;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
