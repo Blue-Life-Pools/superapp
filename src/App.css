@@ -5760,6 +5760,10 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-outcome-chart .health-analytics-line { height: 160px; margin-top: 4px; }
 .health-outcome-chart .health-line-labels { font-size: 11px; }
 .health-outcome-chart .health-line-labels small { font-size: 11px; font-weight: 600; }
+.health-outcome-chart .health-chart-point-label-previous,
+.health-outcome-chart .health-chart-point-label-current { font-size: 5px; font-weight: 400; }
+.health-outcome-chart .health-chart-point-label-previous { fill: #174a7a; }
+.health-outcome-chart .health-chart-point-label-current { fill: #62a8f5; }
 @media (max-width: 850px) { .health-outcomes-heading { flex-direction: column; } .health-outcome-tabs { width: 100%; } .health-outcome-tabs button { flex: 1; min-width: 0; } }
 @media (max-width: 600px) { .health-outcome-tabs { border-radius: 18px; } .health-outcome-tabs button { padding: 7px 8px; font-size: 11px; } }
 
