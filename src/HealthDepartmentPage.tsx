@@ -57,7 +57,7 @@ function HealthLineChart({ values, comparison }: { values: number[]; comparison?
 }
 function HealthAnalytics({ tickets, activeInitialReportFilter, onInitialReportFilterChange }: { tickets: Ticket[]; activeInitialReportFilter: string; onInitialReportFilterChange: (value: string) => void }) {
   const monthTickets = analyticsMonths.map((_, month) => tickets.filter((ticket) => { const date = analyticsDate(ticket); return date?.getFullYear() === 2026 && date.getMonth() === month; }));
-  const estimateStatuses = estimateStatusOptions;
+  const estimateStatuses = estimateStatusOptions.filter((status) => status !== 'Required' && status !== 'Rejected');
   const reportCounts = monthTickets.map((monthRows) => monthRows.length);
   const estimateCounts = estimateStatuses.map((status) => tickets.filter((ticket) => { const date = analyticsDate(ticket); return date?.getFullYear() === 2026 && ticket.healthData['Estado Estimado']?.trim() === status; }).length);
   const outcomeSeries = ['Closed', 'Satisfactory', 'Unsatisfactory'].map((outcome) => [2025, 2026].map((year) => analyticsMonths.map((_, month) => tickets.filter((ticket) => { const date = analyticsDate(ticket); return date?.getFullYear() === year && date.getMonth() === month && ticket.healthData.Estado?.trim() === outcome; }).length)));

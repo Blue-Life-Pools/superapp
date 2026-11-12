@@ -5742,6 +5742,7 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 
 /* Keep the top analytics bars lighter and less dominant. */
 .health-analytics-bars .health-bar-column span { width: min(42px, 70%); }
+.health-analytics-bars .health-bar-chart-estimates .health-bar-column span { width: min(56px, 70%); }
 
 /* Keep every analytics bar, value, and label on the exact same center line. */
 .health-analytics-bars .health-bar-chart,
