@@ -5641,6 +5641,10 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-analytics-bars .health-bar-chart { padding-bottom: 20px; }
 .health-analytics-bars .health-bar-column { position: relative; height: calc(100% - 20px); }
 .health-analytics-bars .health-bar-column small { position: absolute; right: 0; bottom: -19px; left: 0; margin: 0; text-align: center; }
+.health-analytics-bars .health-bar-column { align-items: center; }
+.health-analytics-bars .health-bar-column span { width: min(56px, 92%); }
+.health-analytics-bars .health-bar-column strong { font-size: 17px; }
+.health-analytics-bars .health-bar-column small { font-size: 14px; }
 .health-analytics-top-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 12px; }
 .health-analytics-card { min-width: 0; padding: 14px 16px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
 .health-analytics-card h3 { margin: 0; color: #111827; font-size: 15px; }
