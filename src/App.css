@@ -5750,18 +5750,18 @@ html:has(.health-page), body:has(.health-page), .health-page { background: #fff 
 .health-outcome-tabs button:last-child { border-right: 0; }
 .health-outcome-tabs button.is-active { background: #1d607e; color: #fff; }
 .health-outcome-tabs button:focus-visible { outline: 2px solid #62a8f5; outline-offset: -2px; }
-.health-outcomes-body { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: stretch; gap: 18px; }
+.health-outcomes-body { display: block; }
 .health-outcome-summary { display: grid; align-content: center; gap: 5px; border-right: 1px solid #e5e7eb; padding: 8px 18px 8px 2px; }
 .health-outcome-summary span, .health-outcome-summary small { color: #667085; font-size: 10px; }
 .health-outcome-summary strong { color: #172b4d; font-size: 17px; }
 .health-outcome-summary b { color: #172b4d; font-size: 32px; line-height: 1; }
 .health-outcome-chart { min-width: 0; }
 .health-outcome-chart .health-line-heading { justify-content: flex-end; }
-.health-outcome-chart .health-analytics-line { height: 128px; margin-top: 4px; }
+.health-outcome-chart .health-analytics-line { height: 160px; margin-top: 4px; }
 .health-outcome-chart .health-line-labels { font-size: 11px; }
 .health-outcome-chart .health-line-labels small { font-size: 11px; font-weight: 600; }
 @media (max-width: 850px) { .health-outcomes-heading { flex-direction: column; } .health-outcome-tabs { width: 100%; } .health-outcome-tabs button { flex: 1; min-width: 0; } }
-@media (max-width: 600px) { .health-outcomes-body { grid-template-columns: 1fr; gap: 12px; } .health-outcome-summary { border-right: 0; border-bottom: 1px solid #e5e7eb; padding: 0 0 12px; } .health-outcome-summary b { font-size: 34px; } }
+@media (max-width: 600px) { .health-outcome-tabs { border-radius: 18px; } .health-outcome-tabs button { padding: 7px 8px; font-size: 11px; } }
 
 /* Keep the top analytics bars lighter and less dominant. */
 .health-analytics-bars .health-bar-column span { width: min(42px, 70%); }
