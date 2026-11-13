@@ -1,0 +1,11 @@
+.workspace-actions-trigger { display: inline-grid; flex: 0 0 auto; width: 34px; height: 34px; place-items: center; border: 1px solid #dce3ef; border-radius: 8px; padding: 4px; background: #fff; color: #17233b; cursor: pointer; }
+.workspace-actions-trigger .workspace-icon { width: 20px; height: 20px; }
+.workspace-actions-trigger:hover, .workspace-actions-trigger[aria-expanded='true'] { border-color: #91b6f8; background: #f1f6ff; color: #0866ff; }
+.workspace-actions-trigger:disabled { opacity: .45; cursor: default; }
+.workspace-actions-menu { position: fixed; z-index: 1100; display: grid; width: 190px; border: 1px solid #dce3ef; border-radius: 9px; padding: 5px; background: #fff; box-shadow: 0 8px 30px #1a33552b; }
+.workspace-actions-menu button { display: flex; align-items: center; gap: 10px; border: 0; border-radius: 5px; padding: 10px 12px; background: transparent; color: #243552; cursor: pointer; font: inherit; font-size: 13px; text-align: left; }
+.workspace-actions-menu button:hover, .workspace-actions-menu button:focus-visible { background: #f0f6ff; }
+.workspace-actions-menu .workspace-icon { width: 17px; height: 17px; }
+.workspace-actions-menu .workspace-action-danger { color: #c13140; }
+.workspace-actions-menu .workspace-action-danger:hover { background: #fff1f2; }
+.workspace-actions-trigger:focus-visible, .workspace-actions-menu button:focus-visible { outline: 2px solid #307dff; outline-offset: 2px; }
