@@ -19,6 +19,10 @@
 .chemicals-design .secondary-button:hover, .chemicals-design .reports-table-download-button:hover { border-color: #a5c2e3; background: #f5f9ff; }
 .chemicals-design .consumption-dashboard { gap: 22px; margin: 0; border: 0; border-radius: 0; padding: 0; background: transparent; color: #253650; box-shadow: none; }
 .consumption-toolbar { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.consumption-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 16px; min-width: 0; }
+.chemicals-design .consumption-technician-field { display: grid; gap: 6px; width: 240px; max-width: 100%; color: #536982; font-size: 12px; font-weight: 600; }
+.chemicals-design .consumption-technician-field select { height: 42px; min-height: 42px; border-color: #d8e2ef; border-radius: 10px; padding: 8px 30px 8px 40px; background: #fff; color: #253650; font-size: 13px; font-weight: 550; }
+@media (max-width: 480px) { .chemicals-design .consumption-filters { grid-template-columns: minmax(0, 1fr); } }
 .chemicals-design .consumption-month-field { display: grid; flex: 0 0 auto; gap: 6px; width: 204px; color: #536982; font-size: 12px; font-weight: 600; }
 .consumption-month-input { position: relative; display: block; }
 .consumption-month-input > .workspace-icon { position: absolute; z-index: 1; top: 50%; left: 13px; width: 18px; height: 18px; color: #647a98; transform: translateY(-50%); pointer-events: none; }
@@ -181,6 +185,8 @@
   .chemicals-design .chemicals-tabs button { padding: 11px 13px; font-size: 12px; }
   .consumption-toolbar { align-items: stretch; flex-direction: column; }
   .chemicals-design .consumption-month-field { width: 100%; }
+  .consumption-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chemicals-design .consumption-technician-field { width: 100%; }
   .chemicals-design .consumption-import-actions { justify-content: flex-start; }
   .chemicals-design .consumption-import-actions .secondary-button { flex: 1 1 auto; font-size: 11px; }
   .chemicals-design .consumption-property-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
