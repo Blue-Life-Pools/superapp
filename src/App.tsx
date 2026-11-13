@@ -277,6 +277,7 @@ type EditPropertyForm = {
   leadSource: string;
   propertyType: string;
   segment: string;
+  serviceStartDate: string;
   managementCompanyName: string;
 
   addressLine1: string;
@@ -289,7 +290,7 @@ type EditPropertyForm = {
   maintenanceChiefInfo: string;
 };
 
-type PropertyForm = EditPropertyForm;
+type PropertyForm = Omit<EditPropertyForm, 'serviceStartDate'>;
 
 type ContactForm = {
   firstName: string;
@@ -413,6 +414,7 @@ function propertyToForm(
     leadSource: property.leadSource ?? '',
     propertyType: property.propertyType ?? '',
     segment: property.segment ?? '',
+    serviceStartDate: property.serviceStartDate?.slice(0, 10) ?? '',
     managementCompanyName: property.managementCompany?.name ?? '',
 
     addressLine1: property.addressLine1 ?? '',
@@ -2234,6 +2236,10 @@ function App() {
               editForm.segment ||
               undefined,
 
+            serviceStartDate: editForm.serviceStartDate !== (selectedProperty.serviceStartDate?.slice(0, 10) ?? '')
+              ? editForm.serviceStartDate || null
+              : undefined,
+
             managementCompanyName:
               editForm.managementCompanyName.trim(),
 
@@ -2851,6 +2857,11 @@ function App() {
                   }
                   placeholder="Example: ABC Property Management"
                 />
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="property-service-start-date">Service Start</label>
+                <input id="property-service-start-date" aria-label="Service start date" type="date" value={editForm.serviceStartDate} disabled={saving} onChange={event => updateField('serviceStartDate', event.target.value)} />
               </div>
 
               <div className="form-field">
