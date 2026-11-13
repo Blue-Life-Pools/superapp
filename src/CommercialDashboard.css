@@ -41,7 +41,8 @@
 .commercial-card { min-width: 0; border: 1px solid var(--commercial-border); border-radius: 15px; padding: 18px; background: #fff; box-shadow: 0 2px 6px #1d385905; }
 .commercial-card h2 { margin: 0 0 14px; color: #15233c; font-size: 16px; font-weight: 740; letter-spacing: -.025em; line-height: 1.35; }
 .commercial-distributions { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 16px; }
-.commercial-type-content { display: flex; align-items: center; justify-content: center; gap: 24px; min-height: 154px; }
+.commercial-type-card { container: property-types / inline-size; }
+.commercial-type-content { display: grid; grid-template-columns: 196px minmax(0, 250px); align-items: center; justify-content: center; gap: 32px; min-height: 212px; max-width: 560px; margin: 0 auto; }
 .commercial-donut { display: grid; flex: 0 0 auto; place-items: center; width: 148px; height: 148px; border-radius: 50%; }
 .commercial-donut > div { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 3px; width: 70%; height: 70%; border-radius: 50%; background: #fff; text-align: center; }
 .commercial-donut strong { color: #101828; font-size: 23px; font-weight: 750; letter-spacing: -.035em; }
@@ -51,6 +52,14 @@
 .commercial-type-legend i, .commercial-proposal-legend i { display: block; width: 9px; height: 9px; border-radius: 50%; }
 .commercial-type-legend strong, .commercial-proposal-legend strong { color: #253b59; font-size: inherit; font-weight: 650; }
 .commercial-type-legend small, .commercial-proposal-legend small { color: #6b7b93; font-size: 10px; }
+.commercial-type-card .commercial-donut { width: 196px; height: 196px; }
+.commercial-type-card .commercial-donut strong { font-size: 34px; }
+.commercial-type-card .commercial-donut span { font-size: 14px; }
+.commercial-type-card .commercial-type-legend { gap: 14px; }
+.commercial-type-card .commercial-type-legend > div { grid-template-columns: 11px minmax(0, 1fr) minmax(3ch, max-content) max-content; gap: 10px; font-size: 15px; }
+.commercial-type-card .commercial-type-legend i { width: 11px; height: 11px; }
+.commercial-type-card .commercial-type-legend strong { font-size: 18px; text-align: right; font-variant-numeric: tabular-nums; }
+.commercial-type-card .commercial-type-legend small { font-size: 13px; white-space: nowrap; }
 .commercial-management-bars { display: grid; gap: 12px; padding: 4px 0; }
 .commercial-management-bars > div { display: grid; grid-template-columns: minmax(80px, 160px) minmax(0, 1fr) 30px; align-items: center; gap: 12px; color: #354762; font-size: 12px; }
 .commercial-management-bars > div > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -138,7 +147,6 @@
   .commercial-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .commercial-distributions, .commercial-proposals { grid-template-columns: minmax(0, 1fr); }
   .commercial-proposal-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px; }
-  .commercial-type-content { justify-content: flex-start; }
 }
 @media (max-width: 800px) {
   .commercial-workspace { padding: 24px 16px calc(198px + env(safe-area-inset-bottom)); }
@@ -157,7 +165,6 @@
   .commercial-kpi > div > span { font-size: 11px; }
   .commercial-kpi strong { font-size: 29px; }
   .commercial-card { padding: 15px; }
-  .commercial-type-content { gap: 17px; }
   .commercial-donut { width: 122px; height: 122px; }
   .commercial-approval-donut { width: 124px; height: 124px; }
   .commercial-approval-donut strong { font-size: 25px; }
@@ -181,7 +188,6 @@
 }
 @media (max-width: 380px) {
   .commercial-kpi { flex-direction: column; }
-  .commercial-type-content { flex-direction: column; }
   .commercial-type-legend { width: 100%; }
   .commercial-stage { gap: 6px; }
   .commercial-stage strong { font-size: 10px; }
@@ -197,4 +203,20 @@
 @container proposal-summary (max-width: 420px) {
   .commercial-approval { flex-direction: column; gap: 16px; }
   .commercial-proposal-legend { flex: 0 1 auto; width: min(100%, 260px); max-width: 260px; }
+}
+@container property-types (max-width: 480px) {
+  .commercial-type-content { grid-template-columns: 152px minmax(0, 220px); gap: 20px; min-height: 176px; }
+  .commercial-type-card .commercial-donut { width: 152px; height: 152px; }
+  .commercial-type-card .commercial-donut strong { font-size: 30px; }
+  .commercial-type-card .commercial-donut span { font-size: 13px; }
+  .commercial-type-card .commercial-type-legend > div { gap: 6px; font-size: 13px; }
+  .commercial-type-card .commercial-type-legend strong { font-size: 16px; }
+  .commercial-type-card .commercial-type-legend small { font-size: 11px; }
+}
+@container property-types (max-width: 360px) {
+  .commercial-type-content { grid-template-columns: minmax(0, 1fr); gap: 22px; padding: 4px 0 8px; }
+  .commercial-type-card .commercial-donut { width: 180px; height: 180px; justify-self: center; }
+  .commercial-type-card .commercial-type-legend { width: 100%; max-width: 250px; justify-self: center; }
+  .commercial-type-card .commercial-type-legend > div { gap: 10px; font-size: 14px; }
+  .commercial-type-card .commercial-type-legend small { font-size: 12px; }
 }
