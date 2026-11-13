@@ -19,6 +19,8 @@
 .proposal-page-heading-icon .workspace-icon { width: 23px; height: 23px; }
 .proposal-page-info { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid #e3effb; border-radius: 9px; background: #eef6ff; font-size: 12px; color: #29425e; }
 .proposal-page-info .workspace-icon { width: 18px; height: 18px; color: #0075ed; }
+.proposal-page-internal-name { max-width: 520px; margin-top: 16px; }
+.proposal-page-internal-name small { display: block; margin-top: 5px; color: #6b7e94; font-size: 10px; }
 .proposal-page-identity { display: grid; grid-template-columns: 1.1fr 1.4fr .8fr 1.2fr; padding: 24px 0; }
 .proposal-page-identity > div { display: flex; gap: 12px; border-right: 1px solid #dce5ef; padding: 0 24px; min-width: 0; align-items: flex-start; }
 .proposal-page-identity > div:first-child { padding-left: 6px; }

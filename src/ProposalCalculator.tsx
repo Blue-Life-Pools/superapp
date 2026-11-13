@@ -10,11 +10,12 @@ type Props = {
   sidebar: ReactNode; headerActions: ReactNode;
   property: { name: string; addressLine1: string | null; city: string | null; state: string | null; zipCode: string | null; managementCompany: { name: string } | null };
   calculation: ProposalCalculation; settings: CalculatorSettings; context: ProposalContext | null; historyLoading: boolean; historyError: string;
-  managementStatus: string; adjustment: string; services: ProposalService[]; notes: string; saving: boolean;
+  managementStatus: string; adjustment: string; services: ProposalService[]; notes: string; internalName: string; saving: boolean;
   onUpdate: (index: number, changes: Partial<ProposalWaterBody>) => void; onTarget: (value: number) => void;
   onManagement: (status: string) => void; onAdjustment: (value: string) => void;
   onChemicals: (value: number | null) => void; onServices: (services: ProposalService[]) => void; onNotes: (value: string) => void;
   onOverhead: (field: keyof ProposalOverheadSettings, value: number) => void;
+  onInternalName: (value: string) => void;
   onClose: () => void; onReset: () => void; onSave: () => void; onRetryHistory: () => void;
 };
 const money = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
@@ -41,6 +42,7 @@ export function ProposalCalculator(props: Props) {
       <div className="proposal-page-navigation"><button type="button" onClick={props.onClose} disabled={props.saving}><WorkspaceIcon name="arrow-left" />Back to Commercial</button>{props.headerActions}</div>
       <header className="proposal-page-heading"><span className="proposal-page-heading-icon"><WorkspaceIcon name="reports" /></span><div><h1 ref={heading} tabIndex={-1}>Generate Proposal</h1><p>Pricing Calculator and monthly service proposal.</p></div></header>
       <div className="proposal-page-info"><WorkspaceIcon name="info" /><span>Proposal preview. Service data, property details, and history come from CRM; pricing is based on management assumptions. This preview does not change your CRM data.</span></div>
+      <div className="proposal-page-internal-name"><label>Internal proposal name (optional)<input aria-label="Internal proposal name" maxLength={120} value={props.internalName} disabled={props.saving} placeholder="e.g. Pool and fountain · 2027 renewal" onChange={event => props.onInternalName(event.target.value)} /></label><small>Internal use only. Excluded from the PDF and customer email.</small></div>
       <div className="proposal-page-identity">
         {[{ icon: 'properties', title: 'Property', value: property.name }, { icon: 'pin', title: 'Address', value: address || 'Not recorded' }, { icon: 'drop', title: 'Water bodies', value: String(included.length) }, { icon: 'users', title: 'Management Company', value: management }].map(item => <div key={item.title}><WorkspaceIcon name={item.icon as 'properties' | 'pin' | 'drop' | 'users'} /><div><span>{item.title}</span><strong>{item.value}</strong></div></div>)}
       </div>

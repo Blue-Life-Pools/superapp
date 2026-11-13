@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { API_URL, apiFetch as fetch, getAppToken, setAppToken } from './api';
 import type { ProposalPdfData } from './proposalPdf';
 import { ProposalCalculator } from './ProposalCalculator';
+import { ProposalInternalNameEditor } from './ProposalInternalNameEditor';
 import { calculateProposal, calculatorRates, chemicalRatesBySize, defaultProposalOverhead, poolBasePrices } from './proposalCostModel';
 import type { ProposalContext, ProposalOverheadSettings, ProposalWaterBody } from './proposalCostModel';
 import { proposalServiceOptions, type ProposalService } from './proposalServices';
@@ -98,6 +99,7 @@ type ProposalFollowUp = {
 
 type StoredProposalData = Partial<Omit<ProposalPdfData, 'proposalDate'>> & {
   proposalDate?: string;
+  internalName?: string | null;
 };
 
 type SalesActivity = {
@@ -772,6 +774,7 @@ function App() {
   const [managementStatus, setManagementStatus] = useState('CURRENT');
   const [adjustments, setAdjustments] = useState('0');
   const [proposalNotes, setProposalNotes] = useState('');
+  const [proposalInternalName, setProposalInternalName] = useState('');
   const [proposalWaterBodies, setProposalWaterBodies] = useState<
     ProposalWaterBody[]
   >([]);
@@ -1609,6 +1612,7 @@ function App() {
     setManagementStatus('CURRENT');
     setAdjustments('0');
     setProposalNotes('');
+    setProposalInternalName('');
     setProposalChemicalProjection(null);
     setProposalOverhead({ ...defaultProposalOverhead });
     setProposalServices([...proposalServiceOptions]);
@@ -1947,6 +1951,7 @@ function App() {
       setSavingProposal(true);
       const proposalData = {
         ...pdfData,
+        internalName: proposalInternalName.trim() || null,
         proposalDate: pdfData.proposalDate.toISOString(),
         allocations: proposalCalculation.allocations,
         pricingModel: {
@@ -2100,6 +2105,19 @@ function App() {
       window.alert('The proposal follow-up could not be recorded.');
       return null;
     }
+  }
+
+  async function saveProposalInternalName(activityId: string, internalName: string) {
+    if (!selectedProperty) return;
+    const propertyId = selectedProperty.id;
+    const response = await fetch(`${API_URL}/properties/${propertyId}/sales-activities/${activityId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ internalName }),
+    });
+    if (!response.ok) throw new Error('Could not save the internal proposal name. Please try again.');
+    const updated = await response.json() as SalesActivity;
+    const replaceActivity = (property: Property) => ({ ...property, salesActivities: property.salesActivities.map(item => item.id === updated.id ? updated : item) });
+    setSelectedProperty(current => current?.id === propertyId ? replaceActivity(current) : current);
+    setProperties(current => current.map(property => property.id === propertyId ? replaceActivity(property) : property));
   }
 
   async function saveProposalText(activityId: string, notes: string) {
@@ -2615,9 +2633,10 @@ function App() {
       sidebar={renderAppSidebar()} headerActions={renderProposalReminderCenter()} property={selectedProperty}
       calculation={proposalCalculation} settings={proposalCalculatorSettings} context={proposalContext}
       historyLoading={proposalHistoryLoading} historyError={proposalHistoryError}
-      managementStatus={managementStatus} adjustment={adjustments} services={proposalServices} notes={proposalNotes} saving={savingProposal}
+      managementStatus={managementStatus} adjustment={adjustments} services={proposalServices} notes={proposalNotes} internalName={proposalInternalName} saving={savingProposal}
       onUpdate={updateProposalWaterBody} onTarget={setProposalTargetMargin} onChemicals={setProposalChemicalProjection}
       onOverhead={(field, value) => setProposalOverhead(current => ({ ...current, [field]: value }))}
+      onInternalName={setProposalInternalName}
       onManagement={status => { setManagementStatus(status); setAdjustments(status === 'VIP' ? '20' : '0'); }}
       onAdjustment={setAdjustments} onServices={setProposalServices} onNotes={setProposalNotes}
       onClose={() => setShowProposal(false)} onReset={openProposal} onSave={() => void saveProposal()}
@@ -3225,7 +3244,8 @@ function App() {
                           }}
                         >
                           <span>{formatLabel(activity.type)}</span>
-                          <strong>{selectedProperty.name}</strong>
+                          <strong>{activity.proposalData?.internalName || selectedProperty.name}</strong>
+                          {activity.proposalData?.internalName && <span className="proposal-board-property-name">{selectedProperty.name}</span>}
 
                           <small>
                             Created {new Date(activity.occurredAt).toLocaleDateString('en-US')}
@@ -3270,6 +3290,7 @@ function App() {
                           <span>Email preview</span>
                           <strong>Blue Life Pools</strong>
                         </div>
+                        <ProposalInternalNameEditor key={activity.id} name={activity.proposalData?.internalName} disabled={Boolean(proposalFileAction)} onSave={name => saveProposalInternalName(activity.id, name)} />
                         <div className="email-preview-meta">
                           <span><b>To:</b> {primaryContact?.contact.email ?? 'No primary contact email'}</span>
                           <span><b>Subject:</b> Blue Life Pools Proposal - {selectedProperty.name}</span>

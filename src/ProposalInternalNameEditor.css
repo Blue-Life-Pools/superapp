@@ -1,0 +1,15 @@
+.proposal-name-editor { padding: 12px 16px; border-bottom: 1px solid #e3ebf3; background: #fff; color: #23344e; }
+.proposal-name-display { display: flex; align-items: center; gap: 16px; justify-content: space-between; }
+.proposal-name-display > div { display: grid; gap: 3px; min-width: 0; }
+.proposal-name-display span, .proposal-name-editor label { color: #61718a; font-size: 12px; }
+.proposal-name-display strong { overflow-wrap: anywhere; font-size: 14px; font-weight: 600; }
+.proposal-name-editor button { flex-shrink: 0; border: 1px solid #d7e3ef; border-radius: 7px; background: #fff; color: #086fc6; padding: 7px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.proposal-name-editor button:disabled { opacity: .5; cursor: default; }
+.proposal-name-editor form { display: flex; align-items: end; flex-wrap: wrap; gap: 9px 12px; }
+.proposal-name-editor label { display: grid; gap: 5px; flex: 1 1 240px; max-width: 520px; }
+.proposal-name-editor input { width: 100%; min-width: 0; height: 35px; padding: 6px 9px; border: 1px solid #ceddea; border-radius: 7px; background: #fff; color: #253650; font: inherit; font-size: 13px; }
+.proposal-name-editor form > div { display: flex; gap: 8px; }
+.proposal-name-editor small { flex-basis: 100%; color: #6e8095; font-size: 11px; }
+.proposal-name-editor p { margin: 8px 0 0; color: #b13e52; font-size: 12px; }
+.proposal-name-editor :focus-visible { outline: 2px solid #3f9ae3; outline-offset: 2px; }
+.proposal-board-card .proposal-board-property-name { color: #71829a; font-size: 11px; font-weight: 400; text-transform: none; }
