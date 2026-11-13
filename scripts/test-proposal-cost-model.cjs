@@ -7,11 +7,11 @@ function load(file) {
   new Function('exports', 'module', 'require', code)(module.exports, module, name => name.startsWith('./') ? load(name.slice(2)) : require(name));
   return module.exports;
 }
-const { calculateProposal, commercialBasePrice, chemicalRateForSize, defaultLaborPerVisit } = load('proposalCostModel');
+const { calculateProposal, commercialBasePrice, chemicalRateForSize, defaultProposalOverhead } = load('proposalCostModel');
 const { allocateProposalCosts } = load('proposalPricing');
-const pool = { id: 'pool', name: 'Pool', type: 'SWIMMING_POOL', include: true, category: 'MEDIUM', gallons: 40000, monthlyPrice: 700, frequency: '3x Weekly', disinfectionSystem: true, accessDifficulty: 'SIMPLE', priceManuallyAdjusted: false, priceMode: 'SUGGESTED', laborCostPerVisit: 10.77, laborManuallyAdjusted: false };
-const fountain = { ...pool, id: 'fountain', name: 'Fountain', type: 'DECORATIVE_WATER_FEATURE', category: '', gallons: null, monthlyPrice: 150, laborCostPerVisit: 2.31 };
-const settings = { targetMarginPercent: 60, discountPercent: 0, surchargePercent: 0, chemicalsIncluded: true, chemicalProjection: 84.45 };
+const pool = { id: 'pool', name: 'Pool', type: 'SWIMMING_POOL', include: true, category: 'MEDIUM', gallons: 40000, monthlyPrice: 700, frequency: '3x Weekly', disinfectionSystem: true, accessDifficulty: 'SIMPLE', priceManuallyAdjusted: false, priceMode: 'SUGGESTED' };
+const fountain = { ...pool, id: 'fountain', name: 'Fountain', type: 'DECORATIVE_WATER_FEATURE', category: '', gallons: null, monthlyPrice: 150 };
+const settings = { ...defaultProposalOverhead, targetMarginPercent: 60, discountPercent: 0, surchargePercent: 0, chemicalsIncluded: true, chemicalProjection: 84.45 };
 const near = (value, expected) => assert.ok(Math.abs(value - expected) < .005, `${value} != ${expected}`);
 assert.equal(commercialBasePrice(pool).price, 700, 'Simple access must not add 3%');
 assert.equal(commercialBasePrice(fountain).price, 150);
@@ -19,31 +19,29 @@ assert.equal(commercialBasePrice({ ...pool, category: 'SMALL' }).price, 600);
 assert.equal(commercialBasePrice({ ...pool, accessDifficulty: 'COMPLEX' }).price, 735);
 assert.equal(commercialBasePrice({ ...pool, disinfectionSystem: false }).price, 735);
 assert.equal(commercialBasePrice({ ...pool, frequency: '5x Weekly' }).price, 945);
-assert.equal(defaultLaborPerVisit('SWIMMING_POOL', 'MEDIUM'), 10.77);
-assert.equal(defaultLaborPerVisit('DECORATIVE_WATER_FEATURE', ''), 2.31);
 for (const [size, rate] of [['SMALL', .17], ['MEDIUM', .22], ['LARGE', .24], ['EXTRA_LARGE', .24], ['', .2], ['UNKNOWN', .2], [null, .2], [undefined, .2]]) assert.equal(chemicalRateForSize(size), rate);
 const result = calculateProposal([pool, fountain], settings);
-assert.deepEqual([result.total, result.chemicalCost, result.chemicalBudget, result.laborCost, result.laborBudget, result.supplies, result.administration, result.estimatedGasoline, result.totalCost, result.profit, result.priceReference], [850, 84.45, 184, 170.04, 170, 17, 17, 12.75, 301.24, 548.76, 740]);
-near(result.marginPercent, 64.56);
+assert.deepEqual([result.total, result.chemicalCost, result.chemicalBudget, result.laborCost, result.supplies, result.administration, result.estimatedGasoline, result.totalCost, result.profit, result.priceReference], [850, 84.45, 184, 170, 17, 17, 12.75, 301.2, 548.8, 590]);
+near(result.marginPercent, 64.5647);
 for (const discountPercent of [0, 5, 7.5, 20, 33.3, 99, 100]) {
   const quote = calculateProposal([pool, fountain], { ...settings, discountPercent });
   assert.equal(quote.allocations.reduce((sum, line) => sum + line.monthlyCents, 0), quote.total * 100);
   assert.equal(quote.allocations.reduce((sum, line) => sum + line.fuelCents, 0), 0);
   near(quote.totalCost + quote.profit, quote.total);
   assert.equal(quote.chemicalCost, 84.45, 'A discount must not reduce a dollar chemical forecast');
-  assert.equal(quote.laborCost, 170.04, 'A discount must not reduce planned pay per visit');
+  near(quote.laborCost, quote.total * .2, 'Monthly labor follows the final fee after discount');
   const exported = quote.lines.filter(line => line.body.include).map(line => ({ description: line.body.name, type: line.body.type, frequency: line.body.frequency, baseMonthlyCost: line.grossPrice }));
   assert.deepEqual(allocateProposalCosts(exported, 0, discountPercent, quote.total), quote.allocations);
 }
-for (const [price, rate] of [[999, .2], [1000, .2], [1001, .16], [1200, .16]]) {
+for (const price of [999, 1000, 1001, 1200]) {
   const quote = calculateProposal([{ ...pool, monthlyPrice: price, priceManuallyAdjusted: true }], settings);
-  assert.equal(quote.lines[0].costs.laborRate, rate);
-  near(quote.laborBudget, price * rate);
+  assert.equal(quote.lines[0].costs.laborRate, .2);
+  near(quote.laborCost, price * .2);
 }
 const discounted = calculateProposal([{ ...pool, monthlyPrice: 1200, priceManuallyAdjusted: true }], { ...settings, discountPercent: 20 });
 assert.equal(discounted.total, 960);
-assert.equal(discounted.lines[0].costs.laborRate, .2, 'Labor budget tier applies after management adjustments');
-assert.deepEqual(calculateProposal([pool, pool], settings).lines.map(line => line.costs.laborRate), [.2, .2], 'Threshold must apply per body, not property total');
+assert.equal(discounted.laborCost, 192, 'Monthly labor is 20% of the discounted monthly fee');
+assert.deepEqual(calculateProposal([pool, pool], settings).lines.map(line => line.costs.laborRate), [.2, .2]);
 const surcharge = calculateProposal([pool, fountain], { ...settings, surchargePercent: 5 });
 assert.equal(surcharge.total, 893);
 assert.deepEqual(surcharge.lines.map(line => line.grossPrice), [735, 157.5]);
@@ -54,10 +52,25 @@ assert.equal(noHistory.priceReference, null, 'Cannot solve a target price using 
 const scope = calculateProposal([pool, { ...fountain, include: false }], settings);
 assert.equal(scope.total, 700);
 assert.equal(scope.chemicalCost, 84.45, 'Do not invent a split for property-level recorded costs');
-assert.equal(scope.laborCost, 140.01);
+assert.equal(scope.laborCost, 140);
 assert.equal(calculateProposal([pool], { ...settings, chemicalProjection: 0 }).chemicalCost, 0);
 assert.equal(calculateProposal([pool], { ...settings, chemicalsIncluded: false }).chemicalCost, 0);
 assert.equal(calculateProposal([pool], { ...settings, chemicalProjection: 200 }).overconsumption, true);
 assert.equal(calculateProposal([pool], { ...settings, targetMarginPercent: 90 }).total, 700, 'Target must not silently change the quote');
 assert.equal(calculateProposal([{ ...pool, include: false }], settings).total, 0);
-console.log('PASS: simple access 0%, base/frequency adjustments, size budgets, historical-dollar forecasting, per-visit labor, per-body tiers after discount, one gasoline allocation, management markup, PDF reconciliation, and excluded scope.');
+const custom = calculateProposal([pool, fountain], { ...settings, chemicalProjection: 120, suppliesPercent: 3, administrationPercent: 4, gasolinePercent: 2 });
+assert.deepEqual([custom.total, custom.chemicalCost, custom.laborCost, custom.supplies, custom.administration, custom.estimatedGasoline, custom.totalCost, custom.profit, custom.priceReference], [850, 120, 170, 25.5, 34, 17, 366.5, 483.5, 1100]);
+near(custom.marginPercent, 56.8824);
+const targetQuote = calculateProposal([{ ...pool, monthlyPrice: custom.priceReference, priceManuallyAdjusted: true }], { ...settings, chemicalProjection: 120, suppliesPercent: 3, administrationPercent: 4, gasolinePercent: 2 });
+assert.ok(targetQuote.marginPercent >= 60, 'The reference must include percentage-based labor in its denominator');
+const zeroOverhead = calculateProposal([pool], { ...settings, suppliesPercent: 0, administrationPercent: 0, gasolinePercent: 0, chemicalProjection: 0 });
+assert.deepEqual([zeroOverhead.supplies, zeroOverhead.administration, zeroOverhead.estimatedGasoline, zeroOverhead.totalCost, zeroOverhead.marginPercent], [0, 0, 0, 140, 80]);
+const impossible = calculateProposal([pool], { ...settings, suppliesPercent: 40, administrationPercent: 30, gasolinePercent: 20 });
+assert.equal(impossible.priceReference, null);
+assert.equal(impossible.targetSupportedByRates, false);
+assert.ok(impossible.profit < 0, 'High editable costs must show an actual loss');
+const cents = calculateProposal([{ ...pool, monthlyPrice: 101, priceManuallyAdjusted: true }, { ...fountain, monthlyPrice: 101, priceManuallyAdjusted: true }], { ...settings, suppliesPercent: .5 });
+assert.equal(cents.supplies, 1.01, 'Round the selected percentage once on the total monthly fee');
+const fixedPriceFrequency = calculateProposal([{ ...pool, monthlyPrice: 700, priceManuallyAdjusted: true, frequency: '7x Weekly' }], settings);
+assert.equal(fixedPriceFrequency.laborCost, 140, 'Monthly labor must not multiply the percentage by visits again');
+console.log('PASS: editable chemical and overhead costs, flat monthly labor at 20%, after-discount costs, target reference equation, zero and loss scenarios, monetary rounding, one gasoline allocation, and saved PDF totals.');

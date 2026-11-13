@@ -68,6 +68,11 @@
 .proposal-page-assumption { display: inline-flex; align-items: center; gap: 6px; background: #fff2de; color: #a36514; border-radius: 5px; padding: 3px 7px; font-size: 10px; }
 .proposal-page-assumption .workspace-icon { width: 15px; height: 15px; }
 .proposal-page-management { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 24px; margin: 10px 0; }
+.proposal-page-management.proposal-page-cost-inputs { grid-template-columns: 1.3fr 1fr 1fr 1fr; }
+.proposal-page-cost-inputs > label { display: flex; flex-direction: column; gap: 4px; }
+.proposal-workspace-content .proposal-page-cost-inputs input { margin-top: auto; }
+.proposal-workspace-content .proposal-page-forecast-source { font-size: 10px; margin: 0 0 12px; }
+.proposal-page-forecast-source button { padding: 0; border: 0; min-height: 0; font-size: 10px; }
 .proposal-page-inline-summary { display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 11px; color: #65738a; margin-top: 12px; }
 .proposal-page-inline-summary b { color: #344259; font-weight: 600; }
 .proposal-page-management small { display: block; font-size: 10px; line-height: 1.4; margin-top: 5px; }
@@ -111,6 +116,7 @@
   .proposal-page-kpis strong { font-size: 20px; }
 }
 @media (max-width: 800px) {
+  .proposal-page-management.proposal-page-cost-inputs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .commercial-proposal-page { padding-right: 18px; padding-left: 18px; }
   .proposal-page-fields { gap: 10px 14px; }
   .proposal-page-identity { grid-template-columns: 1fr 1fr; gap: 16px; }

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { API_URL, apiFetch as fetch, getAppToken, setAppToken } from './api';
 import type { ProposalPdfData } from './proposalPdf';
 import { ProposalCalculator } from './ProposalCalculator';
-import { calculateProposal, calculatorRates, chemicalRatesBySize, defaultLaborPerVisit, poolBasePrices } from './proposalCostModel';
-import type { ProposalContext, ProposalWaterBody } from './proposalCostModel';
+import { calculateProposal, calculatorRates, chemicalRatesBySize, defaultProposalOverhead, poolBasePrices } from './proposalCostModel';
+import type { ProposalContext, ProposalOverheadSettings, ProposalWaterBody } from './proposalCostModel';
 import { proposalServiceOptions, type ProposalService } from './proposalServices';
 import { ChemicalsPage } from './ChemicalsPage';
 import { HealthDepartmentPage } from './HealthDepartmentPage';
@@ -783,6 +783,7 @@ function App() {
   const [proposalHistoryError, setProposalHistoryError] = useState('');
   const [proposalHistoryRefresh, setProposalHistoryRefresh] = useState(0);
   const [proposalChemicalProjection, setProposalChemicalProjection] = useState<number | null>(null);
+  const [proposalOverhead, setProposalOverhead] = useState<ProposalOverheadSettings>(() => ({ ...defaultProposalOverhead }));
   const proposalPropertyId = selectedProperty?.id;
   useEffect(() => {
     if (!showProposal || !proposalPropertyId) return;
@@ -834,13 +835,14 @@ function App() {
     managementStatus === 'VIP' ? vipDiscountPercentage :
       managementStatus === 'NEGOTIATED' ? Math.min(100, Math.max(0, Number(adjustments || 0))) : 0;
   const proposalCalculatorSettings = {
+    ...proposalOverhead,
     targetMarginPercent: proposalTargetMargin, discountPercent: adjustmentPercentage,
     surchargePercent: managementStatus === 'SURCHARGE' ? Math.min(100, Math.max(0, Number(adjustments || 0))) : 0,
     chemicalsIncluded: proposalServices.includes('Chemical Supply'),
     chemicalProjection: proposalChemicalProjection ?? proposalContext?.chemicalHistory.averageMonthlyCost ?? null,
   };
   const proposalCalculation = calculateProposal(proposalWaterBodies, proposalCalculatorSettings);
-  // Gasoline is already reserved inside each body's fee at 1.5%.
+  // Gasoline is a configurable percentage of the final fee, included once.
   const monthlyTransportationCost = 0;
   const monthlyInvestment = proposalCalculation.total;
   const effectiveWaterBodyPrice = (body: ProposalWaterBody) => proposalCalculation.lines.find(line => line.body === body)?.grossPrice ?? 0;
@@ -1607,6 +1609,7 @@ function App() {
     setAdjustments('0');
     setProposalNotes('');
     setProposalChemicalProjection(null);
+    setProposalOverhead({ ...defaultProposalOverhead });
     setProposalServices([...proposalServiceOptions]);
     setProposalWaterBodies(
       selectedProperty.waterBodies.map((body) => {
@@ -1630,8 +1633,6 @@ function App() {
           accessDifficulty: 'SIMPLE',
           priceManuallyAdjusted: false,
           priceMode: 'SUGGESTED',
-          laborCostPerVisit: defaultLaborPerVisit(type, body.size || ''),
-          laborManuallyAdjusted: false,
         };
       }),
     );
@@ -1648,9 +1649,6 @@ function App() {
         const updated = { ...body, ...changes };
         if (changes.type) {
           updated.category = changes.type === 'SWIMMING_POOL' ? 'SMALL' : '';
-        }
-        if (('type' in changes || 'category' in changes) && !updated.laborManuallyAdjusted) {
-          updated.laborCostPerVisit = defaultLaborPerVisit(updated.type, updated.category);
         }
         const pricingVariableChanged = [
           'type',
@@ -1933,13 +1931,14 @@ function App() {
         proposalDate: pdfData.proposalDate.toISOString(),
         allocations: proposalCalculation.allocations,
         pricingModel: {
-          version: 2, basis: 'DOLLAR_FORECAST_WITH_PER_BODY_BUDGETS', targetMarginPercent: proposalTargetMargin,
-          rates: calculatorRates, chemicalRatesBySize, chemicalsIncluded: proposalCalculatorSettings.chemicalsIncluded,
+          version: 3, basis: 'DOLLAR_CHEMICAL_FORECAST_WITH_PERCENTAGE_COSTS', targetMarginPercent: proposalTargetMargin,
+          rates: { ...calculatorRates, ...proposalCalculation.rates }, chemicalRatesBySize, chemicalsIncluded: proposalCalculatorSettings.chemicalsIncluded,
           settings: proposalCalculatorSettings, history: proposalContext,
           chemicalProjectionSource: proposalChemicalProjection !== null ? 'MANUAL' : proposalContext?.chemicalHistory.averageMonthlyCost != null ? 'RECORDED_HISTORY' : 'SIZE_BUDGET',
           managementStatus, managementAdjustment: proposalCalculation.managementAdjustment,
           chemicalCost: proposalCalculation.chemicalCost, chemicalBudget: proposalCalculation.chemicalBudget,
-          laborCost: proposalCalculation.laborCost, laborBudget: proposalCalculation.laborBudget,
+          laborCost: proposalCalculation.laborCost, supplies: proposalCalculation.supplies,
+          administration: proposalCalculation.administration, gasoline: proposalCalculation.estimatedGasoline,
           totalCost: proposalCalculation.totalCost, estimatedProfit: proposalCalculation.profit,
           estimatedMarginPercent: proposalCalculation.marginPercent, priceReference: proposalCalculation.priceReference,
           waterBodies: proposalCalculation.lines.filter(line => line.body.include).map(line => ({
@@ -2599,6 +2598,7 @@ function App() {
       historyLoading={proposalHistoryLoading} historyError={proposalHistoryError}
       managementStatus={managementStatus} adjustment={adjustments} services={proposalServices} notes={proposalNotes} saving={savingProposal}
       onUpdate={updateProposalWaterBody} onTarget={setProposalTargetMargin} onChemicals={setProposalChemicalProjection}
+      onOverhead={(field, value) => setProposalOverhead(current => ({ ...current, [field]: value }))}
       onManagement={status => { setManagementStatus(status); setAdjustments(status === 'VIP' ? '20' : '0'); }}
       onAdjustment={setAdjustments} onServices={setProposalServices} onNotes={setProposalNotes}
       onClose={() => setShowProposal(false)} onReset={openProposal} onSave={() => void saveProposal()}
