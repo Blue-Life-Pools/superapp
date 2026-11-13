@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { API_URL, apiFetch as fetch, getAppToken, setAppToken } from './api';
 import type { ProposalPdfData } from './proposalPdf';
-import { allocateProposalCosts } from './proposalPricing';
+import { ProposalCalculator } from './ProposalCalculator';
+import { calculateProposal, calculatorRates, chemicalRatesBySize, defaultLaborPerVisit, poolBasePrices } from './proposalCostModel';
+import type { ProposalContext, ProposalWaterBody } from './proposalCostModel';
 import { proposalServiceOptions, type ProposalService } from './proposalServices';
 import { ChemicalsPage } from './ChemicalsPage';
 import { HealthDepartmentPage } from './HealthDepartmentPage';
@@ -160,26 +162,6 @@ const proposalBoardStatuses: SalesActivityStatus[] = [
   'EXPIRED',
 ];
 
-type ProposalWaterBody = {
-  name: string;
-  type: string;
-  include: boolean;
-  category: string;
-  monthlyPrice: number;
-  frequency: string;
-  disinfectionSystem: boolean;
-  accessDifficulty: 'SIMPLE' | 'COMPLEX';
-  priceManuallyAdjusted: boolean;
-  priceMode: 'SUGGESTED' | 'CUSTOM';
-};
-
-const poolPrices: Record<string, number[]> = {
-  SMALL: [600],
-  MEDIUM: [700],
-  LARGE: [900],
-  EXTRA_LARGE: [1300],
-};
-
 const automaticWaterBodyPrices: Record<string, number> = {
   SPA: 250,
   KIDDIE_POOL: 400,
@@ -189,66 +171,6 @@ const automaticWaterBodyPrices: Record<string, number> = {
 
 const vipDiscountPercentage = 20;
 
-const frequencyMultipliers: Record<string, number> = {
-  '1x Weekly': 0.55,
-  '2x Weekly': 0.8,
-  '3x Weekly': 1,
-  '5x Weekly': 1.35,
-  '7x Weekly': 1.65,
-};
-
-const accessMultipliers: Record<ProposalWaterBody['accessDifficulty'], number> = {
-  SIMPLE: 1.03,
-  COMPLEX: 1.05,
-};
-
-const chemicalCostPercentages: Record<string, number> = {
-  SMALL: 14.5,
-  MEDIUM: 16.3,
-  LARGE: 26.5,
-  EXTRA_LARGE: 26.5,
-};
-
-function chemicalCostPercentage(body: ProposalWaterBody) {
-  if (body.type !== 'SWIMMING_POOL') return chemicalCostPercentages.SMALL;
-  return chemicalCostPercentages[body.category] ?? chemicalCostPercentages.SMALL;
-}
-
-function weeklyVisitsForFrequency(frequency: string) {
-  return Math.max(1, Number.parseInt(frequency, 10) || 1);
-}
-
-function monthlyVisitsForFrequency(frequency: string) {
-  return weeklyVisitsForFrequency(frequency) * (13 / 3);
-}
-
-function calculateWaterBodyPrice(body: ProposalWaterBody) {
-  const basePrice = body.type === 'SWIMMING_POOL'
-    ? poolPrices[body.category]?.[0] ?? 600
-    : automaticWaterBodyPrices[body.type] ?? 150;
-  const frequencyMultiplier = frequencyMultipliers[body.frequency] ?? 1;
-  const accessMultiplier = accessMultipliers[body.accessDifficulty] ?? 1;
-  // Category prices are the 3x-weekly commercial base. Frequency may reduce
-  // or increase that base; access and equipment conditions adjust it after.
-  const disinfectionMultiplier = body.disinfectionSystem ? 1 : 1.05;
-  return Math.ceil(
-    basePrice * frequencyMultiplier * accessMultiplier * disinfectionMultiplier,
-  );
-}
-
-function effectiveWaterBodyPrice(body: ProposalWaterBody) {
-  return Math.ceil(
-    body.priceManuallyAdjusted ? body.monthlyPrice : calculateWaterBodyPrice(body),
-  );
-}
-
-function suggestedPricesForWaterBody(body: ProposalWaterBody) {
-  return body.type === 'SWIMMING_POOL'
-    ? poolPrices[body.category] ?? []
-    : [automaticWaterBodyPrices[body.type] ?? 150];
-}
-
-const serviceBaseAddress = '811 E 131ST AVE, TAMPA, FL 33612-4424';
 
 function propertyNameKey(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -855,9 +777,31 @@ function App() {
   const [proposalServices, setProposalServices] = useState<ProposalService[]>(
     () => [...proposalServiceOptions],
   );
-  const [routeDistanceMiles, setRouteDistanceMiles] = useState<number | null>(null);
-  const [fuelPricePerGallon, setFuelPricePerGallon] = useState('3.50');
-  const [vehicleMpg, setVehicleMpg] = useState('25');
+  const [proposalTargetMargin, setProposalTargetMargin] = useState(60);
+  const [proposalContext, setProposalContext] = useState<ProposalContext | null>(null);
+  const [proposalHistoryLoading, setProposalHistoryLoading] = useState(false);
+  const [proposalHistoryError, setProposalHistoryError] = useState('');
+  const [proposalHistoryRefresh, setProposalHistoryRefresh] = useState(0);
+  const [proposalChemicalProjection, setProposalChemicalProjection] = useState<number | null>(null);
+  const proposalPropertyId = selectedProperty?.id;
+  useEffect(() => {
+    if (!showProposal || !proposalPropertyId) return;
+    const controller = new AbortController();
+    setProposalContext(null);
+    setProposalHistoryLoading(true);
+    setProposalHistoryError('');
+    void fetch(`${API_URL}/properties/${proposalPropertyId}/proposal-context`, { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Could not load recorded costs. Size-based budgets are shown until history is available.');
+        const context = await response.json() as ProposalContext;
+        if (!context.chemicalHistory) throw new Error('Recorded history is unavailable. Review the chemical forecast before saving.');
+        return context;
+      })
+      .then(context => { if (!controller.signal.aborted) setProposalContext(context); })
+      .catch((error: Error) => { if (!controller.signal.aborted) setProposalHistoryError(error.message); })
+      .finally(() => { if (!controller.signal.aborted) setProposalHistoryLoading(false); });
+    return () => controller.abort();
+  }, [showProposal, proposalPropertyId, proposalHistoryRefresh]);
 
   useEffect(() => {
     if (!selectedProperty || propertyTab !== 'quality') return;
@@ -886,68 +830,20 @@ function App() {
     return () => { cancelled = true; };
   }, [propertyTab, selectedProperty]);
 
-  const baseMonthlyPrice = proposalWaterBodies
-    .filter((body) => body.include)
-    .reduce((sum, body) => sum + effectiveWaterBodyPrice(body), 0);
-  const serviceVisitsPerWeek = Math.max(
-    1,
-    ...proposalWaterBodies
-      .filter((body) => body.include)
-      .map((body) => Number.parseInt(body.frequency, 10) || 1),
-  );
-  const fuelPrice = Math.max(0, Number(fuelPricePerGallon) || 0);
-  const mpg = Math.max(0, Number(vehicleMpg) || 0);
-  const calculatedTransportationCost =
-    routeDistanceMiles !== null && mpg > 0
-      ? Math.ceil(
-          (routeDistanceMiles * serviceVisitsPerWeek * 52 / 12 / mpg) * fuelPrice,
-        )
-      : 0;
-  const monthlyTransportationCost = calculatedTransportationCost;
-  const baseMonthlyPriceWithTransportation = baseMonthlyPrice + monthlyTransportationCost;
   const adjustmentPercentage =
-    managementStatus === 'VIP'
-      ? vipDiscountPercentage
-      : managementStatus === 'NEGOTIATED'
-        ? Math.min(100, Math.max(0, Number(adjustments || 0)))
-      : 0;
-  const monthlyInvestment = Math.ceil(
-    baseMonthlyPriceWithTransportation * (1 - adjustmentPercentage / 100),
-  );
-  const waterBodiesMonthlyInvestment = Math.ceil(
-    baseMonthlyPrice * (1 - adjustmentPercentage / 100),
-  );
-  const includedWaterBodies = proposalWaterBodies.filter((body) => body.include);
-  const profitAllocations = allocateProposalCosts(
-    includedWaterBodies.map((body) => ({
-      description: body.name,
-      type: body.type,
-      frequency: body.frequency,
-      baseMonthlyCost: effectiveWaterBodyPrice(body),
-    })),
-    monthlyTransportationCost,
-    adjustmentPercentage,
-    monthlyInvestment,
-  );
-  const profitAllocationByWaterBody = new Map(
-    includedWaterBodies.map((body, index) => [body, profitAllocations[index]]),
-  );
-  const estimatedWaterBodyProfits = proposalWaterBodies.map((body) => {
-    if (!body.include) return null;
-
-    const allocation = profitAllocationByWaterBody.get(body);
-    const monthlyRevenue = (allocation?.monthlyCents ?? 0) / 100;
-    const laborBasis = Math.min(monthlyRevenue, 999);
-    const laborPerVisit = (laborBasis * 0.2) / 13;
-    const laborCost = laborPerVisit * monthlyVisitsForFrequency(body.frequency);
-    const chemicalFrequencyFactor = weeklyVisitsForFrequency(body.frequency) / 3;
-    const chemicalCost =
-      monthlyRevenue * (chemicalCostPercentage(body) / 100) * chemicalFrequencyFactor;
-    const suppliesCost = monthlyRevenue * 0.02;
-    const gasolineCost = (allocation?.fuelCents ?? 0) / 100;
-
-    return monthlyRevenue - laborCost - chemicalCost - suppliesCost - gasolineCost;
-  });
+    managementStatus === 'VIP' ? vipDiscountPercentage :
+      managementStatus === 'NEGOTIATED' ? Math.min(100, Math.max(0, Number(adjustments || 0))) : 0;
+  const proposalCalculatorSettings = {
+    targetMarginPercent: proposalTargetMargin, discountPercent: adjustmentPercentage,
+    surchargePercent: managementStatus === 'SURCHARGE' ? Math.min(100, Math.max(0, Number(adjustments || 0))) : 0,
+    chemicalsIncluded: proposalServices.includes('Chemical Supply'),
+    chemicalProjection: proposalChemicalProjection ?? proposalContext?.chemicalHistory.averageMonthlyCost ?? null,
+  };
+  const proposalCalculation = calculateProposal(proposalWaterBodies, proposalCalculatorSettings);
+  // Gasoline is already reserved inside each body's fee at 1.5%.
+  const monthlyTransportationCost = 0;
+  const monthlyInvestment = proposalCalculation.total;
+  const effectiveWaterBodyPrice = (body: ProposalWaterBody) => proposalCalculation.lines.find(line => line.body === body)?.grossPrice ?? 0;
 
   const [
     editForm,
@@ -1706,7 +1602,11 @@ function App() {
 
   function openProposal() {
     if (!selectedProperty) return;
-    setRouteDistanceMiles(null);
+    setProposalTargetMargin(60);
+    setManagementStatus('CURRENT');
+    setAdjustments('0');
+    setProposalNotes('');
+    setProposalChemicalProjection(null);
     setProposalServices([...proposalServiceOptions]);
     setProposalWaterBodies(
       selectedProperty.waterBodies.map((body) => {
@@ -1716,18 +1616,22 @@ function App() {
             ? 'DECORATIVE_WATER_FEATURE'
             : body.type;
         return {
+          id: body.id,
           name: body.name,
+          gallons: body.gallons,
           type,
           include: body.active,
-          category: body.size ?? (type === 'SWIMMING_POOL' ? 'MEDIUM' : 'MEDIUM'),
+          category: body.size || '',
           monthlyPrice: type === 'SWIMMING_POOL'
-            ? poolPrices[body.size ?? 'MEDIUM']?.[0] ?? 700
+            ? poolBasePrices[body.size ?? 'MEDIUM'] ?? 700
             : automaticWaterBodyPrices[type] ?? 150,
           frequency: '3x Weekly',
           disinfectionSystem: true,
           accessDifficulty: 'SIMPLE',
           priceManuallyAdjusted: false,
           priceMode: 'SUGGESTED',
+          laborCostPerVisit: defaultLaborPerVisit(type, body.size || ''),
+          laborManuallyAdjusted: false,
         };
       }),
     );
@@ -1745,6 +1649,9 @@ function App() {
         if (changes.type) {
           updated.category = changes.type === 'SWIMMING_POOL' ? 'SMALL' : '';
         }
+        if (('type' in changes || 'category' in changes) && !updated.laborManuallyAdjusted) {
+          updated.laborCostPerVisit = defaultLaborPerVisit(updated.type, updated.category);
+        }
         const pricingVariableChanged = [
           'type',
           'category',
@@ -1755,7 +1662,6 @@ function App() {
         if (pricingVariableChanged) {
           return {
             ...updated,
-            monthlyPrice: calculateWaterBodyPrice(updated),
             priceManuallyAdjusted: false,
             priceMode: 'SUGGESTED',
           };
@@ -1814,6 +1720,8 @@ function App() {
           ? `• Negotiated pricing applied: fixed ${adjustmentPercentage}% discount`
         : '',
       proposalNotes.trim() ? `• Additional notes: ${proposalNotes.trim()}` : '',
+      managementStatus === 'SURCHARGE' && proposalCalculatorSettings.surchargePercent > 0
+        ? `• Negotiated surcharge applied: ${proposalCalculatorSettings.surchargePercent}%` : '',
       '',
       'Attached you will find the full details of our proposal for your review. Please do not hesitate to contact me with any questions or to discuss the next steps.',
       '',
@@ -2010,22 +1918,35 @@ function App() {
       return;
     }
 
+    if (proposalCalculation.lines.some(line => line.costs !== null && line.costs.revenue <= 0)) {
+      window.alert('Enter a positive monthly price for every included water body.');
+      return;
+    }
     const notes = buildProposalEmailBody();
     const pdfData = buildProposalPdfData();
     if (!pdfData) return;
 
     try {
       setSavingProposal(true);
-      const pdfModule = await import('./proposalPdf');
       const proposalData = {
         ...pdfData,
         proposalDate: pdfData.proposalDate.toISOString(),
-        allocations: pdfModule.allocateProposalCosts(
-          pdfData.waterBodies,
-          pdfData.monthlyTransportationCost,
-          pdfData.discountPercentage,
-          pdfData.totalMonthlyInvestment,
-        ),
+        allocations: proposalCalculation.allocations,
+        pricingModel: {
+          version: 2, basis: 'DOLLAR_FORECAST_WITH_PER_BODY_BUDGETS', targetMarginPercent: proposalTargetMargin,
+          rates: calculatorRates, chemicalRatesBySize, chemicalsIncluded: proposalCalculatorSettings.chemicalsIncluded,
+          settings: proposalCalculatorSettings, history: proposalContext,
+          chemicalProjectionSource: proposalChemicalProjection !== null ? 'MANUAL' : proposalContext?.chemicalHistory.averageMonthlyCost != null ? 'RECORDED_HISTORY' : 'SIZE_BUDGET',
+          managementStatus, managementAdjustment: proposalCalculation.managementAdjustment,
+          chemicalCost: proposalCalculation.chemicalCost, chemicalBudget: proposalCalculation.chemicalBudget,
+          laborCost: proposalCalculation.laborCost, laborBudget: proposalCalculation.laborBudget,
+          totalCost: proposalCalculation.totalCost, estimatedProfit: proposalCalculation.profit,
+          estimatedMarginPercent: proposalCalculation.marginPercent, priceReference: proposalCalculation.priceReference,
+          waterBodies: proposalCalculation.lines.filter(line => line.body.include).map(line => ({
+            assumptions: line.body, commercialBase: line.base, monthlyPriceBeforeDiscount: line.grossPrice,
+            chemicalRate: line.chemicalRate, costs: line.costs,
+          })),
+        },
       };
       const response = await fetch(
         `${API_URL}/properties/${selectedProperty.id}/sales-activities`,
@@ -2672,6 +2593,17 @@ function App() {
   if (
     selectedProperty
   ) {
+    if (showProposal) return <ProposalCalculator
+      sidebar={renderAppSidebar()} headerActions={renderProposalReminderCenter()} property={selectedProperty}
+      calculation={proposalCalculation} settings={proposalCalculatorSettings} context={proposalContext}
+      historyLoading={proposalHistoryLoading} historyError={proposalHistoryError}
+      managementStatus={managementStatus} adjustment={adjustments} services={proposalServices} notes={proposalNotes} saving={savingProposal}
+      onUpdate={updateProposalWaterBody} onTarget={setProposalTargetMargin} onChemicals={setProposalChemicalProjection}
+      onManagement={status => { setManagementStatus(status); setAdjustments(status === 'VIP' ? '20' : '0'); }}
+      onAdjustment={setAdjustments} onServices={setProposalServices} onNotes={setProposalNotes}
+      onClose={() => setShowProposal(false)} onReset={openProposal} onSave={() => void saveProposal()}
+      onRetryHistory={() => setProposalHistoryRefresh(value => value + 1)}
+    />;
     const approvedProposals = selectedProperty.salesActivities.filter((activity) => activity.status === 'APPROVED').length;
     const isClient = selectedProperty.lifecycleStatus === 'CLIENT';
     const serviceStartLabel = selectedProperty.serviceStartDate ? new Date(selectedProperty.serviceStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : '—';
@@ -3679,470 +3611,7 @@ function App() {
           </section>
         )}
 
-        {showProposal && (
-          <div className="modal-backdrop" role="presentation">
-            <section
-              className="property-modal proposal-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="proposal-title"
-            >
-              <div className="edit-panel-header">
-                <div>
-                  <h2 id="proposal-title">Generate Proposal</h2>
-                  <p>Pricing Calculator and monthly service proposal.</p>
-                </div>
-                <button
-                  className="modal-close"
-                  onClick={() => setShowProposal(false)}
-                  disabled={savingProposal}
-                  aria-label="Close proposal"
-                >
-                  ×
-                </button>
-              </div>
 
-              <div className="proposal-property-summary">
-                <div>
-                  <span>Property</span>
-                  <strong>{selectedProperty.name}</strong>
-                </div>
-                <div>
-                  <span>Address</span>
-                  <strong>
-                    {[selectedProperty.addressLine1, selectedProperty.city,
-                      selectedProperty.state, selectedProperty.zipCode]
-                      .filter(Boolean)
-                      .join(', ')}
-                  </strong>
-                </div>
-                <div>
-                  <span>Water bodies</span>
-                  <strong>{selectedProperty.waterBodies.length}</strong>
-                </div>
-                <div>
-                  <span>Management Company</span>
-                  <strong>
-                    {selectedProperty.managementCompany?.name ?? 'Not assigned'}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="proposal-map-wrap">
-                <iframe
-                  className="property-map"
-                  title={`Google route map for ${selectedProperty.name}`}
-                  loading="lazy"
-                  src={`https://www.google.com/maps?q=${encodeURIComponent(
-                    `${serviceBaseAddress} to ${[selectedProperty.addressLine1, selectedProperty.city,
-                      selectedProperty.state, selectedProperty.zipCode]
-                      .filter(Boolean)
-                      .join(', ')}`,
-                  )}&output=embed`}
-                />
-                <div className="map-price-pin">
-                  <span>Monthly Proposal</span>
-                  <strong>${monthlyInvestment.toLocaleString('en-US')}</strong>
-                </div>
-              </div>
-
-              <div className="transport-cost-card">
-                <div className="proposal-section-heading">
-                  <div>
-                    <h3>Transportation Cost</h3>
-                    <p>Estimated one-way fuel cost is included in the monthly proposal.</p>
-                  </div>
-                </div>
-                <div className="transport-inputs">
-                  <div className="form-field">
-                    <label htmlFor="google-distance-miles">
-                      Google Maps distance (miles, one way)
-                    </label>
-                    <input
-                      id="google-distance-miles"
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      placeholder="Example: 0.9"
-                      value={routeDistanceMiles ?? ''}
-                      onChange={(event) => {
-                        const value = event.target.value.trim();
-                        setRouteDistanceMiles(
-                          value === '' ? null : Math.max(0, Number(value) || 0),
-                        );
-                      }}
-                    />
-                    <small className="transport-distance-help">
-                      Enter the one-way value shown in Google Maps.
-                    </small>
-                  </div>
-                  <div className="form-field">
-                    <label htmlFor="fuel-price">Gas price ($ / gallon)</label>
-                    <input
-                      id="fuel-price"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={fuelPricePerGallon}
-                      onChange={(event) => setFuelPricePerGallon(event.target.value)}
-                    />
-                  </div>
-                  <div className="form-field">
-                    <label htmlFor="vehicle-mpg">Vehicle efficiency (miles / gallon)</label>
-                    <input
-                      id="vehicle-mpg"
-                      type="number"
-                      min="1"
-                      step="0.1"
-                      value={vehicleMpg}
-                      onChange={(event) => setVehicleMpg(event.target.value)}
-                    />
-                  </div>
-                  <div className="transport-formula">
-                    {routeDistanceMiles !== null
-                      ? `${routeDistanceMiles} mi one way × ${serviceVisitsPerWeek} visits/week`
-                      : 'Waiting for route distance'}
-                  </div>
-                </div>
-                <div className="transport-subtotal investment-result">
-                  <span>Monthly transportation</span>
-                  <strong>${monthlyTransportationCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}</strong>
-                </div>
-              </div>
-
-              <div className="proposal-inputs">
-                <div className="form-field">
-                  <label>Management Status</label>
-                  <select
-                    value={managementStatus}
-                    onChange={(event) => {
-                      const status = event.target.value;
-                      setManagementStatus(status);
-                      setAdjustments(
-                        status === 'VIP'
-                          ? String(vipDiscountPercentage)
-                          : status === 'CURRENT'
-                            ? '0'
-                            : '',
-                      );
-                    }}
-                  >
-                    <option value="CURRENT">Current</option>
-                    <option value="VIP">VIP ({vipDiscountPercentage}% discount)</option>
-                    <option value="NEGOTIATED">Negotiated</option>
-                  </select>
-                </div>
-                {managementStatus === 'VIP' && (
-                  <div className="form-field">
-                    <label>Adjustment Discount (%)</label>
-                    <input
-                      type="number"
-                      value={vipDiscountPercentage}
-                      readOnly
-                    />
-                  </div>
-                )}
-                {managementStatus === 'NEGOTIATED' && (
-                  <div className="form-field">
-                    <label>Adjustment Discount (%)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={adjustments}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setAdjustments(
-                          value === ''
-                            ? ''
-                            : String(
-                                Math.min(100, Math.max(0, Number(value))),
-                              ),
-                        );
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="chemical-calculator proposal-water-bodies-card">
-                <div className="proposal-section-heading">
-                  <div>
-                    <h3>Water Bodies Pricing</h3>
-                    <p>Only included items are added to the proposal.</p>
-                  </div>
-                </div>
-
-                <div className="table-container">
-                  <table className="calculator-table">
-                    <thead>
-                      <tr>
-                        <th aria-label="Include" />
-                        <th>Water Body</th>
-                        <th>Type</th>
-                        <th>Size</th>
-                        <th>Frequency<br /><span className="table-heading-subtitle">Weekly</span></th>
-                        <th>Disinfection</th>
-                        <th>Access</th>
-                        <th><strong>Price</strong><br /><span className="table-heading-subtitle">Monthly</span></th>
-                        <th><strong>Profit</strong><br /><span className="table-heading-subtitle">Monthly</span></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {proposalWaterBodies.map((body, index) => (
-                        <tr key={`${body.name}-${index}`}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              checked={body.include}
-                              onChange={(event) =>
-                                updateProposalWaterBody(index, {
-                                  include: event.target.checked,
-                                })
-                              }
-                            />
-                          </td>
-                          <td><strong>{body.name}</strong></td>
-                          <td>
-                            <select
-                              value={body.type}
-                              onChange={(event) =>
-                                updateProposalWaterBody(index, {
-                                  type: event.target.value,
-                                })
-                              }
-                            >
-                              <option value="SWIMMING_POOL">Pool</option>
-                              <option value="SPA">Spa</option>
-                              <option value="KIDDIE_POOL">Kiddie Pool</option>
-                              <option value="SPLASH_PAD">Splash Pad</option>
-                              <option value="DECORATIVE_WATER_FEATURE">Decorative Water Feature</option>
-                            </select>
-                          </td>
-                          <td className={body.type === 'SPA' ? 'water-body-category-cell is-hidden' : 'water-body-category-cell'}>
-                            {body.type !== 'SPA' && (
-                              <select
-                                value={body.category}
-                                onChange={(event) =>
-                                  updateProposalWaterBody(index, {
-                                    category: event.target.value,
-                                  })
-                                }
-                              >
-                                <option value="">Select size</option>
-                                <option value="SMALL">Small</option>
-                                <option value="MEDIUM">Medium</option>
-                                <option value="LARGE">Large</option>
-                                <option value="EXTRA_LARGE">Extra Large</option>
-                              </select>
-                            )}
-                          </td>
-                          <td>
-                            <select
-                              value={body.frequency}
-                              onChange={(event) =>
-                                updateProposalWaterBody(index, {
-                                  frequency: event.target.value,
-                                })
-                              }
-                            >
-                              <option value="1x Weekly">1x</option>
-                              <option value="2x Weekly">2x</option>
-                              <option value="3x Weekly">3x</option>
-                              <option value="5x Weekly">5x</option>
-                              <option value="7x Weekly">7x</option>
-                            </select>
-                          </td>
-                          <td>
-                            <select
-                              value={body.disinfectionSystem ? 'YES' : 'NO'}
-                              onChange={(event) =>
-                                updateProposalWaterBody(index, {
-                                  disinfectionSystem: event.target.value === 'YES',
-                                })
-                              }
-                            >
-                              <option value="NO">No</option>
-                              <option value="YES">Yes</option>
-                            </select>
-                          </td>
-                          <td>
-                            <select
-                              value={body.accessDifficulty}
-                              onChange={(event) =>
-                                updateProposalWaterBody(index, {
-                                  accessDifficulty: event.target.value as ProposalWaterBody['accessDifficulty'],
-                                })
-                              }
-                            >
-                              <option value="SIMPLE">Simple</option>
-                              <option value="COMPLEX">Complex</option>
-                            </select>
-                          </td>
-                          <td>
-                            <select
-                              className="water-body-price-select"
-                              aria-label={`Suggested monthly price for ${body.name}`}
-                              value={body.priceMode === 'CUSTOM' ? 'CUSTOM' : String(body.monthlyPrice)}
-                              onChange={(event) => {
-                                if (event.target.value === 'CUSTOM') {
-                                  updateProposalWaterBody(index, {
-                                    priceMode: 'CUSTOM',
-                                    priceManuallyAdjusted: true,
-                                  });
-                                  return;
-                                }
-                                updateProposalWaterBody(index, {
-                                  monthlyPrice: Number(event.target.value),
-                                  priceMode: 'SUGGESTED',
-                                  priceManuallyAdjusted: true,
-                                });
-                              }}
-                            >
-                              <option value={effectiveWaterBodyPrice(body)}>
-                                Calculated ${effectiveWaterBodyPrice(body).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                              </option>
-                              {suggestedPricesForWaterBody(body).map((price) => (
-                                <option value={price} key={price}>
-                                  ${price.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                                </option>
-                              ))}
-                              <option value="CUSTOM">Custom amount...</option>
-                            </select>
-                            {body.priceMode === 'CUSTOM' && (
-                              <input
-                                className="water-body-price-input"
-                                type="number"
-                                min="0"
-                                step="1"
-                                aria-label={`Custom monthly price for ${body.name}`}
-                                value={Math.ceil(body.monthlyPrice)}
-                                onChange={(event) =>
-                                  updateProposalWaterBody(index, {
-                                    monthlyPrice: Math.max(0, Number(event.target.value) || 0),
-                                    priceManuallyAdjusted: true,
-                                  })
-                                }
-                              />
-                            )}
-                            {body.priceManuallyAdjusted && (
-                              <small className="manual-price-label">Commercial price</small>
-                            )}
-                          </td>
-                          <td className={`water-body-profit-cell ${(estimatedWaterBodyProfits[index] ?? 0) < 0 ? 'is-negative' : ''}`}>
-                            {body.include && estimatedWaterBodyProfits[index] !== null ? (
-                              <>
-                                <strong>
-                                  {(estimatedWaterBodyProfits[index] ?? 0).toLocaleString('en-US', {
-                                    style: 'currency',
-                                    currency: 'USD',
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 0,
-                                  })}
-                                </strong>
-                                <small>estimated net / month</small>
-                              </>
-                            ) : (
-                              <span className="water-body-profit-muted">Not included</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="water-bodies-subtotal investment-result">
-                  <span>Water Bodies Monthly Subtotal</span>
-                  <strong>${waterBodiesMonthlyInvestment.toLocaleString('en-US')} / month</strong>
-                  {managementStatus === 'VIP' && (
-                    <small>VIP pricing applied: fixed {vipDiscountPercentage}% discount</small>
-                  )}
-                  {managementStatus === 'NEGOTIATED' && adjustmentPercentage > 0 && (
-                    <small>Negotiated pricing applied: fixed {adjustmentPercentage}% discount</small>
-                  )}
-                </div>
-              </div>
-
-              <div className="chemical-calculator proposal-services-card">
-                <div className="proposal-section-heading">
-                  <div>
-                    <h3>Included Services</h3>
-                    <p>Uncheck any service that is not included in this proposal.</p>
-                  </div>
-                  <div className="proposal-service-actions">
-                    <button
-                      type="button"
-                      onClick={() => setProposalServices([...proposalServiceOptions])}
-                      disabled={proposalServices.length === proposalServiceOptions.length}
-                    >
-                      Select all
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProposalServices([])}
-                      disabled={proposalServices.length === 0}
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-                <div className="proposal-services-grid">
-                  {proposalServiceOptions.map((service) => (
-                    <label className="proposal-service-option" key={service}>
-                      <input
-                        type="checkbox"
-                        checked={proposalServices.includes(service)}
-                        onChange={(event) => {
-                          const checked = event.target.checked;
-                          setProposalServices((current) =>
-                            proposalServiceOptions.filter((option) =>
-                              option === service ? checked : current.includes(option),
-                            ),
-                          );
-                        }}
-                      />
-                      <span>{service}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="form-field proposal-recommendation">
-                <label>Internal Notes (optional)</label>
-                <textarea
-                  rows={4}
-                  value={proposalNotes}
-                  onChange={(event) => setProposalNotes(event.target.value)}
-                />
-              </div>
-
-              <div className="final-proposal-total">
-                <span>Final Monthly Proposal</span>
-                <strong>${monthlyInvestment.toLocaleString('en-US')} / month</strong>
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  className="secondary-button"
-                  onClick={() => setShowProposal(false)}
-                  disabled={savingProposal}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="secondary-button"
-                  onClick={() => saveProposal()}
-                  disabled={savingProposal}
-                >
-                  {savingProposal
-                    ? 'Saving...'
-                    : 'Save Proposal'}
-                </button>
-              </div>
-            </section>
-          </div>
-        )}
       </div>
     );
   }

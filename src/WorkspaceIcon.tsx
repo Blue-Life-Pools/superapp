@@ -45,6 +45,7 @@ const paths = {
   coins: <><ellipse cx="9" cy="8" rx="7" ry="3" /><path d="M2 8v5a7 3 0 0 0 14 0V8M2 13v5a7 3 0 0 0 14 0v-5M16 15a6 3 0 0 0 6-3V5" /><ellipse cx="16" cy="5" rx="6" ry="3" /></>,
   percent: <><circle cx="12" cy="12" r="9" /><path d="m8 16 8-8" /><circle cx="8" cy="8" r="1" /><circle cx="16" cy="16" r="1" /></>,
   drop: <path d="M12 2S4 11 4 16a8 8 0 0 0 16 0c0-5-8-14-8-14Z" />,
+  fountain: <><path d="M12 15V4M7 8c0-6 5-6 5 0m5 0c0-6-5-6-5 0M4 13c0-5 8-5 8 2m8-2c0-5-8-5-8 2M3 18c2-3 4 3 6 0s4 3 6 0 4 3 6 0M5 22h14" /></>,
 } satisfies Record<string, ReactNode>;
 
 export function WorkspaceIcon({ name, className = '' }: { name: keyof typeof paths; className?: string }) {
