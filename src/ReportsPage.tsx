@@ -1,10 +1,12 @@
 import { SearchField } from './SearchField';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { API_URL, apiFetch as fetch } from './api';
+import { WorkspaceIcon } from './WorkspaceIcon';
+import { ReportActionsMenu } from './ReportActionsMenu';
 import './ReportsPage.css';
 
 type Role = 'SUPERVISOR' | 'INSPECTOR' | 'TECHNICIAN';
@@ -90,6 +92,26 @@ export function ReportsPage({ sidebar, properties, unassignedOnly = false, onCle
   const [reportFrom, setReportFrom] = useState(monthStart());
   const [reportTo, setReportTo] = useState(today());
   const [printing, setPrinting] = useState(false);
+  const [moreFilters, setMoreFilters] = useState(false);
+  const [expandedDescription, setExpandedDescription] = useState<string | null>(null);
+  const solveDialog = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!solving) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const dialog = solveDialog.current;
+    dialog?.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && dialog?.getAttribute('aria-busy') !== 'true') { event.preventDefault(); setSolving(null); }
+      if (event.key !== 'Tab' || !dialog) return;
+      const controls = [...dialog.querySelectorAll<HTMLElement>('button:not(:disabled), textarea:not(:disabled), input:not(:disabled)')];
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => { document.removeEventListener('keydown', onKeyDown); previousFocus?.focus(); };
+  }, [solving]);
 
   async function load() {
     setLoading(true);
@@ -164,13 +186,9 @@ export function ReportsPage({ sidebar, properties, unassignedOnly = false, onCle
     return true;
   }).sort((a, b) => (a.status === b.status ? 0 : a.status === 'PENDING' ? -1 : 1) || dateKey(b.occurredAt).localeCompare(dateKey(a.occurredAt))), [dashboard.incidents, quickView, search, periodMode, day, from, to, month, propertyFilter, typeFilter, importanceFilter, technicianFilter, supervisorFilter, inspectorFilter, statusFilter, unassignedOnly, properties]);
 
-  const quickCounts = {
-    ALL: dashboard.incidents.length,
-    PENDING: dashboard.incidents.filter((item) => item.status === 'PENDING').length,
-    SOLVED: dashboard.incidents.filter((item) => item.status === 'SOLVED').length,
-    INSPECTION: dashboard.incidents.filter((item) => item.requiresInspector).length,
-  };
   const kpis = { total: filtered.length, pending: filtered.filter((item) => item.status === 'PENDING').length, solved: filtered.filter((item) => item.status === 'SOLVED').length, inspections: filtered.filter((item) => item.requiresInspector).length };
+  const extraFilterCount = [search.trim(), technicianFilter, supervisorFilter, inspectorFilter].filter(Boolean).length;
+  const hasFilters = quickView !== 'ALL' || periodMode !== 'ALL' || Boolean(propertyFilter || typeFilter || importanceFilter || statusFilter || extraFilterCount);
 
   function distribution(items: Incident[], key: DistributionKey) {
     const counts = new Map<string, { id: string; label: string; color: string; count: number }>();
@@ -260,14 +278,22 @@ export function ReportsPage({ sidebar, properties, unassignedOnly = false, onCle
     finally { setBusy(false); }
   }
   async function reopen(incident: Incident) {
-    if (!window.confirm(`Reopen the report for ${incident.propertyName}?`)) return;
-    const saved = await request<Incident>(`/reports/incidents/${incident.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'PENDING' }) });
-    setDashboard((current) => ({ ...current, incidents: current.incidents.map((item) => item.id === saved.id ? saved : item) }));
+    if (busy || !window.confirm(`Reopen the report for ${incident.propertyName}?`)) return;
+    setBusy(true); setError('');
+    try {
+      const saved = await request<Incident>(`/reports/incidents/${incident.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'PENDING' }) });
+      setDashboard((current) => ({ ...current, incidents: current.incidents.map((item) => item.id === saved.id ? saved : item) }));
+    } catch (reopenError) { setError((reopenError as Error).message); }
+    finally { setBusy(false); }
   }
   async function removeIncident(incident: Incident) {
-    if (!window.confirm(`Delete the report for ${incident.propertyName}?`)) return;
-    await request(`/reports/incidents/${incident.id}`, { method: 'DELETE' });
-    setDashboard((current) => ({ ...current, incidents: current.incidents.filter((item) => item.id !== incident.id) }));
+    if (busy || !window.confirm(`Delete the report for ${incident.propertyName}?`)) return;
+    setBusy(true); setError('');
+    try {
+      await request(`/reports/incidents/${incident.id}`, { method: 'DELETE' });
+      setDashboard((current) => ({ ...current, incidents: current.incidents.filter((item) => item.id !== incident.id) }));
+    } catch (deleteError) { setError((deleteError as Error).message); }
+    finally { setBusy(false); }
   }
 
   const configItems = configKind === 'type' ? dashboard.types : dashboard.people.filter((person) => person.role === configKind.toUpperCase());
@@ -320,25 +346,60 @@ export function ReportsPage({ sidebar, properties, unassignedOnly = false, onCle
   const missingLists = supervisors.length === 0 || technicians.length === 0 || inspectors.length === 0;
 
   return <div className="page app-page reports-page">{sidebar}
-    <header className="area-page-header reports-header"><div><span className="area-eyebrow">OPERATIONS & ACCOUNTABILITY</span><h1>Reports</h1><p>Track field incidents, ownership, inspections and resolution in one shared control center.</p></div><div className="reports-header-actions"><button className="reports-button reports-button-ghost" onClick={() => setSettingsOpen(true)}>Settings</button><button className="reports-button reports-button-secondary" onClick={() => setReportOpen(true)}>Period report</button><button className="reports-button reports-button-primary" onClick={openNew}>+ New report</button></div></header>
+    <header className="area-page-header reports-header">
+      <div><span className="area-eyebrow">OPERATIONS &amp; ACCOUNTABILITY</span><h1>Reports</h1><p>Track field incidents, ownership, inspections and resolution in one shared control center.</p></div>
+      <div className="reports-header-actions"><button className="reports-button reports-button-settings" onClick={() => setSettingsOpen(true)} aria-label="Reports settings" title="Reports settings"><WorkspaceIcon name="sliders" /></button><button className="reports-button reports-button-secondary" onClick={() => setReportOpen(true)}>Period report</button><button className="reports-button reports-button-primary" onClick={openNew}><WorkspaceIcon name="plus" />New report</button></div>
+    </header>
     {error && <div className="reports-message" role="alert">{error}</div>}
     {unassignedOnly && <div className="reports-review-banner"><span>Reviewing reports without a unique Commercial property match.</span><button type="button" onClick={onClearUnassignedFilter}>Show all reports</button></div>}
     {missingLists && !loading && <button className="reports-setup-banner" onClick={() => setSettingsOpen(true)}><strong>Complete setup</strong><span>Add supervisors, technicians and inspectors before registering the first report.</span><b>Open settings →</b></button>}
-    <nav className="reports-quick-nav" aria-label="Quick report views">{([['ALL','All'],['PENDING','Pending'],['SOLVED','Solved'],['INSPECTION','Require inspector']] as Array<[QuickView,string]>).map(([key,label])=><button key={key} className={quickView===key?'reports-quick-active':''} onClick={()=>setQuickView(key)}><span>{quickCounts[key]}</span>{label}</button>)}</nav>
-    <section className="reports-kpis"><article><span>Total reports</span><strong>{kpis.total}</strong><small>Current selection</small></article><article className="reports-kpi-pending"><span>Pending</span><strong>{kpis.pending}</strong><small>Needs action</small></article><article className="reports-kpi-solved"><span>Solved</span><strong>{kpis.solved}</strong><small>Work completed</small></article><article className="reports-kpi-inspector"><span>Require inspector</span><strong>{kpis.inspections}</strong><small>Inspection follow-up</small></article></section>
-    <section className="reports-filter-card"><div className="reports-filter-heading"><div><h2>Filters</h2><p>All filters work together and update the metrics, distribution and table.</p></div><button onClick={clearFilters}>Clear filters</button></div><div className="reports-filter-grid"><label className="reports-search-field"><span>Quick search</span><SearchField aria-label="Search reports" placeholder="Property, description or resolution" value={search} onChange={(event)=>setSearch(event.target.value)} /></label><label><span>Period</span><select value={periodMode} onChange={(event)=>setPeriodMode(event.target.value as PeriodMode)}><option value="ALL">All dates</option><option value="DAY">Day</option><option value="RANGE">Date range</option><option value="MONTH">Month</option></select></label>{periodMode==='DAY'&&<label><span>Date</span><input type="date" value={day} onChange={(event)=>setDay(event.target.value)} /></label>}{periodMode==='RANGE'&&<><label><span>From</span><input type="date" value={from} onChange={(event)=>setFrom(event.target.value)} /></label><label><span>To</span><input type="date" value={to} onChange={(event)=>setTo(event.target.value)} /></label></>}{periodMode==='MONTH'&&<label><span>Month</span><input type="month" value={month} onChange={(event)=>setMonth(event.target.value)} /></label>}<label><span>Property</span><select value={propertyFilter} onChange={(event)=>setPropertyFilter(event.target.value)}><option value="">All properties</option>{propertiesInHistory.map((name)=><option key={name}>{name}</option>)}</select></label><label><span>Type</span><select value={typeFilter} onChange={(event)=>setTypeFilter(event.target.value)}><option value="">All types</option>{dashboard.types.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label><span>Importance</span><select value={importanceFilter} onChange={(event)=>setImportanceFilter(event.target.value)}><option value="">All levels</option><option value="HIGH">High</option><option value="MEDIUM">Medium</option><option value="LOW">Low</option></select></label><label><span>Technician</span><select value={technicianFilter} onChange={(event)=>setTechnicianFilter(event.target.value)}><option value="">All technicians</option>{technicians.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label><span>Supervisor</span><select value={supervisorFilter} onChange={(event)=>setSupervisorFilter(event.target.value)}><option value="">All supervisors</option>{supervisors.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label><span>Inspector</span><select value={inspectorFilter} onChange={(event)=>setInspectorFilter(event.target.value)}><option value="">All inspector options</option><option value="none">No inspector required</option>{inspectors.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label><span>Status</span><select value={statusFilter} onChange={(event)=>setStatusFilter(event.target.value)}><option value="">All statuses</option><option value="PENDING">Pending</option><option value="SOLVED">Solved</option></select></label></div></section>
-    <section className="reports-distribution-card"><div className="reports-section-heading"><div><h2>Distribution</h2><p>Click a bar to apply it as a filter.</p></div><span>{filtered.length} reports</span></div><div className="reports-distribution-tabs">{(['type','technician','supervisor','inspector','importance','status'] as DistributionKey[]).map((key)=><button key={key} className={activeDistribution===key?'active':''} onClick={()=>setActiveDistribution(key)}>{key[0].toUpperCase()+key.slice(1)}</button>)}</div><div className="reports-bars">{distributionRows.length===0?<p className="reports-empty">No data for this selection.</p>:distributionRows.map((row)=><button key={row.id} className="reports-bar-row" onClick={()=>applyDistribution(row)}><span className="reports-bar-label"><i style={{background:row.color}} />{row.label}</span><span className="reports-bar-track"><i style={{width:`${filtered.length?Math.max(3,row.count/filtered.length*100):0}%`,background:row.color}} /></span><strong>{filtered.length?Math.round(row.count/filtered.length*100):0}% <small>· {row.count}</small></strong></button>)}</div></section>
-    <section className="reports-table-card"><div className="reports-section-heading"><div><h2>{quickView==='ALL'?'Report history':quickView==='INSPECTION'?'Reports requiring inspector':`${quickView[0]}${quickView.slice(1).toLowerCase()} reports`}</h2></div><button className="reports-table-download-button" onClick={()=>exportCsv()}>Download filtered</button></div><div className="reports-table-wrap">{loading?<p className="reports-empty">Loading reports…</p>:<table className="reports-table"><thead><tr><th>Date</th><th>Property</th><th>Type</th><th>Importance</th><th>Description</th><th>Inspector</th><th>Technician</th><th>Supervisor</th><th>Status</th><th className="reports-action-heading">Action</th><th className="reports-action-heading" aria-label="Edit" /><th className="reports-action-heading" aria-label="Delete" /></tr></thead><tbody>{filtered.length===0&&<tr><td colSpan={12} className="reports-empty">No reports match this selection.</td></tr>}{filtered.map(renderRow)}</tbody></table>}</div></section>
+    <section className="reports-kpis" aria-label="Quick report views">
+      {([
+        ['ALL', 'Total reports', kpis.total, 'layers', 'total'],
+        ['PENDING', 'Pending', kpis.pending, 'clock', 'pending'],
+        ['SOLVED', 'Solved', kpis.solved, 'check-circle', 'solved'],
+        ['INSPECTION', 'Require inspector', kpis.inspections, 'users', 'inspector'],
+      ] as const).map(([key, label, count, icon, tone]) => <button key={key} type="button" className={`reports-kpi reports-kpi-${tone}`} aria-pressed={quickView === key} onClick={() => setQuickView(quickView === key ? 'ALL' : key)}>
+        <span className="reports-kpi-icon"><WorkspaceIcon name={icon} /></span><span className="reports-kpi-copy"><span>{label}</span><strong>{count}</strong></span>
+      </button>)}
+    </section>
+    <section className="reports-filter-card" aria-label="Report filters">
+      <div className="reports-filter-heading"><h2>Filters</h2></div>
+      <div className="reports-primary-filters">
+        <label><span>Period:</span><select aria-label="Period" value={periodMode} onChange={(event) => setPeriodMode(event.target.value as PeriodMode)}><option value="ALL">All dates</option><option value="DAY">Day</option><option value="RANGE">Date range</option><option value="MONTH">Month</option></select></label>
+        <label><span>Property:</span><select aria-label="Property filter" value={propertyFilter} onChange={(event) => setPropertyFilter(event.target.value)}><option value="">All properties</option>{propertiesInHistory.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <label><span>Type:</span><select aria-label="Type filter" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}><option value="">All types</option>{dashboard.types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label><span>Importance:</span><select aria-label="Importance filter" value={importanceFilter} onChange={(event) => setImportanceFilter(event.target.value)}><option value="">All levels</option><option value="HIGH">High</option><option value="MEDIUM">Medium</option><option value="LOW">Low</option></select></label>
+        <label><span>Status:</span><select aria-label="Status filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">All statuses</option><option value="PENDING">Pending</option><option value="SOLVED">Solved</option></select></label>
+      </div>
+      <div className="reports-filter-tools"><button type="button" aria-expanded={moreFilters} aria-controls="reports-more-filters" onClick={() => setMoreFilters(!moreFilters)}><WorkspaceIcon name="sliders" />More filters{extraFilterCount > 0 && <b>{extraFilterCount}</b>}</button>{hasFilters && <button type="button" onClick={clearFilters}><WorkspaceIcon name="refresh" />Clear filters</button>}</div>
+      {periodMode !== 'ALL' && <div className="reports-period-fields">
+        {periodMode === 'DAY' && <label>Date<input aria-label="Filter date" type="date" value={day} onChange={(event) => setDay(event.target.value)} /></label>}
+        {periodMode === 'RANGE' && <><label>From<input aria-label="Filter from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label><label>To<input aria-label="Filter to" type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label></>}
+        {periodMode === 'MONTH' && <label>Month<input aria-label="Filter month" type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label>}
+      </div>}
+      {moreFilters && <div className="reports-filter-grid" id="reports-more-filters">
+        <label className="reports-search-field"><span>Quick search</span><SearchField aria-label="Search reports" placeholder="Property, description or resolution" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+        <label><span>Technician</span><select aria-label="Technician filter" value={technicianFilter} onChange={(event) => setTechnicianFilter(event.target.value)}><option value="">All technicians</option>{technicians.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label><span>Supervisor</span><select aria-label="Supervisor filter" value={supervisorFilter} onChange={(event) => setSupervisorFilter(event.target.value)}><option value="">All supervisors</option>{supervisors.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label><span>Inspector</span><select aria-label="Inspector filter" value={inspectorFilter} onChange={(event) => setInspectorFilter(event.target.value)}><option value="">All inspector options</option><option value="none">No inspector required</option>{inspectors.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      </div>}
+    </section>
+    <section className="reports-distribution-card" aria-labelledby="reports-distribution-title">
+      <div className="reports-distribution-heading"><h2 id="reports-distribution-title">Distribution</h2><label><span className="reports-sr-only">Distribution group</span><select aria-label="Distribution group" value={activeDistribution} onChange={(event) => setActiveDistribution(event.target.value as DistributionKey)}>{(['type', 'technician', 'supervisor', 'inspector', 'importance', 'status'] as const).map((key) => <option key={key} value={key}>By {key}</option>)}</select></label></div>
+      <div className="reports-bars">{distributionRows.length === 0 ? <p className="reports-empty">No data for this selection.</p> : distributionRows.map((row) => <button key={row.id} className="reports-bar-row" onClick={() => applyDistribution(row)} title={`Filter by ${row.label}`}><span className="reports-bar-label">{row.label}</span><span className="reports-bar-track"><i style={{ width: `${filtered.length ? row.count / filtered.length * 100 : 0}%`, ...(activeDistribution !== 'type' ? { background: row.color } : {}) }} /></span><strong>{filtered.length ? Math.round(row.count / filtered.length * 100) : 0}% <small>· {row.count}</small></strong></button>)}</div>
+    </section>
+    <section className="reports-table-card" aria-labelledby="reports-history-title"><div className="reports-section-heading"><h2 id="reports-history-title">{quickView === 'ALL' ? 'Report history' : quickView === 'INSPECTION' ? 'Reports requiring inspector' : `${quickView[0]}${quickView.slice(1).toLowerCase()} reports`}</h2><button className="reports-table-download-button" onClick={() => exportCsv()}><WorkspaceIcon name="download" />Download filtered</button></div><div className="reports-table-wrap">{loading ? <p className="reports-empty">Loading reports…</p> : <table className="reports-table"><colgroup><col className="reports-col-date" /><col className="reports-col-property" /><col className="reports-col-type" /><col className="reports-col-importance" /><col className="reports-col-description" /><col className="reports-col-person" /><col className="reports-col-person" /><col className="reports-col-person" /><col className="reports-col-status" /><col className="reports-col-actions" /></colgroup><thead><tr><th>Date</th><th>Property</th><th>Type</th><th>Importance</th><th>Description</th><th>Inspector</th><th>Technician</th><th>Supervisor</th><th>Status</th><th className="reports-action-heading">Actions</th></tr></thead><tbody>{filtered.length === 0 && <tr><td colSpan={10} className="reports-empty">No reports match this selection.</td></tr>}{filtered.map(renderRow)}</tbody></table>}</div></section>
 
     {editing && <div className="modal-backdrop">
       <section className="property-modal reports-editor" role="dialog" aria-modal="true">
         <div className="reports-modal-heading"><div><span>{editing === 'new' ? 'NEW FIELD REPORT' : 'EDIT REPORT'}</span><h2>{editing === 'new' ? 'Register a report' : editing.propertyName}</h2></div><button onClick={() => setEditing(null)} aria-label="Close">×</button></div>
         <form onSubmit={saveIncident}>
           <div className="reports-form-grid">
-            <label><span>Date</span><input required type="date" value={form.occurredAt} onChange={(event) => setForm({ ...form, occurredAt: event.target.value })} /></label>
-            <label className="reports-form-property"><span>Property</span><input required list="reports-properties" placeholder="Start typing a property" value={form.propertyName} onChange={(event) => setForm({ ...form, propertyName: event.target.value })} /><datalist id="reports-properties">{propertiesInHistory.map((name) => <option key={name} value={name} />)}</datalist></label>
-            <label><span>Incident type</span><select required value={form.typeId} onChange={(event) => setForm({ ...form, typeId: event.target.value })}><option value="">Select…</option>{dashboard.types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-            <label className="reports-form-description"><span>Description</span><textarea required rows={4} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
+            <label><span>Date</span><input aria-label="Report date" required type="date" value={form.occurredAt} onChange={(event) => setForm({ ...form, occurredAt: event.target.value })} /></label>
+            <label className="reports-form-property"><span>Property</span><input aria-label="Property" required list="reports-properties" placeholder="Start typing a property" value={form.propertyName} onChange={(event) => setForm({ ...form, propertyName: event.target.value })} /><datalist id="reports-properties">{propertiesInHistory.map((name) => <option key={name} value={name} />)}</datalist></label>
+            <label><span>Incident type</span><select aria-label="Incident type" required value={form.typeId} onChange={(event) => setForm({ ...form, typeId: event.target.value })}><option value="">Select…</option>{dashboard.types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            <label className="reports-form-description"><span>Description</span><textarea aria-label="Description" required rows={4} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
             <label className="reports-form-attachments"><span>Photos and videos</span>
               <div className="reports-upload-zone">
                 <input type="file" multiple accept="image/*,video/*" onChange={(event) => {
@@ -355,18 +416,33 @@ export function ReportsPage({ sidebar, properties, unassignedOnly = false, onCle
               {pendingFiles.length > 0 && <div className="reports-selected-files">{pendingFiles.map((file, index) => <span key={`${file.name}-${file.lastModified}-${index}`}>{file.type.startsWith('video/') ? '▶' : '▧'} <b>{file.name}</b><small>{fileSize(file.size)}</small><button type="button" onClick={() => setPendingFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove ${file.name}`}>×</button></span>)}</div>}
               {editing !== 'new' && editing.attachments?.length > 0 && <div className="reports-existing-files"><small>Already saved in SharePoint</small><AttachmentLinks attachments={editing.attachments} /></div>}
             </label>
-            <label><span>Technician</span><select required value={form.technicianId} onChange={(event) => selectTechnician(event.target.value)}><option value="">Select…</option>{technicians.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{supervisorHint && <small>{supervisorHint}</small>}</label>
-            <label><span>Supervisor</span><select required value={form.supervisorId} onChange={(event) => setForm({ ...form, supervisorId: event.target.value })}><option value="">Select…</option>{supervisors.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            <label><span>Technician</span><select aria-label="Technician" required value={form.technicianId} onChange={(event) => selectTechnician(event.target.value)}><option value="">Select…</option>{technicians.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{supervisorHint && <small>{supervisorHint}</small>}</label>
+            <label><span>Supervisor</span><select aria-label="Supervisor" required value={form.supervisorId} onChange={(event) => setForm({ ...form, supervisorId: event.target.value })}><option value="">Select…</option>{supervisors.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
             <fieldset><legend>Importance</legend>{(['HIGH', 'MEDIUM', 'LOW'] as const).map((value) => <label key={value} className={`reports-radio reports-radio-${value.toLowerCase()}`}><input type="radio" name="importance" checked={form.importance === value} onChange={() => setForm({ ...form, importance: value })} />{importanceLabel(value)}</label>)}</fieldset>
             <fieldset><legend>Requires inspector?</legend><label className="reports-radio"><input type="radio" name="requires" checked={form.requiresInspector} onChange={() => setForm({ ...form, requiresInspector: true })} />Yes</label><label className="reports-radio"><input type="radio" name="requires" checked={!form.requiresInspector} onChange={() => setForm({ ...form, requiresInspector: false, inspectorId: '' })} />No</label></fieldset>
-            {form.requiresInspector && <label><span>Inspector</span><select required value={form.inspectorId} onChange={(event) => setForm({ ...form, inspectorId: event.target.value })}><option value="">Select…</option>{inspectors.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
+            {form.requiresInspector && <label><span>Inspector</span><select aria-label="Inspector" required value={form.inspectorId} onChange={(event) => setForm({ ...form, inspectorId: event.target.value })}><option value="">Select…</option>{inspectors.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
           </div>
           {error && <p className="reports-form-error">{error}</p>}
           <div className="modal-actions"><button type="button" className="reports-button reports-button-ghost" onClick={() => setEditing(null)}>Cancel</button><button className="reports-button reports-button-primary" disabled={busy}>{busy ? (pendingFiles.length ? 'Saving and uploading…' : 'Saving…') : 'Save report'}</button></div>
         </form>
       </section>
     </div>}
-    {solving&&<div className="modal-backdrop"><section className="property-modal reports-solve-modal" role="dialog" aria-modal="true"><div className="reports-modal-heading"><div><span>CLOSE REPORT</span><h2>{solving.propertyName}</h2></div><button onClick={()=>setSolving(null)} aria-label="Close">×</button></div><div className="reports-solve-summary"><b>{solving.type.name} · {importanceLabel(solving.importance)}</b><p>{solving.description}</p><small>{solving.technician.name} · Supervisor: {solving.supervisor.name}</small></div><form onSubmit={solveIncident}><label><span>What was done?</span><textarea required rows={5} value={resolution} onChange={(event)=>setResolution(event.target.value)} placeholder="Describe the completed work…" /></label><div className="reports-solve-fields"><fieldset><legend>Resolved date</legend><label><input aria-label="Resolved date" required type="date" value={solvedAt} onChange={(event)=>setSolvedAt(event.target.value)} /></label></fieldset><fieldset><legend>Requires estimate?</legend><label className="reports-radio"><input type="radio" name="requires-estimate" checked={requiresEstimate} onChange={()=>setRequiresEstimate(true)} />Yes</label><label className="reports-radio"><input type="radio" name="requires-estimate" checked={!requiresEstimate} onChange={()=>{setRequiresEstimate(false);setEstimateNumber('');}} />No</label>{requiresEstimate&&<label><span>Estimate number</span><input required value={estimateNumber} onChange={(event)=>setEstimateNumber(event.target.value)} placeholder="Enter estimate number" /></label>}</fieldset></div><label className="reports-confirm"><input type="checkbox" checked={confirmed} onChange={(event)=>setConfirmed(event.target.checked)} /> I confirm that this report has been resolved.</label><div className="modal-actions"><button type="button" className="reports-button reports-button-ghost" onClick={()=>setSolving(null)}>Cancel</button><button className="reports-button reports-button-solved" disabled={!confirmed||!resolution.trim()||!solvedAt||(requiresEstimate&&!estimateNumber.trim())||busy}>Mark as solved</button></div></form></section></div>}
+    {solving && <div className="modal-backdrop reports-solve-backdrop"><section ref={solveDialog} className="property-modal reports-solve-modal" role="dialog" aria-modal="true" aria-labelledby="reports-solve-title" aria-busy={busy}>
+      <div className="reports-modal-heading"><span className="reports-solve-icon"><WorkspaceIcon name="check-circle" /></span><div><span>RESOLVE REPORT</span><h2 id="reports-solve-title">{solving.propertyName}</h2></div><button type="button" onClick={() => setSolving(null)} disabled={busy} aria-label="Close"><WorkspaceIcon name="close" /></button></div>
+      <div className="reports-solve-body">
+        <div className="reports-solve-summary"><div><span className="reports-solve-type">{solving.type.name}</span><span className={`reports-importance reports-importance-${solving.importance.toLowerCase()}`}>{importanceLabel(solving.importance)}</span></div><p>{solving.description}</p><div className="reports-solve-owners"><span><b>Technician</b>{solving.technician.name}</span><span><b>Supervisor</b>{solving.supervisor.name}</span></div></div>
+        <form onSubmit={solveIncident}>
+          <label htmlFor="reports-resolution"><span>What was done?</span><textarea id="reports-resolution" aria-label="What was done?" required rows={4} disabled={busy} value={resolution} onChange={(event) => setResolution(event.target.value)} placeholder="Describe the completed work…" /></label>
+          <div className="reports-solve-fields">
+            <fieldset disabled={busy}><legend>Requires estimate?</legend><div className="reports-estimate-options"><label className="reports-radio"><input type="radio" name="requires-estimate" checked={requiresEstimate} onChange={() => setRequiresEstimate(true)} />Yes</label><label className="reports-radio"><input type="radio" name="requires-estimate" checked={!requiresEstimate} onChange={() => { setRequiresEstimate(false); setEstimateNumber(''); }} />No</label></div>{requiresEstimate && <label className="reports-estimate-number"><span>Estimate number</span><input required value={estimateNumber} onChange={(event) => setEstimateNumber(event.target.value)} placeholder="Enter estimate number" /></label>}</fieldset>
+            <fieldset disabled={busy}><legend>Resolved date</legend><label><span className="reports-sr-only">Resolved date</span><input aria-label="Resolved date" required type="date" value={solvedAt} onChange={(event) => setSolvedAt(event.target.value)} /></label></fieldset>
+          </div>
+          <label className="reports-confirm"><input type="checkbox" disabled={busy} checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I confirm that this report has been resolved.</label>
+          {error && <p className="reports-form-error" role="alert">{error}</p>}
+          <div className="modal-actions"><button type="button" className="reports-button reports-button-ghost" disabled={busy} onClick={() => setSolving(null)}>Cancel</button><button className="reports-button reports-button-solved" disabled={!confirmed || !resolution.trim() || !solvedAt || (requiresEstimate && !estimateNumber.trim()) || busy}><WorkspaceIcon name="check" />{busy ? 'Saving…' : 'Mark as solved'}</button></div>
+        </form>
+      </div>
+    </section></div>}
     {settingsOpen&&<div className="modal-backdrop"><section className="property-modal reports-settings-modal" role="dialog" aria-modal="true">
       <div className="reports-modal-heading"><div><span>REPORTS SETUP</span><h2>Configuration lists</h2></div><button onClick={()=>setSettingsOpen(false)} aria-label="Close">×</button></div>
       <p className="reports-settings-intro">Names live here, not in the form. Renaming an item updates the history automatically.</p>
@@ -383,20 +459,21 @@ export function ReportsPage({ sidebar, properties, unassignedOnly = false, onCle
         {configKind==='technician'&&isPerson(item)&&colorPickerFor===item.id&&<div className="reports-color-palette reports-existing-color-palette"><span>Change color</span><div>{REPORT_COLOR_PALETTE.map((color)=><button key={color} type="button" className={item.color===color?'selected':''} style={{background:color}} onClick={()=>void setOptionColor(item,color)} aria-label={`Use color ${color} for ${item.name}`} />)}</div></div>}
       </div>)}{configItems.length===0&&<p className="reports-empty">No items yet.</p>}</div>
     </section></div>}
-    {reportOpen&&<div className="modal-backdrop reports-report-backdrop"><section className="reports-report-dialog" role="dialog" aria-modal="true"><div className="reports-report-controls"><div><button className={reportMode==='DAY'?'active':''} onClick={()=>setReportMode('DAY')}>Un día</button><button className={reportMode==='RANGE'?'active':''} onClick={()=>setReportMode('RANGE')}>Rango de fechas</button>{reportMode==='DAY'?<input type="date" value={reportDay} onChange={(event)=>setReportDay(event.target.value)} />:<><input type="date" value={reportFrom} onChange={(event)=>setReportFrom(event.target.value)} /><span>al</span><input type="date" value={reportTo} onChange={(event)=>setReportTo(event.target.value)} /></>}</div><div><button onClick={()=>setPrinting(true)}>PDF</button><button onClick={downloadExcelReport}>Excel</button><button onClick={()=>exportCsv(reportItems)}>CSV</button><button className="reports-report-close" onClick={()=>setReportOpen(false)}>×</button></div></div><ReportSheet title={reportTitle} subtitle={reportSubtitle} items={reportItems} distribution={distribution} /></section></div>}
+    {reportOpen&&<div className="modal-backdrop reports-report-backdrop"><section className="reports-report-dialog" role="dialog" aria-modal="true"><div className="reports-report-controls"><div><button className={reportMode==='DAY'?'active':''} onClick={()=>setReportMode('DAY')}>Un día</button><button className={reportMode==='RANGE'?'active':''} onClick={()=>setReportMode('RANGE')}>Rango de fechas</button>{reportMode==='DAY'?<input type="date" value={reportDay} onChange={(event)=>setReportDay(event.target.value)} />:<><input type="date" value={reportFrom} onChange={(event)=>setReportFrom(event.target.value)} /><span>al</span><input type="date" value={reportTo} onChange={(event)=>setReportTo(event.target.value)} /></>}</div><div><button onClick={()=>setPrinting(true)}>PDF</button><button onClick={downloadExcelReport}>Excel</button><button onClick={()=>exportCsv(reportItems)}>CSV</button><button className="reports-report-close" aria-label="Close" onClick={()=>setReportOpen(false)}>×</button></div></div><ReportSheet title={reportTitle} subtitle={reportSubtitle} items={reportItems} distribution={distribution} /></section></div>}
     {printing&&createPortal(<div className="reports-print-portal reports-pdf-capture"><ReportSheet title={reportTitle} subtitle={reportSubtitle} items={reportItems} distribution={distribution} /></div>, document.body)}
   </div>;
 
   function renderRow(incident: Incident) {
     return <tr key={incident.id} className={incident.status === 'PENDING' ? 'reports-row-pending' : ''}>
       <td>{displayDate(incident.occurredAt)}</td><td><strong>{incident.propertyName}</strong></td>
-      <td><span className="reports-type"><i style={{ background: incident.type.color || '#72a7db' }} />{incident.type.name}</span></td>
+      <td><span className="reports-type">{incident.type.name}</span></td>
       <td><span className={`reports-importance reports-importance-${incident.importance.toLowerCase()}`}>{importanceLabel(incident.importance)}</span></td>
-      <td className="reports-description">{incident.description}{incident.resolution && <small><b>DONE</b> {incident.resolution}{incident.solvedByName && <span> · Solved by {incident.solvedByName}</span>}</small>}{incident.attachments?.length > 0 && <AttachmentLinks attachments={incident.attachments} />}</td>
+      <td className="reports-description"><button type="button" className={`reports-description-preview${expandedDescription === incident.id ? ' expanded' : ''}`} aria-label={`Description for ${incident.propertyName}`} aria-expanded={expandedDescription === incident.id} title={incident.description} onClick={() => setExpandedDescription(expandedDescription === incident.id ? null : incident.id)}>{incident.description}</button>{incident.resolution && <small><b>DONE</b> {incident.resolution}{incident.solvedByName && <span> · Solved by {incident.solvedByName}</span>}</small>}{incident.attachments?.length > 0 && <AttachmentLinks attachments={incident.attachments} />}</td>
       <td>{incident.inspector?.name ?? <span className="reports-muted">Not applicable</span>}</td><td>{incident.technician.name}</td><td>{incident.supervisor.name}</td>
       <td><span className={`reports-status reports-status-${incident.status.toLowerCase()}`}>{statusLabel(incident.status)}</span></td>
-      <td className="reports-action-cell"><div className="reports-row-actions">{incident.status === 'PENDING' ? <button className="solve" onClick={() => { setSolving(incident); setResolution(incident.resolution ?? ''); setSolvedAt(today()); setRequiresEstimate(incident.requiresEstimate ?? false); setEstimateNumber(incident.estimateNumber ?? ''); setConfirmed(false); }}>✓ Solve</button> : <button onClick={() => void reopen(incident)}>Reopen</button>}</div></td>
-      <td className="reports-edit-delete-cell" colSpan={2}><div className="reports-row-actions reports-edit-delete-actions"><button onClick={() => openEdit(incident)}>Edit</button><button className="danger" onClick={() => void removeIncident(incident)}>Delete</button></div></td>
+      <td className="reports-action-cell"><ReportActionsMenu propertyName={incident.propertyName} solved={incident.status === 'SOLVED'} disabled={busy}
+        onSolve={() => { setError(''); setSolving(incident); setResolution(incident.resolution ?? ''); setSolvedAt(today()); setRequiresEstimate(incident.requiresEstimate ?? false); setEstimateNumber(incident.estimateNumber ?? ''); setConfirmed(false); }}
+        onReopen={() => void reopen(incident)} onEdit={() => openEdit(incident)} onDelete={() => void removeIncident(incident)} /></td>
     </tr>;
   }
 }
