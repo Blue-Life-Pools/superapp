@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 const paths = {
   home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></>,
   commercial: <><rect x="3" y="7" width="18" height="14" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12a23 23 0 0 0 18 0M12 11v4" /></>,
+  opportunities: <><path d="M3 21V11h5v10M10 21V7h5v14M17 21V3h4v18M3 6l5-3 4 2 8-4" /></>,
   properties: <><path d="M3 21h18M5 21V9h5M10 21V3h9v18M13 7h2m-2 4h2m-2 4h2M7 12v1m0 3v1" /></>,
   layers: <><path d="m12 3 10 5-10 5L2 8Z" /><path d="m2 12 10 5 10-5M2 16l10 5 10-5" /></>,
   chemicals: <><path d="M9 3h6m-5 0v7l-5.7 9.2A1.8 1.8 0 0 0 5.8 22h12.4a1.8 1.8 0 0 0 1.5-2.8L14 10V3M8 15h8" /></>,

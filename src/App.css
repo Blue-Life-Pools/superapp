@@ -4128,6 +4128,7 @@ body.sidebar-collapsed .app-page { padding-left: 32px; }
   .app-sidebar nav button[data-area="health"] { order: 5; }
   .app-sidebar nav button[data-area="commercial"] { order: 6; }
   .app-sidebar nav button[data-area="chemicals"] { order: 7; }
+  .app-sidebar nav button[data-area="opportunities"] { order: 8; }
   .app-sidebar nav button > span { width: 27px; height: 27px; }
   .area-page-header { margin-bottom: 20px; }
   .area-page-header h1 { font-size: 27px; }
@@ -5330,13 +5331,16 @@ tbody tr:hover,
   .app-sidebar[data-area-count="4"] nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .app-sidebar[data-area-count="5"] nav,
   .app-sidebar[data-area-count="6"] nav,
-  .app-sidebar[data-area-count="7"] nav { align-content: start; }
+  .app-sidebar[data-area-count="7"] nav,
+  .app-sidebar[data-area-count="8"] nav { align-content: start; }
   body:has(.app-sidebar[data-area-count="5"]) .app-page,
   body:has(.app-sidebar[data-area-count="6"]) .app-page,
-  body:has(.app-sidebar[data-area-count="7"]) .app-page { padding-bottom: calc(198px + env(safe-area-inset-bottom)); }
+  body:has(.app-sidebar[data-area-count="7"]) .app-page,
+  body:has(.app-sidebar[data-area-count="8"]) .app-page { padding-bottom: calc(198px + env(safe-area-inset-bottom)); }
   body:has(.app-sidebar[data-area-count="5"]) .app-sidebar,
   body:has(.app-sidebar[data-area-count="6"]) .app-sidebar,
-  body:has(.app-sidebar[data-area-count="7"]) .app-sidebar { height: calc(180px + env(safe-area-inset-bottom)); }
+  body:has(.app-sidebar[data-area-count="7"]) .app-sidebar,
+  body:has(.app-sidebar[data-area-count="8"]) .app-sidebar { height: calc(180px + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 800px) {
@@ -5367,7 +5371,8 @@ tbody tr:hover,
   body:has(.app-sidebar.app-sidebar-collapsed) .app-page { padding-bottom: calc(58px + env(safe-area-inset-bottom)); }
   body:has(.app-sidebar.app-sidebar-collapsed[data-area-count="5"]) .app-page,
   body:has(.app-sidebar.app-sidebar-collapsed[data-area-count="6"]) .app-page,
-  body:has(.app-sidebar.app-sidebar-collapsed[data-area-count="7"]) .app-page { padding-bottom: calc(58px + env(safe-area-inset-bottom)); }
+  body:has(.app-sidebar.app-sidebar-collapsed[data-area-count="7"]) .app-page,
+  body:has(.app-sidebar.app-sidebar-collapsed[data-area-count="8"]) .app-page { padding-bottom: calc(58px + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 800px) {
