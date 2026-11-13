@@ -66,10 +66,35 @@ function safeFilePart(value: string) {
     .slice(0, 60) || 'property';
 }
 
-async function loadImageAsDataUrl(url: string) {
+async function loadImageAsDataUrl(url: string, jpeg = false) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Could not load proposal image: ${response.status}`);
   const blob = await response.blob();
+  if (jpeg) {
+    const imageUrl = URL.createObjectURL(blob);
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Could not decode proposal image.'));
+        img.src = imageUrl;
+      });
+      // The photograph is printed at 447 points wide. Keep sufficient print
+      // resolution without embedding the much larger lossless source in each PDF.
+      const scale = Math.min(1, 1600 / image.naturalWidth);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(image.naturalWidth * scale);
+      canvas.height = Math.round(image.naturalHeight * scale);
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Could not prepare proposal image.');
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', .88);
+    } finally {
+      URL.revokeObjectURL(imageUrl);
+    }
+  }
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
@@ -137,7 +162,7 @@ function drawHeroHeader(
   setFillColor(doc, [255, 255, 255]);
   doc.rect(0, 0, pageWidth, 112, 'F');
   if (headerImage) {
-    doc.addImage(headerImage, 'PNG', 165, 0, pageWidth - 165, 112, undefined, 'FAST');
+    doc.addImage(headerImage, 'JPEG', 165, 0, pageWidth - 165, 112);
   } else {
     setFillColor(doc, paleBlue);
     doc.rect(165, 0, pageWidth - 165, 112, 'F');
@@ -517,7 +542,7 @@ function drawPageFooters(doc: jsPDF, proposalNumber: string) {
 }
 
 export async function createProposalPdf(data: ProposalPdfData) {
-  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait', compress: true });
   const allocations = allocateProposalCosts(
     data.waterBodies,
     data.monthlyTransportationCost,
@@ -527,7 +552,7 @@ export async function createProposalPdf(data: ProposalPdfData) {
   let headerImage: string | null = null;
   let logoImage: string | null = null;
   try {
-    headerImage = await loadImageAsDataUrl('/proposal-pool-header-fade.png');
+    headerImage = await loadImageAsDataUrl('/proposal-pool-header-fade.png', true);
   } catch (error) {
     console.warn('Proposal header image was unavailable; using the vector fallback.', error);
   }

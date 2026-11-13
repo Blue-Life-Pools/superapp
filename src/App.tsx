@@ -763,8 +763,9 @@ function App() {
   const [savingProposal, setSavingProposal] = useState(false);
   const [proposalFileAction, setProposalFileAction] = useState<{
     activityId: string;
-    action: 'CREATE' | 'EMAIL';
+    action: 'CREATE' | 'SAVE' | 'EMAIL';
   } | null>(null);
+  const [locallyCreatedProposalIds, setLocallyCreatedProposalIds] = useState<string[]>([]);
   const [previewActivityId, setPreviewActivityId] = useState<string | null>(null);
   const [proposalDraftNotes, setProposalDraftNotes] = useState('');
   const [, setSavingProposalText] = useState(false);
@@ -1838,17 +1839,28 @@ function App() {
   ) {
     const formData = new FormData();
     formData.append('file', pdf.blob, pdf.fileName);
-    const response = await fetch(
-      `${API_URL}/properties/${propertyId}/sales-activities/${activity.id}/pdf`,
-      {
-        method: 'POST',
-        body: formData,
-      },
-    );
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 60_000);
+    let response: Response;
+    try {
+      response = await fetch(
+        `${API_URL}/properties/${propertyId}/sales-activities/${activity.id}/pdf`,
+        { method: 'POST', body: formData, signal: controller.signal },
+      );
+    } catch {
+      throw new Error(controller.signal.aborted
+        ? 'The server took too long to save the SharePoint copy. Try Create PDF again to retry.'
+        : 'Could not connect to the server to save the SharePoint copy. Check your connection and try Create PDF again.');
+    } finally {
+      window.clearTimeout(timeout);
+    }
     if (!response.ok) {
-      const result = await response.json().catch(() => null) as { message?: string } | null;
+      const result = await response.json().catch(() => null) as { message?: string | string[] } | null;
       throw new Error(
-        result?.message ?? 'The proposal PDF could not be saved to SharePoint.',
+        response.status === 413 ? 'The server rejected the SharePoint upload because the PDF is too large.'
+          : response.status === 401 ? 'Your session expired. Sign in again to save the SharePoint copy.'
+          : Array.isArray(result?.message) ? result.message.join(' ')
+          : result?.message || 'The proposal PDF could not be saved to SharePoint. Try Create PDF again.',
       );
     }
 
@@ -1882,7 +1894,6 @@ function App() {
       setProposalFileAction({ activityId: activity.id, action: 'CREATE' });
       const pdfModule = await import('./proposalPdf');
       const pdf = await pdfModule.createProposalPdf(proposalData);
-      await storeProposalPdfInSharePoint(selectedProperty.id, activity, pdf);
       const downloadUrl = URL.createObjectURL(pdf.blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
@@ -1891,12 +1902,20 @@ function App() {
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000);
+      setLocallyCreatedProposalIds(current => current.includes(activity.id) ? current : [...current, activity.id]);
+      setProposalFileAction({ activityId: activity.id, action: 'SAVE' });
+      try {
+        await storeProposalPdfInSharePoint(selectedProperty.id, activity, pdf);
+      } catch (error) {
+        console.error('The PDF was generated, but its SharePoint copy could not be saved.', error);
+        window.alert(`The PDF was generated and its download started. ${error instanceof Error ? error.message : 'The SharePoint copy could not be saved.'}`);
+      }
     } catch (error) {
       console.error(error);
       window.alert(
         error instanceof Error
           ? error.message
-          : 'The proposal PDF could not be created and saved.',
+          : 'The proposal PDF could not be generated. Please try again.',
       );
     } finally {
       setProposalFileAction(null);
@@ -3272,7 +3291,9 @@ function App() {
                                 Open in SharePoint
                               </a>
                             ) : (
-                              'Not created yet'
+                              locallyCreatedProposalIds.includes(activity.id)
+                                ? 'Created locally; not saved to SharePoint yet'
+                                : 'Not saved to SharePoint yet'
                             )}
                           </span>
                           <span><b>Follow-ups:</b> {activity.followUps?.length ?? 0}</span>
@@ -3354,7 +3375,7 @@ function App() {
                             disabled={Boolean(proposalFileAction)}
                             onClick={() => void downloadProposalPdf(activity)}
                           >
-                            {activeFileAction === 'CREATE' ? 'Creating PDF...' : 'Create PDF'}
+                            {activeFileAction === 'CREATE' ? 'Creating PDF...' : activeFileAction === 'SAVE' ? 'Saving PDF...' : 'Create PDF'}
                           </button>
                           <button
                             className="primary-button"
