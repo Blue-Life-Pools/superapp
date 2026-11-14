@@ -4,7 +4,7 @@ import { WorkspaceIcon } from './WorkspaceIcon';
 import { OpportunityEditor } from './OpportunityEditor';
 import { currency, dateOnly, type Opportunity, type opportunityPayload } from './opportunityFields';
 
-export type OpportunityMailStatus = { configured: boolean; mailbox: string; enabled: boolean; automatic: boolean; lastSyncAt: string | null; lastScheduledSyncAt: string | null; lastReceivedAt: string | null; lastError: string | null; hasMore: boolean; imported: number; linked: number; review: number; schedule: string };
+export type OpportunityMailStatus = { configured: boolean; mailbox: string; enabled: boolean; automatic: boolean; trigger: 'EMAIL_RECEIVED'; lastSyncAt: string | null; lastNotificationAt: string | null; lastNotificationProcessedAt: string | null; pendingNotifications: number; lastReceivedAt: string | null; lastError: string | null; hasMore: boolean; imported: number; linked: number; review: number; schedule: string };
 type ReviewMessage = { id: string; subject: string; receivedAt: string; reason: string; parsedFields: Partial<Opportunity>; candidates?: Array<{ id: string; propertyName: string; status: string | null; estimateAmount: string | null; creationDate: string | null }> };
 type SyncResult = { paused?: boolean; busy?: boolean; created: number; linked: number; review: number; hasMore: boolean };
 async function mailRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -34,7 +34,7 @@ export function OpportunityMailDialog({ initial, properties, statuses, onClose, 
   }, [busy, onClose, reviewing]);
   async function enable(enabled: boolean) {
     setBusy(true); setError(''); setMessage('');
-    try { await mailRequest('/mail', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }) }); await refresh(); onChange(); setMessage(enabled ? 'Mailbox connected. Use Sync now to check for estimates.' : 'Automatic email intake paused. Existing opportunities are retained.'); }
+    try { await mailRequest('/mail', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }) }); await refresh(); onChange(); setMessage(enabled ? 'Connection updated. New estimates are received through Microsoft 365 notifications once live intake is active.' : 'Automatic email intake paused. Existing opportunities are retained.'); }
     catch (failure) { setError((failure as Error).message); } finally { setBusy(false); }
   }
   async function sync() {
@@ -59,8 +59,8 @@ export function OpportunityMailDialog({ initial, properties, statuses, onClose, 
   if (reviewing) return <OpportunityEditor item={null} initialValues={reviewing.parsedFields} properties={properties} statuses={statuses} onClose={() => setReviewing(null)} onSave={saveReview} onEdit={() => undefined} />;
   return <div className="modal-backdrop"><section className="property-modal opportunities-intake-dialog" role="dialog" aria-modal="true" aria-labelledby="opportunities-intake-title">
     <header className="opportunities-dialog-heading"><div><span>EMAIL INTAKE</span><h2 id="opportunities-intake-title">Microsoft 365</h2><p>Estimates received directly into Opportunities.</p></div><button type="button" disabled={busy} aria-label="Close email intake" onClick={onClose}><WorkspaceIcon name="close" /></button></header>
-    <div className="opportunities-mail-account"><WorkspaceIcon name="mail" /><div><strong>{status?.mailbox || 'ximena.velosa@bluelifepools.com'}</strong><span>{loading ? 'Checking connection…' : status?.enabled ? status.automatic ? 'Connected · Automatic intake active' : 'Connected · Automatic schedule not verified yet' : 'Email intake paused'}</span></div></div>
-    <dl className="opportunities-mail-details"><div><dt>Last checked</dt><dd>{when(status?.lastSyncAt)}</dd></div><div><dt>Last automatic check</dt><dd>{when(status?.lastScheduledSyncAt)}</dd></div><div><dt>Schedule</dt><dd>{status?.schedule || 'Every 15 minutes'}</dd></div></dl>
+    <div className="opportunities-mail-account"><WorkspaceIcon name="mail" /><div><strong>{status?.mailbox || 'ximena.velosa@bluelifepools.com'}</strong><span>{loading ? 'Checking connection…' : status?.enabled ? status.automatic && status.trigger === 'EMAIL_RECEIVED' ? 'Connected · Live email intake active' : 'Connected · Live intake awaiting activation' : 'Email intake paused'}</span></div></div>
+    <dl className="opportunities-mail-details"><div><dt>Last processed</dt><dd>{when(status?.lastNotificationProcessedAt || status?.lastSyncAt)}</dd></div><div><dt>Last email notification</dt><dd>{when(status?.lastNotificationAt)}</dd></div><div><dt>Trigger</dt><dd>{status?.trigger === 'EMAIL_RECEIVED' ? 'When an email arrives' : 'Live intake not connected'}</dd></div></dl>
     <div className="opportunities-mail-counts"><div><strong>{status?.imported || 0}</strong><span>New from email</span></div><div><strong>{status?.linked || 0}</strong><span>Linked to existing</span></div><div><strong>{status?.review || 0}</strong><span>Need review</span></div></div>
     <p>The created date is the email received date. Existing estimates and your edits are preserved. Replies and invoices are excluded from new opportunities.</p>
     {(!status?.configured && !loading) && <p className="opportunities-message" role="status">Microsoft 365 credentials must be configured on the server before connecting.</p>}
