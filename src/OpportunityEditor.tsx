@@ -2,11 +2,12 @@ import { useState, type FormEvent } from 'react';
 import { WorkspaceIcon } from './WorkspaceIcon';
 import { currency, dateOnly, opportunityDraft, opportunityFields, opportunityPayload, opportunityStatuses, opportunityText, type Opportunity, type OpportunityField } from './opportunityFields';
 
-export function OpportunityEditor({ item, viewOnly = false, properties, statuses, onClose, onSave, onEdit }: {
+export function OpportunityEditor({ item, initialValues, viewOnly = false, properties, statuses, onClose, onSave, onEdit }: {
   item: Opportunity | null; viewOnly?: boolean; properties: string[]; statuses: string[]; onClose: () => void;
+  initialValues?: Partial<Opportunity>;
   onSave: (data: ReturnType<typeof opportunityPayload>, id?: string) => Promise<void>; onEdit: () => void;
 }) {
-  const [draft, setDraft] = useState(() => opportunityDraft(item));
+  const [draft, setDraft] = useState(() => opportunityDraft(item || initialValues || null));
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   async function submit(event: FormEvent) {
     event.preventDefault(); if (busy) return;
@@ -29,7 +30,7 @@ export function OpportunityEditor({ item, viewOnly = false, properties, statuses
     <form onSubmit={(event) => void submit(event)}>
       <div className="opportunity-editor-content">{(['Estimate', 'Approval', 'Repair', 'Invoice'] as const).map((group) => <fieldset key={group}><legend>{group}</legend><div className="opportunity-editor-fields">{opportunityFields.filter(([, , , section]) => section === group).map(([field, label, kind]) => <label key={field} className={kind === 'long' ? 'opportunity-field-wide' : ''}><span>{label}{field === 'propertyName' && !viewOnly ? ' *' : ''}</span>{viewOnly ? <strong>{display(field, kind)}</strong> : kind === 'long' ? <textarea aria-label={label} rows={3} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} /> : kind === 'status' ? <select aria-label={label} value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}><option value="">Not recorded</option>{statusOptions.map((status) => <option key={status}>{status}</option>)}</select> : kind === 'boolean' ? <select aria-label={label} value={draft.inSkimmer} onChange={(event) => setDraft({ ...draft, inSkimmer: event.target.value })}><option value="">Not recorded</option><option value="true">Yes</option><option value="false">No</option></select> : <input aria-label={label} required={field === 'propertyName'} type={kind === 'date' ? 'date' : kind === 'money' ? 'number' : 'text'} step={kind === 'money' ? '0.01' : undefined} list={field === 'propertyName' ? 'opportunity-property-options' : undefined} value={draft[field]} placeholder={kind === 'categories' ? 'Filter, Plumbing…' : undefined} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} />}</label>)}</div></fieldset>)}
         <datalist id="opportunity-property-options">{properties.map((name) => <option key={name} value={name} />)}</datalist>
-        {item && <p className="opportunity-source-note">Source: {item.source === 'CSV' ? 'CSV import' : item.source === 'POWER_AUTOMATE' ? 'Power Automate' : 'Manual entry'}{item.sourceMailbox ? ` · ${item.sourceMailbox}` : ''}</p>}
+        {item && <p className="opportunity-source-note">Source: {item.source === 'CSV' ? 'CSV import' : item.source === 'MICROSOFT_365' ? 'Microsoft 365 email' : item.source === 'POWER_AUTOMATE' ? 'Legacy import' : 'Manual entry'}{item.sourceMailbox ? ` · ${item.sourceMailbox}` : ''}</p>}
       </div>
       {error && <p className="opportunities-message" role="alert">{error}</p>}
       <footer className="opportunities-dialog-actions"><button type="button" className="opportunities-button opportunities-button-secondary" disabled={busy} onClick={onClose}>{viewOnly ? 'Close' : 'Cancel'}</button>{viewOnly ? <button type="button" className="opportunities-button opportunities-button-primary" onClick={onEdit}><WorkspaceIcon name="edit" />Edit opportunity</button> : <button type="submit" className="opportunities-button opportunities-button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save opportunity'}</button>}</footer>

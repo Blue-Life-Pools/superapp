@@ -19,8 +19,8 @@ export const opportunityStatuses = ['Pending', 'Accepted', 'Converted', 'Decline
 export const dateOnly = (value: string | null) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('en-US') : '—';
 export const currency = (value: string | null) => value === null || value === '' ? '—' : Number(value).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 export const opportunityText = (value: string | null) => (value || '').replace(/<br\s*\/?\s*>/gi, '\n').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;/gi, "'");
-export function opportunityDraft(item: Opportunity | null): OpportunityDraft {
-  return Object.fromEntries(opportunityFields.map(([field, , kind]) => [field, item ? kind === 'date' ? item[field]?.toString().slice(0, 10) || '' : field === 'categories' ? item.categories.join(', ') : field === 'inSkimmer' ? item.inSkimmer === null ? '' : String(item.inSkimmer) : item[field] || '' : field === 'status' ? 'Pending' : ''])) as OpportunityDraft;
+export function opportunityDraft(item: Partial<Opportunity> | null): OpportunityDraft {
+  return Object.fromEntries(opportunityFields.map(([field, , kind]) => [field, item ? kind === 'date' ? item[field]?.toString().slice(0, 10) || '' : field === 'categories' ? (item.categories || []).join(', ') : field === 'inSkimmer' ? item.inSkimmer == null ? '' : String(item.inSkimmer) : item[field] ?? (field === 'status' && item.status === undefined ? 'Pending' : '') : field === 'status' ? 'Pending' : ''])) as OpportunityDraft;
 }
 export function opportunityPayload(draft: OpportunityDraft) {
   return Object.fromEntries(opportunityFields.map(([field]) => [field, field === 'categories' ? draft.categories.split(',').map((value) => value.trim()).filter(Boolean) : field === 'inSkimmer' ? draft.inSkimmer === '' ? null : draft.inSkimmer === 'true' : draft[field].trim() || null]));
