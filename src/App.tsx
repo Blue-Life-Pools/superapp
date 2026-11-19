@@ -2396,6 +2396,8 @@ function App() {
         ? ['home', 'quality']
         : role === 'REPORTS'
           ? ['home', 'reports', 'complaints', 'quality']
+          : role === 'CHEMICALS'
+            ? ['home', 'commercial', 'chemicals']
           : isNathalia
             ? ['home', 'quality']
             : ['home', 'complaints', 'quality'];
@@ -2429,6 +2431,8 @@ function App() {
         ? allAreas.filter((area) => area.id === 'home' || area.id === 'quality')
       : role === 'REPORTS'
         ? allAreas.filter((area) => area.id === 'home' || area.id === 'reports' || area.id === 'quality' || (!isNathalia && area.id === 'complaints'))
+      : role === 'CHEMICALS'
+        ? allAreas.filter((area) => area.id === 'home' || area.id === 'commercial' || area.id === 'chemicals')
       : allAreas.filter((area) => isNathalia
         ? area.id === 'home' || area.id === 'reports' || area.id === 'quality'
         : area.id === 'home' || area.id === 'complaints' || area.id === 'quality' || area.id === assignedArea || role === 'COMMERCIAL' && area.id === 'opportunities');
@@ -3759,8 +3763,8 @@ function App() {
         <div className="header-actions commercial-header-actions">
           <CommercialPeriodFilter month={commercialMonth} months={commercialMonths} onChange={setCommercialMonth} name="Commercial proposal period" />
           {renderProposalReminderCenter()}
-          <button className="secondary-button commercial-trash-button" onClick={() => setShowDeleted(true)}><WorkspaceIcon name="trash" />Deleted Properties ({deletedProperties.length})</button>
-          <button className="primary-button" onClick={() => openCreateForm()}><WorkspaceIcon name="plus" />New Property</button>
+          {appSession?.user.role !== 'CHEMICALS' && <button className="secondary-button commercial-trash-button" onClick={() => setShowDeleted(true)}><WorkspaceIcon name="trash" />Deleted Properties ({deletedProperties.length})</button>}
+          {appSession?.user.role !== 'CHEMICALS' && <button className="primary-button" onClick={() => openCreateForm()}><WorkspaceIcon name="plus" />New Property</button>}
         </div>
       </header>
 
