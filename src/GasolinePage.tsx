@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { API_URL, apiFetch } from './api';
 import { readWawaTransactions, summarizeFuel, type FuelData, type FuelPurchase, type FuelRoute } from './gasolineData';
-import { gasolineChemicalCoverage, type ChemicalProperty } from './gasolineChemicalCoverage';
+import { countPropertiesByCity, gasolineChemicalCoverage, type ChemicalProperty } from './gasolineChemicalCoverage';
 import { WorkspaceIcon } from './WorkspaceIcon';
 import './GasolinePage.css';
 
@@ -71,7 +71,7 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
   const [loadFailed, setLoadFailed] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
-  const [sort, setSort] = useState<'gallons' | 'spend' | 'perProperty' | 'efficiency'>('gallons');
+  const [sort, setSort] = useState<'gallons' | 'spend'>('gallons');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -112,10 +112,9 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
     const propertyCount = route.properties ?? (chemicalCount || null);
     return {
       ...driver, route, chemicalProperties, chemicalCount, propertyCount, spend: driver.cents / 100,
-      perProperty: propertyCount === null ? null : driver.cents / 100 / propertyCount,
-      efficiency: route.miles === null ? null : driver.gallons * 100 / route.miles,
+      cityCounts: countPropertiesByCity(chemicalProperties),
     };
-  }).sort((first, second) => (second[sort] ?? -Infinity) - (first[sort] ?? -Infinity) || first.name.localeCompare(second.name));
+  }).sort((first, second) => second[sort] - first[sort] || first.name.localeCompare(second.name));
   const visibleRows = showAll ? rows : rows.slice(0, 8);
   const driver = rows.find(row => row.key === selectedDriver) ?? visibleRows[0];
   const largestPurchases = driver?.purchases.filter(purchase => purchase.gallons > 0).sort((a, b) => b.gallons - a.gallons).slice(0, 3) ?? [];
@@ -224,21 +223,24 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
           <div className="gasoline-section-header"><h2 id="gasoline-drivers">Fuel by driver</h2><label>Sort by<select value={sort} onChange={event => {
             setSort(event.currentTarget.value as typeof sort);
             setSelectedDriver(null);
-          }}><option value="gallons">Gallons</option><option value="spend">Spending</option><option value="perProperty">Cost per property</option><option value="efficiency">Gallons per 100 mi</option></select></label></div>
-          <p>Properties are counted once per technician. A saved manual count overrides the Chemicals count. Gallons per 100 mi uses verified miles.</p>
+          }}><option value="gallons">Gallons</option><option value="spend">Spending</option></select></label></div>
+          <p>Properties shows the purchase-period count or a saved manual count. The city breakdown uses the full selected month in Chemicals and counts each property once per technician.</p>
           {!chemicals ? <p role="status">Checking Chemicals…</p>
             : chemicals.properties === null ? <p className="gasoline-message is-review">Could not load Chemicals for this month. Manual counts can still be used.</p>
               : !chemicals.properties.length && <p className="gasoline-message is-review">No Chemicals property records for this month. Enter a manual count if needed.</p>}
           <div className="gasoline-table-wrap" role="region" aria-label="Fuel and route metrics by driver" tabIndex={0}>
-            <table className="gasoline-table"><thead><tr><th scope="col">Driver / zone</th><th scope="col">Gallons</th><th scope="col">Spending</th><th scope="col">Fill-ups</th><th scope="col">Properties</th><th scope="col">$/property</th><th scope="col">Gal / 100 mi</th></tr></thead>
+            <table className="gasoline-table"><thead><tr><th scope="col">Driver / zone</th><th scope="col">Gallons</th><th scope="col">Spending</th><th scope="col">Fill-ups</th><th scope="col">Properties</th><th scope="col" className="gasoline-city-column">Properties by city</th></tr></thead>
               <tbody>{visibleRows.map(row => <tr key={row.key} className={row.key === driver?.key ? 'is-selected' : undefined}>
                 <th scope="row"><button type="button" aria-pressed={row.key === driver?.key} onClick={() => setSelectedDriver(row.key)}>{row.name}</button>{row.route.zone && <small>{row.route.zone}</small>}</th>
                 <td>{quantities.format(row.gallons)}</td><td>{dollars.format(row.spend)}</td><td>{row.charges}</td>
                 <td>{row.propertyCount ?? (row.chemicalProperties.length ? '—' : row.key ? <a className="gasoline-link" href="#gasoline-route" onClick={() => setSelectedDriver(row.key)}>Add count</a> : '—')}
                   {!!row.chemicalProperties.length && <small><a className="gasoline-link" href="#gasoline-route" onClick={() => setSelectedDriver(row.key)}>{row.route.properties !== null ? 'Manual · View Chemicals' : row.chemicalCount ? 'From Chemicals' : `${row.chemicalProperties.length} in Chemicals this month`}</a></small>}
                 </td>
-                <td>{row.perProperty === null ? '—' : dollars.format(row.perProperty)}</td>
-                <td>{row.efficiency === null ? (row.key ? <a className="gasoline-link" href="#gasoline-route" onClick={() => setSelectedDriver(row.key)}>Add miles</a> : '—') : quantities.format(row.efficiency)}</td>
+                <td className="gasoline-city-column">
+                  {row.cityCounts.length ? <ul className="gasoline-city-counts" role="list">
+                    {row.cityCounts.map(({ city, count }) => <li key={city}>{city} <strong>{count}</strong></li>)}
+                  </ul> : '—'}
+                </td>
               </tr>)}</tbody>
             </table>
           </div>

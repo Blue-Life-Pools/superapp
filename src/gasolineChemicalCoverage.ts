@@ -16,6 +16,25 @@ type CoveredProperty = Pick<ChemicalProperty, 'id' | 'name' | 'city'> & {
   counted: boolean;
 };
 
+export function countPropertiesByCity(properties: { city: string | null }[]) {
+  const cities = new Map<string, { city: string; count: number }>();
+  let unknown = 0;
+  for (const property of properties) {
+    const city = property.city?.trim().replace(/\s+/g, ' ');
+    if (!city) {
+      unknown += 1;
+      continue;
+    }
+    const key = city.toLowerCase();
+    const existing = cities.get(key);
+    if (existing) existing.count += 1;
+    else cities.set(key, { city, count: 1 });
+  }
+  const counts = [...cities.values()].sort((a, b) => b.count - a.count || a.city.localeCompare(b.city));
+  if (unknown) counts.push({ city: 'City not recorded', count: unknown });
+  return counts;
+}
+
 export function gasolineChemicalCoverage(properties: ChemicalProperty[], drivers: string[], first: string, last: string) {
   const result = new Map<string, CoveredProperty[]>();
   if (!first || !last || !properties.length) return result;
