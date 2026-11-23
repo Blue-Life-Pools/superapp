@@ -792,6 +792,7 @@ function App() {
   const [proposalChemicalProjection, setProposalChemicalProjection] = useState<number | null>(null);
   const [proposalEstimateResult, setProposalEstimateResult] = useState<{ key: string; estimate: ProposalChemicalEstimate | null; error: boolean } | null>(null);
   const [proposalOverhead, setProposalOverhead] = useState<ProposalOverheadSettings>(() => ({ ...defaultProposalOverhead }));
+  const [proposalSuppliesOverride, setProposalSuppliesOverride] = useState<number | null>(null);
   const proposalPropertyId = selectedProperty?.id;
   const proposalHasChemicalSupply = proposalServices.includes('Chemical Supply');
   const proposalRecordedCost = proposalContext?.chemicalHistory.averageMonthlyCost ?? null;
@@ -872,6 +873,7 @@ function App() {
       managementStatus === 'NEGOTIATED' ? Math.min(100, Math.max(0, Number(adjustments || 0))) : 0;
   const proposalCalculatorSettings = {
     ...proposalOverhead,
+    suppliesOverride: proposalSuppliesOverride,
     targetMarginPercent: proposalTargetMargin, discountPercent: adjustmentPercentage,
     surchargePercent: managementStatus === 'SURCHARGE' ? Math.min(100, Math.max(0, Number(adjustments || 0))) : 0,
     chemicalsIncluded: proposalHasChemicalSupply,
@@ -1657,6 +1659,7 @@ function App() {
     setProposalInternalName('');
     setProposalChemicalProjection(null);
     setProposalOverhead({ ...defaultProposalOverhead });
+    setProposalSuppliesOverride(null);
     setProposalServices([...proposalServiceOptions]);
     setProposalWaterBodies(
       selectedProperty.waterBodies.map((body) => {
@@ -2001,13 +2004,13 @@ function App() {
         proposalDate: pdfData.proposalDate.toISOString(),
         allocations: proposalCalculation.allocations,
         pricingModel: {
-          version: 4, basis: 'DOLLAR_CHEMICAL_FORECAST_WITH_PERCENTAGE_COSTS', targetMarginPercent: proposalTargetMargin,
+          version: 5, basis: 'DOLLAR_CHEMICAL_AND_SUPPLIES_FORECAST_WITH_PERCENTAGE_COSTS', targetMarginPercent: proposalTargetMargin,
           rates: { ...calculatorRates, ...proposalCalculation.rates }, chemicalRatesBySize, chemicalsIncluded: proposalCalculatorSettings.chemicalsIncluded,
           settings: proposalCalculatorSettings, history: proposalContext,
           chemicalProjectionSource: proposalChemicalSource, chemicalComparableEstimate: proposalChemicalEstimate,
           managementStatus, managementAdjustment: proposalCalculation.managementAdjustment,
           chemicalCost: proposalCalculation.chemicalCost, chemicalBudget: proposalCalculation.chemicalBudget,
-          laborCost: proposalCalculation.laborCost, supplies: proposalCalculation.supplies,
+          laborCost: proposalCalculation.laborCost, supplies: proposalCalculation.supplies, suppliesPercent: proposalCalculation.suppliesPercent,
           administration: proposalCalculation.administration, gasoline: proposalCalculation.estimatedGasoline,
           totalCost: proposalCalculation.totalCost, estimatedProfit: proposalCalculation.profit,
           estimatedMarginPercent: proposalCalculation.marginPercent, priceReference: proposalCalculation.priceReference,
@@ -2693,6 +2696,7 @@ function App() {
       estimateLoading={proposalEstimateKey !== null && proposalEstimateStatus === null} estimateError={proposalEstimateStatus?.error ?? false}
       managementStatus={managementStatus} adjustment={adjustments} services={proposalServices} notes={proposalNotes} internalName={proposalInternalName} saving={savingProposal}
       onUpdate={updateProposalWaterBody} onTarget={setProposalTargetMargin} onChemicals={setProposalChemicalProjection}
+      onSupplies={setProposalSuppliesOverride}
       onOverhead={(field, value) => setProposalOverhead(current => ({ ...current, [field]: value }))}
       onInternalName={setProposalInternalName}
       onManagement={status => { setManagementStatus(status); setAdjustments(status === 'VIP' ? '20' : '0'); }}
