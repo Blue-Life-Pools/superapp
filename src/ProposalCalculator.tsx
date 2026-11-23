@@ -29,7 +29,6 @@ type Props = {
 const money = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 const pct = (value: number | null) => value === null ? '—' : `${value.toFixed(1)}%`;
 const label = (value: string) => value.replaceAll('_', ' ').toLowerCase().replace(/^./, letter => letter.toUpperCase());
-const decimal = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 const officeAddress = '811 E 131st Ave, Tampa, FL 33612-4424, USA';
 const monthLabel = (value: string | null) => value ? new Date(`${value}-01T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : '';
 const coreServices: ProposalService[] = ['Chemical Testing & Balancing', 'Skimming', 'Brushing', 'Vacuuming', 'Filter Service', 'Chemical Supply'];
@@ -54,11 +53,9 @@ export function ProposalCalculator(props: Props) {
   const suppliesSource = calc.suppliesPercent === null
     ? 'Monthly supplies cost'
     : `${calc.suppliesPercent.toLocaleString('en-US', { maximumFractionDigits: 2 })}% of final monthly fee`;
-  const fuelLimit = calc.estimatedGasoline !== calc.calculatedGasoline
-    ? ` · ${calc.estimatedGasoline === monthlyGasolineLimits.minimum ? 'Minimum' : 'Maximum'} applied (calculated ${money(calc.calculatedGasoline)})`
-    : '';
-  const fuelSource = calc.estimatedGasoline === null ? 'Enter distance, vehicle MPG and fuel price'
-    : `${decimal(calc.monthlyMiles!)} mi / month · ${decimal(calc.monthlyGallons!)} gal × ${money(settings.fuel.pricePerGallon)} / gal${fuelLimit}`;
+  const fuelSource = calc.estimatedGasoline === null
+    ? 'Enter distance, vehicle MPG and fuel price'
+    : `Min $${monthlyGasolineLimits.minimum} · Max $${monthlyGasolineLimits.maximum} per month`;
   const belowTarget = calc.marginPercent !== null && calc.marginPercent + .01 < settings.targetMarginPercent;
   const scopeChanged = calc.lines.some(line => !line.body.include);
   const chemicalEstimate = props.chemicalEstimate;
