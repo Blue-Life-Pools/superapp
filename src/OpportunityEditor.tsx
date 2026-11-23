@@ -5,7 +5,7 @@ import { currency, dateOnly, opportunityDraft, opportunityFields, opportunityPay
 export function OpportunityEditor({ item, initialValues, viewOnly = false, properties, statuses, onClose, onSave, onEdit }: {
   item: Opportunity | null; viewOnly?: boolean; properties: string[]; statuses: string[]; onClose: () => void;
   initialValues?: Partial<Opportunity>;
-  onSave: (data: ReturnType<typeof opportunityPayload>, id?: string) => Promise<void>; onEdit: () => void;
+  onSave: (data: ReturnType<typeof opportunityPayload>, id?: string) => Promise<void>; onEdit?: () => void;
 }) {
   const [draft, setDraft] = useState(() => opportunityDraft(item || initialValues || null));
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
@@ -33,7 +33,7 @@ export function OpportunityEditor({ item, initialValues, viewOnly = false, prope
         {item && <p className="opportunity-source-note">Source: {item.source === 'CSV' ? 'CSV import' : item.source === 'MICROSOFT_365' ? 'Microsoft 365 email' : item.source === 'POWER_AUTOMATE' ? 'Legacy import' : 'Manual entry'}{item.sourceMailbox ? ` · ${item.sourceMailbox}` : ''}</p>}
       </div>
       {error && <p className="opportunities-message" role="alert">{error}</p>}
-      <footer className="opportunities-dialog-actions"><button type="button" className="opportunities-button opportunities-button-secondary" disabled={busy} onClick={onClose}>{viewOnly ? 'Close' : 'Cancel'}</button>{viewOnly ? <button type="button" className="opportunities-button opportunities-button-primary" onClick={onEdit}><WorkspaceIcon name="edit" />Edit opportunity</button> : <button type="submit" className="opportunities-button opportunities-button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save opportunity'}</button>}</footer>
+      <footer className="opportunities-dialog-actions"><button type="button" className="opportunities-button opportunities-button-secondary" disabled={busy} onClick={onClose}>{viewOnly ? 'Close' : 'Cancel'}</button>{viewOnly ? onEdit && <button type="button" className="opportunities-button opportunities-button-primary" onClick={onEdit}><WorkspaceIcon name="edit" />Edit opportunity</button> : <button type="submit" className="opportunities-button opportunities-button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save opportunity'}</button>}</footer>
     </form>
   </section></div>;
 }
