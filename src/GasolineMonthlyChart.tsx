@@ -1,11 +1,23 @@
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { summarizeFuel, type FuelPurchase } from './gasolineData';
+import { gasolineChemicalCoverage, type ChemicalProperty } from './gasolineChemicalCoverage';
 
 const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
 const fullMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' });
 const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const compactDollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 });
 const gallons = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+const integer = new Intl.NumberFormat('en-US');
+const monthNumbers = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0'));
+
+function countVisited(properties: ChemicalProperty[] | null, month: string, names: string[], driver: string | undefined) {
+  const serviced = properties?.filter(property => property.participants.length);
+  if (!serviced?.length || driver === '') return null;
+  if (driver === undefined) return new Set(serviced.map(property => property.id)).size;
+  const last = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate();
+  const coverage = gasolineChemicalCoverage(serviced.map(property => ({ ...property, assigned: [] })), names, month + '-01', month + '-' + last);
+  return new Set(coverage.get(driver)?.filter(property => property.counted).map(property => property.id)).size;
+}
 
 function FuelSpending({ month, amount, volume }: { month: string; amount: number; volume: number }) {
   const id = useId();
@@ -31,7 +43,7 @@ function FuelSpending({ month, amount, volume }: { month: string; amount: number
   </>;
 }
 
-function MonthlyBars({ year, values }: { year: string; values: ({ gallons: number; dollars: number } | null)[] }) {
+function MonthlyBars({ year, values, visited }: { year: string; values: ({ gallons: number; dollars: number } | null)[]; visited: (number | null)[] }) {
   const volumes = values.map(value => value?.gallons ?? 0);
   const maximum = Math.max(0, ...volumes);
   const minimum = Math.min(0, ...volumes);
@@ -48,7 +60,10 @@ function MonthlyBars({ year, values }: { year: string; values: ({ gallons: numbe
           const name = fullMonthLabel.format(month);
           const label = value ? `${gallons.format(value.gallons)} gallons, ${dollars.format(value.dollars)}` : 'no transactions';
           const height = volumes[index] / range * 100;
-          return <li key={index} aria-label={`${name} ${label}`}>
+          const propertyCount = visited[index];
+          const propertyUnit = propertyCount === 1 ? 'property' : 'properties';
+          const propertyLabel = propertyCount === null ? 'property data unavailable' : `${integer.format(propertyCount)} ${propertyUnit} visited`;
+          return <li key={index} aria-label={`${name} ${label}, ${propertyLabel}`}>
             <div className="gasoline-chart-plot" aria-hidden="true">
               <span className="gasoline-chart-zero" style={{ top: `${baseline}%` }} />
               {!!height && <span className={`gasoline-chart-bar${height < 0 ? ' is-credit' : ''}`}
@@ -59,6 +74,9 @@ function MonthlyBars({ year, values }: { year: string; values: ({ gallons: numbe
             <div className="gasoline-chart-spending">
               {value ? <FuelSpending month={name} amount={value.dollars} volume={value.gallons} /> : <span>—</span>}
             </div>
+            <div className="gasoline-chart-properties">
+              {propertyCount === null ? '—' : integer.format(propertyCount)} <span>{propertyUnit}</span>
+            </div>
           </li>;
         })}
       </ul>
@@ -66,18 +84,34 @@ function MonthlyBars({ year, values }: { year: string; values: ({ gallons: numbe
   </>;
 }
 
-export function GasolineMonthlyChart({ purchases, months }: { purchases: FuelPurchase[]; months: string[] }) {
+export function GasolineMonthlyChart({ purchases, months, loadChemicalProperties }: {
+  purchases: FuelPurchase[];
+  months: string[];
+  loadChemicalProperties: (month: string, signal: AbortSignal) => Promise<ChemicalProperty[]>;
+}) {
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
+  const [chemicalYear, setChemicalYear] = useState<{ year: string; months: (ChemicalProperty[] | null)[] } | null>(null);
   const years = [...new Set(months.map(month => month.slice(0, 4)))];
   const year = years.includes(selectedYear) ? selectedYear : years[0];
-  const summaries = useMemo(() => Array.from({ length: 12 }, (_, index) =>
-    summarizeFuel(purchases, year + '-' + String(index + 1).padStart(2, '0')),
+  const summaries = useMemo(() => monthNumbers.map(month =>
+    summarizeFuel(purchases, year + '-' + month),
   ), [purchases, year]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void Promise.all(monthNumbers.map(month => loadChemicalProperties(year + '-' + month, controller.signal).catch(() => null)))
+      .then(properties => {
+        if (!controller.signal.aborted) setChemicalYear({ year, months: properties });
+      });
+    return () => controller.abort();
+  }, [year, loadChemicalProperties]);
   const drivers = [...new Map(summaries.flatMap(summary => summary.drivers.map(driver => [driver.key, driver.name] as const)))]
     .sort((first, second) => first[1].localeCompare(second[1], 'en'));
   const driverIndex = drivers.findIndex(([key]) => key === selectedDriver);
   const driverKey = drivers[driverIndex]?.[0];
+  const names = drivers.filter(([key]) => key).map(([, name]) => name);
+  const visited = monthNumbers.map((month, index) =>
+    countVisited(chemicalYear?.year === year ? chemicalYear.months[index] : null, year + '-' + month, names, driverKey));
   const values = summaries.map(summary => {
     if (driverKey === undefined) {
       return summary.first ? { dollars: summary.spent / 100, gallons: summary.gallons } : null;
@@ -99,7 +133,7 @@ export function GasolineMonthlyChart({ purchases, months }: { purchases: FuelPur
         </select></label>
       </div>
     </div>
-    <MonthlyBars key={JSON.stringify([year, driverKey])} year={year} values={values} />
-    <p>— No transactions for the selected technician or team.</p>
+    <MonthlyBars key={JSON.stringify([year, driverKey])} year={year} values={values} visited={visited} />
+    <p>{chemicalYear?.year !== year ? 'Loading property counts from Chemicals…' : 'Property counts use monthly service records from Chemicals.'} A dash indicates missing data.</p>
   </section>;
 }

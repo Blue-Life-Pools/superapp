@@ -48,6 +48,10 @@ async function request<T>(path = '', options?: RequestInit): Promise<T> {
   return data as T;
 }
 
+function loadChemicalProperties(month: string, signal: AbortSignal) {
+  return request<ChemicalProperty[]>(`/chemical-properties?month=${encodeURIComponent(month)}`, { signal });
+}
+
 function RouteForm({ route, busy, onSave }: { route: FuelRoute; busy: boolean; onSave: (route: FuelRoute) => void }) {
   const [draft, setDraft] = useState(route);
   return <form className="gasoline-route-form" onSubmit={event => { event.preventDefault(); onSave(draft); }}>
@@ -95,7 +99,7 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
   useEffect(() => {
     if (!month) return;
     const controller = new AbortController();
-    void request<ChemicalProperty[]>(`/chemical-properties?month=${encodeURIComponent(month)}`, { signal: controller.signal })
+    void loadChemicalProperties(month, controller.signal)
       .then(properties => { if (!controller.signal.aborted) setChemicalResult({ month, properties }); })
       .catch(() => { if (!controller.signal.aborted) setChemicalResult({ month, properties: null }); });
     return () => controller.abort();
@@ -220,7 +224,7 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
           <div><WorkspaceIcon name="drop" /><p>Gallons purchased<strong>{quantities.format(summary.gallons)}</strong></p></div>
           <div><WorkspaceIcon name="gasoline" /><p>Fill-ups<strong>{summary.charges}</strong></p></div>
         </div>
-        <GasolineMonthlyChart purchases={history.purchases} months={months} />
+        <GasolineMonthlyChart purchases={history.purchases} months={months} loadChemicalProperties={loadChemicalProperties} />
         <section className="gasoline-panel" aria-labelledby="gasoline-drivers">
           <div className="gasoline-section-header"><h2 id="gasoline-drivers">Fuel by driver</h2><label>Sort by<select value={sort} onChange={event => {
             setSort(event.currentTarget.value as typeof sort);
