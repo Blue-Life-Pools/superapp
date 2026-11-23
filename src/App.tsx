@@ -3,7 +3,7 @@ import { API_URL, apiFetch as fetch, getAppToken, setAppToken } from './api';
 import type { ProposalPdfData } from './proposalPdf';
 import { ProposalCalculator } from './ProposalCalculator';
 import { ProposalInternalNameEditor } from './ProposalInternalNameEditor';
-import { calculateProposal, calculatorRates, chemicalRatesBySize, defaultProposalFuel, defaultProposalOverhead, poolBasePrices } from './proposalCostModel';
+import { calculateProposal, calculatorRates, chemicalRatesBySize, defaultProposalFuel, defaultProposalOverhead, monthlyGasolineLimits, poolBasePrices } from './proposalCostModel';
 import type { ProposalChemicalEstimate, ProposalChemicalSource, ProposalContext, ProposalFuelSettings, ProposalOverheadSettings, ProposalWaterBody } from './proposalCostModel';
 import { proposalServiceOptions, type ProposalService } from './proposalServices';
 import { ChemicalsPage } from './ChemicalsPage';
@@ -2015,13 +2015,14 @@ function App() {
         proposalDate: pdfData.proposalDate.toISOString(),
         allocations: proposalCalculation.allocations,
         pricingModel: {
-          version: 6, basis: 'DOLLAR_FORECAST_WITH_ROUTE_FUEL_AND_PERCENTAGE_COSTS', targetMarginPercent: proposalTargetMargin,
+          version: 7, basis: 'DOLLAR_FORECAST_WITH_ROUTE_FUEL_AND_PERCENTAGE_COSTS', targetMarginPercent: proposalTargetMargin,
           rates: { ...calculatorRates, ...proposalCalculation.rates }, chemicalRatesBySize, chemicalsIncluded: proposalCalculatorSettings.chemicalsIncluded,
           settings: {
             ...otherSettings,
             fuel: {
               pricePerGallon: fuel.pricePerGallon, milesPerGallon: fuel.milesPerGallon, roundTrip: fuel.roundTrip,
               distanceSource: 'MANUAL', manualOneWayMiles: fuel.oneWayMiles, weeklyVisits: proposalCalculation.weeklyVisits,
+              monthlyGasolineLimits,
             },
           }, history: proposalContext,
           chemicalProjectionSource: proposalChemicalSource, chemicalComparableEstimate: proposalChemicalEstimate,
@@ -2029,6 +2030,7 @@ function App() {
           chemicalCost: proposalCalculation.chemicalCost, chemicalBudget: proposalCalculation.chemicalBudget,
           laborCost: proposalCalculation.laborCost, supplies: proposalCalculation.supplies, suppliesPercent: proposalCalculation.suppliesPercent,
           administration: proposalCalculation.administration, gasoline: proposalCalculation.estimatedGasoline,
+          gasolineBeforeLimits: proposalCalculation.calculatedGasoline,
           totalCost: proposalCalculation.totalCost, estimatedProfit: proposalCalculation.profit,
           estimatedMarginPercent: proposalCalculation.marginPercent, priceReference: proposalCalculation.priceReference,
           waterBodies: proposalCalculation.lines.filter(line => line.body.include).map(line => ({

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { WorkspaceIcon } from './WorkspaceIcon';
 import { proposalServiceOptions } from './proposalServices';
 import type { ProposalService } from './proposalServices';
-import { defaultSuppliesPerPool } from './proposalCostModel';
+import { defaultSuppliesPerPool, monthlyGasolineLimits } from './proposalCostModel';
 import type { CalculatorSettings, ProposalCalculation, ProposalChemicalEstimate, ProposalChemicalSource, ProposalContext, ProposalFuelSettings, ProposalOverheadSettings, ProposalWaterBody } from './proposalCostModel';
 import './ProposalCalculator.css';
 
@@ -54,8 +54,11 @@ export function ProposalCalculator(props: Props) {
   const suppliesSource = calc.suppliesPercent === null
     ? 'Monthly supplies cost'
     : `${calc.suppliesPercent.toLocaleString('en-US', { maximumFractionDigits: 2 })}% of final monthly fee`;
+  const fuelLimit = calc.estimatedGasoline !== calc.calculatedGasoline
+    ? ` · ${calc.estimatedGasoline === monthlyGasolineLimits.minimum ? 'Minimum' : 'Maximum'} applied (calculated ${money(calc.calculatedGasoline)})`
+    : '';
   const fuelSource = calc.estimatedGasoline === null ? 'Enter distance, vehicle MPG and fuel price'
-    : `${decimal(calc.monthlyMiles!)} mi / month · ${decimal(calc.monthlyGallons!)} gal × ${money(settings.fuel.pricePerGallon)} / gal`;
+    : `${decimal(calc.monthlyMiles!)} mi / month · ${decimal(calc.monthlyGallons!)} gal × ${money(settings.fuel.pricePerGallon)} / gal${fuelLimit}`;
   const belowTarget = calc.marginPercent !== null && calc.marginPercent + .01 < settings.targetMarginPercent;
   const scopeChanged = calc.lines.some(line => !line.body.include);
   const chemicalEstimate = props.chemicalEstimate;
@@ -142,7 +145,7 @@ export function ProposalCalculator(props: Props) {
             <label>Vehicle efficiency (MPG)<input type="number" min="0.01" step="0.01" value={settings.fuel.milesPerGallon ?? ''} onChange={event => props.onFuel({ milesPerGallon: Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : null })} /></label>
             <label>Trip per visit<select value={settings.fuel.roundTrip ? 'round' : 'one-way'} onChange={event => props.onFuel({ roundTrip: event.target.value === 'round' })}><option value="one-way">One way</option><option value="round">Round trip estimate</option></select></label>
           </div>
-          <p className="proposal-page-route-source">{calc.weeklyVisits} {calc.weeklyVisits === 1 ? 'visit' : 'visits'} per week.</p>
+          <p className="proposal-page-route-source">{calc.weeklyVisits} {calc.weeklyVisits === 1 ? 'visit' : 'visits'} per week · Gasoline budget {money(monthlyGasolineLimits.minimum)}–{money(monthlyGasolineLimits.maximum)} per month.</p>
         </div>
         <div className="proposal-page-kpis" aria-live="polite">{[{ icon: 'coins', title: 'Final monthly fee', value: money(calc.total) }, { icon: 'tag', title: 'Projected listed costs', value: money(calc.totalCost) }, { icon: 'chart', title: 'Projected profit', value: money(calc.profit) }, { icon: 'percent', title: 'Projected margin', value: pct(calc.marginPercent) }].map(item => <div key={item.title}><WorkspaceIcon name={item.icon as 'coins' | 'tag' | 'chart' | 'percent'} /><div><span>{item.title}</span><strong>{item.value}</strong></div></div>)}</div>
         <div className="proposal-page-table-wrap"><table><thead><tr><th>Cost</th><th>Source / assumption</th><th>Monthly amount</th></tr></thead><tbody>{[

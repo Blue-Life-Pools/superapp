@@ -27,7 +27,10 @@ assert.deepEqual([result.weeklyVisits, result.monthlyMiles, result.monthlyGallon
 const roundTrip = calculateProposal([pool, { ...fountain, frequency: '5x Weekly' }], { ...settings, fuel: { oneWayMiles: 12, milesPerGallon: 24, pricePerGallon: 4, roundTrip: true } });
 assert.equal(roundTrip.weeklyVisits, 5);
 assert.equal(roundTrip.monthlyMiles, 520);
-assert.equal(roundTrip.estimatedGasoline, 86.67);
+assert.deepEqual([roundTrip.calculatedGasoline, roundTrip.estimatedGasoline, roundTrip.totalCost, roundTrip.priceReference], [86.67, 30, 328.11, 720]);
+const nearby = calculateProposal([pool], { ...settings, fuel: { ...settings.fuel, oneWayMiles: 2 } });
+assert.deepEqual([nearby.calculatedGasoline, nearby.estimatedGasoline, nearby.totalCost, nearby.priceReference], [4.55, 10, 263.45, 610]);
+assert.equal(calculateProposal([{ ...pool, include: false }], settings).estimatedGasoline, 0);
 for (const fuel of [{ oneWayMiles: null }, { milesPerGallon: 0 }, { pricePerGallon: null }]) {
   const incomplete = calculateProposal([pool], { ...settings, fuel: { ...settings.fuel, ...fuel } });
   assert.deepEqual([incomplete.estimatedGasoline, incomplete.totalCost, incomplete.marginPercent, incomplete.priceReference], [null, null, null, null]);
@@ -88,8 +91,9 @@ assert.deepEqual([custom.total, custom.chemicalCost, custom.laborCost, custom.su
 near(custom.marginPercent, 56.2059);
 const targetQuote = calculateProposal([{ ...pool, monthlyPrice: custom.priceReference, priceManuallyAdjusted: true }], { ...settings, chemicalProjection: 120, suppliesOverride: 25.5, administrationPercent: 4 });
 assert.ok(targetQuote.marginPercent >= 60, 'The reference must include fixed supplies and percentage-based labor');
-const zeroOverhead = calculateProposal([pool], { ...settings, suppliesOverride: 0, administrationPercent: 0, fuel: { ...settings.fuel, pricePerGallon: 0 }, chemicalProjection: 0 });
-assert.deepEqual([zeroOverhead.supplies, zeroOverhead.administration, zeroOverhead.estimatedGasoline, zeroOverhead.totalCost, zeroOverhead.marginPercent], [0, 0, 0, 140, 80]);
+const fuelMinimum = calculateProposal([pool], { ...settings, suppliesOverride: 0, administrationPercent: 0, fuel: { ...settings.fuel, pricePerGallon: 0 }, chemicalProjection: 0 });
+assert.deepEqual([fuelMinimum.supplies, fuelMinimum.administration, fuelMinimum.estimatedGasoline, fuelMinimum.totalCost], [0, 0, 10, 150]);
+near(fuelMinimum.marginPercent, 78.5714);
 const impossible = calculateProposal([pool], { ...settings, suppliesOverride: 400, administrationPercent: 30 });
 assert.equal(impossible.priceReference, null);
 assert.equal(impossible.targetSupportedByRates, false);

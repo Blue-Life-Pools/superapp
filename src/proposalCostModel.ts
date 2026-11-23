@@ -28,6 +28,7 @@ export const chemicalRatesBySize: Record<string, number> = { SMALL: .17, MEDIUM:
 export const calculatorRates = { chemicalDefault: .2, labor: .2, administration: .02 } as const;
 export const defaultProposalOverhead: ProposalOverheadSettings = { administrationPercent: 2 };
 export const defaultProposalFuel: ProposalFuelSettings = { oneWayMiles: null, pricePerGallon: 3.5, milesPerGallon: 20, roundTrip: false };
+export const monthlyGasolineLimits = { minimum: 10, maximum: 30 } as const;
 export const defaultSuppliesPerPool = 15;
 const suppliesPoolTypes = new Set(['POOL', 'SWIMMING_POOL', 'KIDDIE_POOL']);
 export const roundMoney = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -79,13 +80,15 @@ export function calculateProposal(bodies: ProposalWaterBody[], settings: Calcula
   const { oneWayMiles, milesPerGallon, pricePerGallon, roundTrip } = settings.fuel;
   const monthlyMiles = oneWayMiles === null ? null : oneWayMiles * (roundTrip ? 2 : 1) * weeklyVisits * (52 / 12);
   const monthlyGallons = monthlyMiles === null || milesPerGallon === null || milesPerGallon <= 0 ? null : monthlyMiles / milesPerGallon;
-  const estimatedGasoline = monthlyGallons === null || pricePerGallon === null ? null : roundMoney(monthlyGallons * pricePerGallon);
+  const calculatedGasoline = monthlyGallons === null || pricePerGallon === null ? null : roundMoney(monthlyGallons * pricePerGallon);
+  const estimatedGasoline = calculatedGasoline === null || weeklyVisits === 0 ? calculatedGasoline
+    : Math.min(monthlyGasolineLimits.maximum, Math.max(monthlyGasolineLimits.minimum, calculatedGasoline));
   const totalCost = chemicalCost === null || estimatedGasoline === null ? null : roundMoney(chemicalCost + laborCost + supplies + administration + estimatedGasoline);
   const profit = totalCost === null ? null : roundMoney(total - totalCost);
   const denominator = 1 - settings.targetMarginPercent / 100 - rates.labor - rates.administration;
   const priceReference = included.length && chemicalCost !== null && estimatedGasoline !== null && denominator > 0
     ? Math.ceil(((chemicalCost + supplies + estimatedGasoline) / denominator - 1e-8) / 10) * 10 : null;
   const chemicalPercent = total > 0 && chemicalCost !== null ? chemicalCost / total * 100 : null;
-  return { lines, allocations, rates, subtotal, total, managementAdjustment: roundMoney(total - subtotal), chemicalCost, chemicalBudget, chemicalPercent, laborCost, supplies, suppliesPercent, administration, estimatedGasoline, weeklyVisits, monthlyMiles, monthlyGallons, totalCost, profit, marginPercent: total > 0 && profit !== null ? profit / total * 100 : null, priceReference, targetSupportedByRates: denominator > 0, overconsumption: chemicalCost !== null && chemicalCost > chemicalBudget + .005 };
+  return { lines, allocations, rates, subtotal, total, managementAdjustment: roundMoney(total - subtotal), chemicalCost, chemicalBudget, chemicalPercent, laborCost, supplies, suppliesPercent, administration, calculatedGasoline, estimatedGasoline, weeklyVisits, monthlyMiles, monthlyGallons, totalCost, profit, marginPercent: total > 0 && profit !== null ? profit / total * 100 : null, priceReference, targetSupportedByRates: denominator > 0, overconsumption: chemicalCost !== null && chemicalCost > chemicalBudget + .005 };
 }
 export type ProposalCalculation = ReturnType<typeof calculateProposal>;
