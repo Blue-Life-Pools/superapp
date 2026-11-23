@@ -56,6 +56,12 @@
 .gasoline-chart-spending { padding-block: 5px 4px; }
 .gasoline-chart-properties { justify-self: center; align-self: center; padding: 3px 5px; border-radius: 5px; background: #f0f4fa; color: #344860; font-size: 11px; }
 .gasoline-chart-properties span { display: block; }
+.gasoline-archived-count { border: 1px solid #cbd9ec; cursor: pointer; font-family: inherit; }
+.gasoline-archived-count:hover { background: #e6effa; }
+.gasoline-archive-list { border: 1px solid var(--fuel-line); border-radius: 8px; padding: 10px; }
+.gasoline-archive-list ul { max-height: 240px; overflow: auto; margin: 8px 0 0; padding-left: 20px; }
+.gasoline-archive-list li { padding: 4px 0; font-size: 13px; }
+.gasoline-archive-list small { color: var(--fuel-muted); }
 .gasoline-spending-button { padding: 4px 7px; border: 1px solid #c9dfd5; border-radius: 6px; background: #f0f8f4; color: #215d45; font: inherit; font-weight: 650; cursor: pointer; }
 .gasoline-spending-button:hover { background: #def0e7; }
 .gasoline-spending-popover { position: fixed; inset: auto; top: var(--fuel-anchor-y); left: clamp(8px, calc(var(--fuel-anchor-x) - 110px), calc(100% - 228px)); translate: 0 var(--fuel-anchor-offset); width: 220px; margin: 0; padding: 12px; border: 1px solid #dfe5ef; border-radius: 10px; background: white; color: #111b34; box-shadow: 0 8px 24px #111b3422; text-align: left; }

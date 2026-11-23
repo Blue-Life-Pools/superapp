@@ -10,7 +10,9 @@ const gallons = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 const integer = new Intl.NumberFormat('en-US');
 const monthNumbers = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0'));
 type ChemicalLoader = (month: string, signal: AbortSignal) => Promise<ChemicalProperty[]>;
-type MonthlySeries = { year: string; values: ({ gallons: number; dollars: number } | null)[]; visited: (number | null)[] };
+type ArchivedProperty = { name: string; address: string };
+type ArchiveLoader = (month: string, signal: AbortSignal) => Promise<ArchivedProperty[]>;
+type MonthlySeries = { year: string; values: ({ gallons: number; dollars: number } | null)[]; visited: (number | null)[]; archived: boolean[] };
 
 function useChemicalYear(year: string, loadChemicalProperties: ChemicalLoader) {
   const [result, setResult] = useState<{ year: string; months: (ChemicalProperty[] | null)[] } | null>(null);
@@ -59,7 +61,7 @@ function FuelSpending({ month, amount, volume }: { month: string; amount: number
   </>;
 }
 
-function MonthlyBars({ series }: { series: MonthlySeries[] }) {
+function MonthlyBars({ series, onArchive }: { series: MonthlySeries[]; onArchive: (month: string) => void }) {
   const comparing = series.length > 1;
   const volumes = series.flatMap(({ values }) => values.map(value => value?.gallons ?? 0));
   const maximum = Math.max(0, ...volumes);
@@ -72,7 +74,7 @@ function MonthlyBars({ series }: { series: MonthlySeries[] }) {
     <div className="gasoline-chart-scroll" role="region" aria-label="Monthly fuel chart" tabIndex={0}
       onScroll={event => event.currentTarget.querySelector<HTMLElement>('.gasoline-spending-popover:popover-open')?.hidePopover()}>
       <ul className={`gasoline-chart${comparing ? ' is-comparing' : ''}`} role="list">
-        {monthNumbers.flatMap((number, index) => series.map(({ year, values, visited }, seriesIndex) => {
+        {monthNumbers.flatMap((number, index) => series.map(({ year, values, visited, archived }, seriesIndex) => {
           const value = values[index];
           const month = new Date(Date.UTC(Number(year), index, 1));
           const name = fullMonthLabel.format(month) + (comparing ? ' ' + year : '');
@@ -92,9 +94,10 @@ function MonthlyBars({ series }: { series: MonthlySeries[] }) {
             <div className="gasoline-chart-spending">
               {value ? <FuelSpending month={name} amount={value.dollars} volume={value.gallons} /> : <span>—</span>}
             </div>
-            <div className="gasoline-chart-properties">
-              {propertyCount === null ? '—' : integer.format(propertyCount)} <span>{propertyUnit}</span>
-            </div>
+            {archived[index] && propertyCount !== null
+              ? <button type="button" className="gasoline-chart-properties gasoline-archived-count" onClick={() => onArchive(year + '-' + number)}
+                aria-label={`View ${fullMonthLabel.format(month)} ${year} archived properties`}>{integer.format(propertyCount)} <span>{propertyUnit}</span></button>
+              : <div className="gasoline-chart-properties">{propertyCount === null ? '—' : integer.format(propertyCount)} <span>{propertyUnit}</span></div>}
           </li>;
         }))}
       </ul>
@@ -135,14 +138,28 @@ function YearPicker({ years, selection, onChange }: { years: string[]; selection
   </div>;
 }
 
-export function GasolineMonthlyChart({ purchases, months, loadChemicalProperties }: {
+export function GasolineMonthlyChart({ purchases, months, archive, loadChemicalProperties, loadArchivedProperties }: {
   purchases: FuelPurchase[];
   months: string[];
+  archive?: Record<string, number>;
   loadChemicalProperties: ChemicalLoader;
+  loadArchivedProperties: ArchiveLoader;
 }) {
   const [selectedYears, setSelectedYears] = useState<string[]>([]);
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
-  const years = [...new Set(months.map(month => month.slice(0, 4)))];
+  const [archiveMonth, setArchiveMonth] = useState('');
+  const [archiveResult, setArchiveResult] = useState<{ month: string; properties: ArchivedProperty[] | null } | null>(null);
+  useEffect(() => {
+    if (!archiveMonth) return;
+    const controller = new AbortController();
+    void loadArchivedProperties(archiveMonth, controller.signal).then(properties => {
+      if (!controller.signal.aborted) setArchiveResult({ month: archiveMonth, properties });
+    }).catch(() => {
+      if (!controller.signal.aborted) setArchiveResult({ month: archiveMonth, properties: null });
+    });
+    return () => controller.abort();
+  }, [archiveMonth, loadArchivedProperties]);
+  const years = [...new Set([...months, ...Object.keys(archive ?? {})].map(month => month.slice(0, 4)))].sort().reverse();
   const availableSelection = selectedYears.filter(item => years.includes(item));
   const [year = years[0], comparison = ''] = availableSelection;
   const primaryChemicals = useChemicalYear(year, loadChemicalProperties);
@@ -158,8 +175,11 @@ export function GasolineMonthlyChart({ purchases, months, loadChemicalProperties
   const names = drivers.filter(([key]) => key).map(([, name]) => name);
   const series = summaries.map(item => {
     const chemicals = item.year === year ? primaryChemicals : comparisonChemicals;
-    const visited = monthNumbers.map((month, index) =>
-      countVisited(chemicals?.[index] ?? null, item.year + '-' + month, names, driverKey));
+    const archived = monthNumbers.map(month => driverKey === undefined && archive?.[item.year + '-' + month] !== undefined);
+    const visited = monthNumbers.map((month, index) => {
+      const period = item.year + '-' + month;
+      return archived[index] ? archive![period] : countVisited(chemicals?.[index] ?? null, period, names, driverKey);
+    });
     const values = item.months.map(summary => {
       if (driverKey === undefined) {
         return summary.first ? { dollars: summary.spent / 100, gallons: summary.gallons } : null;
@@ -167,21 +187,35 @@ export function GasolineMonthlyChart({ purchases, months, loadChemicalProperties
       const driver = summary.drivers.find(candidate => candidate.key === driverKey);
       return driver ? { dollars: driver.cents / 100, gallons: driver.gallons } : null;
     });
-    return { year: item.year, values, visited };
+    return { year: item.year, values, visited, archived };
   });
 
   return <section className="gasoline-panel" aria-labelledby="gasoline-monthly-title">
     <div className="gasoline-section-header">
       <h2 id="gasoline-monthly-title">Monthly fuel by technician</h2>
       <div className="gasoline-chart-filters">
-        <YearPicker years={years} selection={comparison ? [year, comparison] : [year]} onChange={setSelectedYears} />
-        <label>Technician<select value={driverIndex} onChange={event => setSelectedDriver(drivers[Number(event.currentTarget.value)]?.[0] ?? null)}>
+        <YearPicker years={years} selection={comparison ? [year, comparison] : [year]} onChange={selection => { setSelectedYears(selection); setArchiveMonth(''); }} />
+        <label>Technician<select value={driverIndex} onChange={event => {
+          setSelectedDriver(drivers[Number(event.currentTarget.value)]?.[0] ?? null);
+          setArchiveMonth('');
+        }}>
           <option value={-1}>All technicians</option>
           {drivers.map(([key, name], index) => <option value={index} key={key}>{name}</option>)}
         </select></label>
       </div>
     </div>
-    <MonthlyBars key={JSON.stringify([year, comparison, driverKey])} series={series} />
+    <MonthlyBars key={JSON.stringify([year, comparison, driverKey])} series={series} onArchive={setArchiveMonth} />
+    {archiveMonth && <section className="gasoline-archive-list" aria-label="Archived properties">
+      <div className="gasoline-section-header">
+        <h3>Archived properties · {archiveMonth}</h3>
+        <button type="button" className="gasoline-link" onClick={() => setArchiveMonth('')}>Close</button>
+      </div>
+      {archiveResult?.month !== archiveMonth ? <p role="status">Loading properties…</p>
+        : archiveResult.properties === null ? <p role="alert">Could not load archived properties.</p>
+          : <ul>{archiveResult.properties.map(({ name, address }) => <li key={JSON.stringify([name, address])}>{name} <small>{address}</small></li>)}</ul>}
+    </section>}
+    {(series.some(item => monthNumbers.some(month => archive?.[item.year + '-' + month] !== undefined))) &&
+      <p>Skimmer archive counts are available for the whole team. The archived reports list properties by month.</p>}
     <p>{!primaryChemicals || (comparison && !comparisonChemicals) ? 'Loading property counts from Chemicals…' : 'Property counts use monthly service records from Chemicals.'} A dash indicates missing data.</p>
   </section>;
 }

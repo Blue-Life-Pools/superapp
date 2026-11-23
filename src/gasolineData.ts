@@ -12,7 +12,7 @@ export type FuelPurchase = {
 };
 
 export type FuelRoute = { zone: string; properties: number | null; miles: number | null };
-export type FuelData = { purchases: FuelPurchase[]; routes: Record<string, FuelRoute> };
+export type FuelData = { purchases: FuelPurchase[]; routes: Record<string, FuelRoute>; archivedPropertyCounts?: Record<string, number> };
 
 const gallonsUnits = new Set(['GA', 'GAL', 'GALLON', 'GALLONS']);
 const dayMilliseconds = 86_400_000;

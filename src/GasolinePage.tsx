@@ -52,6 +52,10 @@ function loadChemicalProperties(month: string, signal: AbortSignal) {
   return request<ChemicalProperty[]>(`/chemical-properties?month=${encodeURIComponent(month)}`, { signal });
 }
 
+function loadArchivedProperties(month: string, signal: AbortSignal) {
+  return request<{ name: string; address: string }[]>(`/archived-properties?month=${encodeURIComponent(month)}`, { signal });
+}
+
 function RouteForm({ route, busy, onSave }: { route: FuelRoute; busy: boolean; onSave: (route: FuelRoute) => void }) {
   const [draft, setDraft] = useState(route);
   return <form className="gasoline-route-form" onSubmit={event => { event.preventDefault(); onSave(draft); }}>
@@ -190,6 +194,11 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
     }
   }
 
+  const archive = history.archivedPropertyCounts;
+  const hasArchive = Object.keys(archive ?? {}).length > 0;
+  const monthlyChart = (month || hasArchive) && <GasolineMonthlyChart purchases={history.purchases} months={months}
+    archive={archive} loadChemicalProperties={loadChemicalProperties} loadArchivedProperties={loadArchivedProperties} />;
+
   return <div className="page app-page gasoline-page">
     {sidebar}
     <main className="gasoline-content" aria-labelledby="gasoline-title">
@@ -210,7 +219,10 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
       {error && <p className="gasoline-message is-error" role="alert">{error}</p>}
       {message && <p className="gasoline-message" role="status">{message}</p>}
       {loadFailed && <div className="gasoline-message is-error" role="alert"><span>Could not load shared fuel history.</span><button type="button" className="gasoline-link" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Retry</button></div>}
-      {loading ? <p role="status">Loading shared fuel history…</p> : !month && !loadFailed ? <section className="gasoline-panel gasoline-empty"><h2>No fuel transactions yet</h2><p>Import the Wawa Transactions Excel to see spending, gallons and purchases by driver.</p></section> : month && <>
+      {loading ? <p role="status">Loading shared fuel history…</p> : !month && !loadFailed ? <>
+        {monthlyChart}
+        <section className="gasoline-panel gasoline-empty"><h2>No fuel transactions yet</h2><p>Import the Wawa Transactions Excel to see spending, gallons and purchases by driver.</p></section>
+      </> : month && <>
         <div className="gasoline-toolbar">
           <label>Purchase month<select value={month} onChange={event => {
             setSelectedMonth(event.currentTarget.value);
@@ -224,7 +236,7 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
           <div><WorkspaceIcon name="drop" /><p>Gallons purchased<strong>{quantities.format(summary.gallons)}</strong></p></div>
           <div><WorkspaceIcon name="gasoline" /><p>Fill-ups<strong>{summary.charges}</strong></p></div>
         </div>
-        <GasolineMonthlyChart purchases={history.purchases} months={months} loadChemicalProperties={loadChemicalProperties} />
+        {monthlyChart}
         <section className="gasoline-panel" aria-labelledby="gasoline-drivers">
           <div className="gasoline-section-header"><h2 id="gasoline-drivers">Fuel by driver</h2><label>Sort by<select value={sort} onChange={event => {
             setSort(event.currentTarget.value as typeof sort);
