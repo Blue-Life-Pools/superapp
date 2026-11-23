@@ -14,6 +14,10 @@ export type ProposalContext = {
   chemicalHistory: { averageMonthlyCost: number | null; months: number; from: string | null; to: string | null };
   latestFee: { month: string; monthlyFee: number } | null;
 };
+export type ProposalChemicalEstimate = {
+  monthlyCost: number; basis: 'GALLONS' | 'SIZE'; propertyCount: number; recordedMonths: number;
+};
+export type ProposalChemicalSource = 'EXCLUDED' | 'MANUAL' | 'RECORDED_HISTORY' | 'COMPARABLE_PROPERTIES' | 'UNAVAILABLE';
 export const poolBasePrices: Record<string, number> = { SMALL: 600, MEDIUM: 700, LARGE: 900, EXTRA_LARGE: 1300 };
 const otherBasePrices: Record<string, number> = { SPA: 250, KIDDIE_POOL: 400, SPLASH_PAD: 400, DECORATIVE_WATER_FEATURE: 150 };
 export const frequencyMultipliers: Record<string, number> = { '1x Weekly': .55, '2x Weekly': .8, '3x Weekly': 1, '5x Weekly': 1.35, '7x Weekly': 1.65 };
@@ -59,14 +63,15 @@ export function calculateProposal(bodies: ProposalWaterBody[], settings: Calcula
   });
   const sum = (key: keyof NonNullable<typeof lines[number]['costs']>) => roundMoney(lines.reduce((total, line) => total + (line.costs?.[key] ?? 0), 0));
   const chemicalBudget = sum('chemicalBudget');
-  const chemicalCost = !settings.chemicalsIncluded ? 0 : settings.chemicalProjection === null ? chemicalBudget : roundMoney(nonnegative(settings.chemicalProjection));
+  const chemicalCost = !settings.chemicalsIncluded ? 0 : settings.chemicalProjection === null ? null : roundMoney(nonnegative(settings.chemicalProjection));
   const laborCost = roundMoney(total * rates.labor), supplies = roundMoney(total * rates.supplies), administration = roundMoney(total * rates.administration), estimatedGasoline = roundMoney(total * rates.gasoline);
-  const totalCost = roundMoney(chemicalCost + laborCost + supplies + administration + estimatedGasoline);
-  const profit = roundMoney(total - totalCost);
+  const totalCost = chemicalCost === null ? null : roundMoney(chemicalCost + laborCost + supplies + administration + estimatedGasoline);
+  const profit = totalCost === null ? null : roundMoney(total - totalCost);
   const denominator = 1 - settings.targetMarginPercent / 100 - rates.labor - rates.supplies - rates.administration - rates.gasoline;
   // Labor is now a percentage of the final fee, so it belongs in the denominator.
   // Only a fixed dollar chemical forecast can define a non-circular price reference.
-  const priceReference = included.length && (settings.chemicalProjection !== null || !settings.chemicalsIncluded) && denominator > 0 ? Math.ceil((chemicalCost / denominator - 1e-8) / 10) * 10 : null;
-  return { lines, allocations, rates, subtotal, total, managementAdjustment: roundMoney(total - subtotal), chemicalCost, chemicalBudget, laborCost, supplies, administration, estimatedGasoline, totalCost, profit, marginPercent: total > 0 ? profit / total * 100 : null, priceReference, targetSupportedByRates: denominator > 0, overconsumption: chemicalCost > chemicalBudget + .005 };
+  const priceReference = included.length && chemicalCost !== null && denominator > 0 ? Math.ceil((chemicalCost / denominator - 1e-8) / 10) * 10 : null;
+  const chemicalPercent = total > 0 && chemicalCost !== null ? chemicalCost / total * 100 : null;
+  return { lines, allocations, rates, subtotal, total, managementAdjustment: roundMoney(total - subtotal), chemicalCost, chemicalBudget, chemicalPercent, laborCost, supplies, administration, estimatedGasoline, totalCost, profit, marginPercent: total > 0 && profit !== null ? profit / total * 100 : null, priceReference, targetSupportedByRates: denominator > 0, overconsumption: chemicalCost !== null && chemicalCost > chemicalBudget + .005 };
 }
 export type ProposalCalculation = ReturnType<typeof calculateProposal>;

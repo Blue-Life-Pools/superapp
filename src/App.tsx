@@ -4,7 +4,7 @@ import type { ProposalPdfData } from './proposalPdf';
 import { ProposalCalculator } from './ProposalCalculator';
 import { ProposalInternalNameEditor } from './ProposalInternalNameEditor';
 import { calculateProposal, calculatorRates, chemicalRatesBySize, defaultProposalOverhead, poolBasePrices } from './proposalCostModel';
-import type { ProposalContext, ProposalOverheadSettings, ProposalWaterBody } from './proposalCostModel';
+import type { ProposalChemicalEstimate, ProposalChemicalSource, ProposalContext, ProposalOverheadSettings, ProposalWaterBody } from './proposalCostModel';
 import { proposalServiceOptions, type ProposalService } from './proposalServices';
 import { ChemicalsPage } from './ChemicalsPage';
 import { HealthDepartmentPage } from './HealthDepartmentPage';
@@ -790,8 +790,19 @@ function App() {
   const [proposalHistoryError, setProposalHistoryError] = useState('');
   const [proposalHistoryRefresh, setProposalHistoryRefresh] = useState(0);
   const [proposalChemicalProjection, setProposalChemicalProjection] = useState<number | null>(null);
+  const [proposalEstimateResult, setProposalEstimateResult] = useState<{ key: string; estimate: ProposalChemicalEstimate | null; error: boolean } | null>(null);
   const [proposalOverhead, setProposalOverhead] = useState<ProposalOverheadSettings>(() => ({ ...defaultProposalOverhead }));
   const proposalPropertyId = selectedProperty?.id;
+  const proposalHasChemicalSupply = proposalServices.includes('Chemical Supply');
+  const proposalRecordedCost = proposalContext?.chemicalHistory.averageMonthlyCost ?? null;
+  const proposalEstimateBodies = proposalWaterBodies.filter(body => body.include).map(body => ({
+    type: body.type, size: body.category || null, gallons: body.gallons,
+  }));
+  const proposalEstimateRequest = JSON.stringify({ waterBodies: proposalEstimateBodies });
+  const proposalEstimateKey = showProposal && proposalPropertyId && proposalContext && proposalRecordedCost === null && proposalHasChemicalSupply && proposalEstimateBodies.length
+    ? JSON.stringify([proposalPropertyId, proposalHistoryRefresh, proposalEstimateRequest]) : null;
+  const proposalEstimateStatus = proposalEstimateKey && proposalEstimateResult?.key === proposalEstimateKey ? proposalEstimateResult : null;
+  const proposalChemicalEstimate = proposalEstimateStatus?.estimate ?? null;
   useEffect(() => {
     if (!showProposal || !proposalPropertyId) return;
     const controller = new AbortController();
@@ -800,7 +811,7 @@ function App() {
     setProposalHistoryError('');
     void fetch(`${API_URL}/properties/${proposalPropertyId}/proposal-context`, { signal: controller.signal })
       .then(async response => {
-        if (!response.ok) throw new Error('Could not load recorded costs. Size-based budgets are shown until history is available.');
+        if (!response.ok) throw new Error('Could not load recorded costs. Enter a chemical forecast or retry.');
         const context = await response.json() as ProposalContext;
         if (!context.chemicalHistory) throw new Error('Recorded history is unavailable. Review the chemical forecast before saving.');
         return context;
@@ -810,6 +821,24 @@ function App() {
       .finally(() => { if (!controller.signal.aborted) setProposalHistoryLoading(false); });
     return () => controller.abort();
   }, [showProposal, proposalPropertyId, proposalHistoryRefresh]);
+
+  useEffect(() => {
+    if (!proposalEstimateKey || !proposalPropertyId) return;
+    const controller = new AbortController();
+    void fetch(`${API_URL}/properties/${proposalPropertyId}/proposal-chemical-estimate`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: proposalEstimateRequest, signal: controller.signal,
+    })
+      .then(async response => {
+        if (!response.ok) throw new Error('Could not load comparable properties.');
+        const { estimate } = await response.json() as { estimate: ProposalChemicalEstimate | null };
+        if (!controller.signal.aborted) setProposalEstimateResult({ key: proposalEstimateKey, estimate, error: false });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setProposalEstimateResult({ key: proposalEstimateKey, estimate: null, error: true });
+      });
+    return () => controller.abort();
+  }, [proposalEstimateKey, proposalEstimateRequest, proposalPropertyId]);
 
   useEffect(() => {
     if (!selectedProperty || propertyTab !== 'quality') return;
@@ -845,9 +874,13 @@ function App() {
     ...proposalOverhead,
     targetMarginPercent: proposalTargetMargin, discountPercent: adjustmentPercentage,
     surchargePercent: managementStatus === 'SURCHARGE' ? Math.min(100, Math.max(0, Number(adjustments || 0))) : 0,
-    chemicalsIncluded: proposalServices.includes('Chemical Supply'),
-    chemicalProjection: proposalChemicalProjection ?? proposalContext?.chemicalHistory.averageMonthlyCost ?? null,
+    chemicalsIncluded: proposalHasChemicalSupply,
+    chemicalProjection: proposalHasChemicalSupply ? proposalChemicalProjection ?? proposalRecordedCost ?? proposalChemicalEstimate?.monthlyCost ?? null : null,
   };
+  const proposalChemicalSource: ProposalChemicalSource = !proposalHasChemicalSupply ? 'EXCLUDED'
+    : proposalChemicalProjection !== null ? 'MANUAL'
+      : proposalRecordedCost !== null ? 'RECORDED_HISTORY'
+        : proposalChemicalEstimate ? 'COMPARABLE_PROPERTIES' : 'UNAVAILABLE';
   const proposalCalculation = calculateProposal(proposalWaterBodies, proposalCalculatorSettings);
   // Gasoline is a configurable percentage of the final fee, included once.
   const monthlyTransportationCost = 0;
@@ -1611,6 +1644,12 @@ function App() {
 
   function openProposal() {
     if (!selectedProperty) return;
+    if (!showProposal) {
+      setProposalContext(null);
+      setProposalHistoryLoading(true);
+      setProposalHistoryError('');
+      setProposalEstimateResult(null);
+    }
     setProposalTargetMargin(60);
     setManagementStatus('CURRENT');
     setAdjustments('0');
@@ -1941,6 +1980,10 @@ function App() {
       window.alert('Select at least one service for the proposal.');
       return;
     }
+    if (proposalCalculation.chemicalCost === null) {
+      window.alert('Enter a monthly chemical forecast before saving the proposal.');
+      return;
+    }
 
     if (proposalCalculation.lines.some(line => line.costs !== null && line.costs.revenue <= 0)) {
       window.alert('Enter a positive monthly price for every included water body.');
@@ -1958,10 +2001,10 @@ function App() {
         proposalDate: pdfData.proposalDate.toISOString(),
         allocations: proposalCalculation.allocations,
         pricingModel: {
-          version: 3, basis: 'DOLLAR_CHEMICAL_FORECAST_WITH_PERCENTAGE_COSTS', targetMarginPercent: proposalTargetMargin,
+          version: 4, basis: 'DOLLAR_CHEMICAL_FORECAST_WITH_PERCENTAGE_COSTS', targetMarginPercent: proposalTargetMargin,
           rates: { ...calculatorRates, ...proposalCalculation.rates }, chemicalRatesBySize, chemicalsIncluded: proposalCalculatorSettings.chemicalsIncluded,
           settings: proposalCalculatorSettings, history: proposalContext,
-          chemicalProjectionSource: proposalChemicalProjection !== null ? 'MANUAL' : proposalContext?.chemicalHistory.averageMonthlyCost != null ? 'RECORDED_HISTORY' : 'SIZE_BUDGET',
+          chemicalProjectionSource: proposalChemicalSource, chemicalComparableEstimate: proposalChemicalEstimate,
           managementStatus, managementAdjustment: proposalCalculation.managementAdjustment,
           chemicalCost: proposalCalculation.chemicalCost, chemicalBudget: proposalCalculation.chemicalBudget,
           laborCost: proposalCalculation.laborCost, supplies: proposalCalculation.supplies,
@@ -2646,6 +2689,8 @@ function App() {
       sidebar={renderAppSidebar()} headerActions={renderProposalReminderCenter()} property={selectedProperty}
       calculation={proposalCalculation} settings={proposalCalculatorSettings} context={proposalContext}
       historyLoading={proposalHistoryLoading} historyError={proposalHistoryError}
+      chemicalSource={proposalChemicalSource} chemicalEstimate={proposalChemicalEstimate}
+      estimateLoading={proposalEstimateKey !== null && proposalEstimateStatus === null} estimateError={proposalEstimateStatus?.error ?? false}
       managementStatus={managementStatus} adjustment={adjustments} services={proposalServices} notes={proposalNotes} internalName={proposalInternalName} saving={savingProposal}
       onUpdate={updateProposalWaterBody} onTarget={setProposalTargetMargin} onChemicals={setProposalChemicalProjection}
       onOverhead={(field, value) => setProposalOverhead(current => ({ ...current, [field]: value }))}
