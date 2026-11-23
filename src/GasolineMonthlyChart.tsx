@@ -107,12 +107,11 @@ export function GasolineMonthlyChart({ purchases, months, loadChemicalProperties
   months: string[];
   loadChemicalProperties: ChemicalLoader;
 }) {
-  const [selectedYear, setSelectedYear] = useState('');
-  const [selectedComparison, setSelectedComparison] = useState('');
+  const [selectedYears, setSelectedYears] = useState<string[]>([]);
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
   const years = [...new Set(months.map(month => month.slice(0, 4)))];
-  const year = years.includes(selectedYear) ? selectedYear : years[0];
-  const comparison = selectedComparison !== year && years.includes(selectedComparison) ? selectedComparison : '';
+  const availableSelection = selectedYears.filter(item => years.includes(item));
+  const [year = years[0], comparison = ''] = availableSelection;
   const primaryChemicals = useChemicalYear(year, loadChemicalProperties);
   const comparisonChemicals = useChemicalYear(comparison, loadChemicalProperties);
   const summaries = useMemo(() => [year, comparison].filter(Boolean).sort().map(item => ({
@@ -142,17 +141,21 @@ export function GasolineMonthlyChart({ purchases, months, loadChemicalProperties
     <div className="gasoline-section-header">
       <h2 id="gasoline-monthly-title">Monthly fuel by technician</h2>
       <div className="gasoline-chart-filters">
-        <label>Year<select value={year} onChange={event => {
-          const nextYear = event.currentTarget.value;
-          setSelectedYear(nextYear);
-          if (nextYear === comparison) setSelectedComparison(year);
-        }}>
-          {years.map(item => <option key={item}>{item}</option>)}
-        </select></label>
-        <label>Compare with<select value={comparison} onChange={event => setSelectedComparison(event.currentTarget.value)} disabled={years.length < 2}>
-          <option value="">{years.length < 2 ? 'No other year available' : 'None'}</option>
-          {years.filter(item => item !== year).map(item => <option key={item}>{item}</option>)}
-        </select></label>
+        <div className="gasoline-chart-year">
+          <label>Year<select multiple size={Math.min(3, Math.max(2, years.length))}
+            aria-describedby={years.length > 1 ? 'gasoline-year-hint' : undefined}
+            value={comparison ? [year, comparison] : [year]} onChange={event => {
+              const next = Array.from(event.currentTarget.selectedOptions, option => option.value);
+              if (!next.length) return;
+              const current = [year, comparison];
+              const retained = current.filter(item => next.includes(item));
+              const added = next.filter(item => !current.includes(item));
+              setSelectedYears([...retained, ...added].slice(-2));
+            }}>
+            {years.map(item => <option key={item}>{item}</option>)}
+          </select></label>
+          {years.length > 1 && <small id="gasoline-year-hint">Ctrl / ⌘ + click to select two.</small>}
+        </div>
         <label>Technician<select value={driverIndex} onChange={event => setSelectedDriver(drivers[Number(event.currentTarget.value)]?.[0] ?? null)}>
           <option value={-1}>All technicians</option>
           {drivers.map(([key, name], index) => <option value={index} key={key}>{name}</option>)}
