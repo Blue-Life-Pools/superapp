@@ -9,6 +9,22 @@ const compactDollars = new Intl.NumberFormat('en-US', { style: 'currency', curre
 const gallons = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 const integer = new Intl.NumberFormat('en-US');
 const monthNumbers = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0'));
+type ChemicalLoader = (month: string, signal: AbortSignal) => Promise<ChemicalProperty[]>;
+type MonthlySeries = { year: string; values: ({ gallons: number; dollars: number } | null)[]; visited: (number | null)[] };
+
+function useChemicalYear(year: string, loadChemicalProperties: ChemicalLoader) {
+  const [result, setResult] = useState<{ year: string; months: (ChemicalProperty[] | null)[] } | null>(null);
+  useEffect(() => {
+    if (!year) return;
+    const controller = new AbortController();
+    void Promise.all(monthNumbers.map(month => loadChemicalProperties(year + '-' + month, controller.signal).catch(() => null)))
+      .then(months => {
+        if (!controller.signal.aborted) setResult({ year, months });
+      });
+    return () => controller.abort();
+  }, [year, loadChemicalProperties]);
+  return result?.year === year ? result.months : null;
+}
 
 function countVisited(properties: ChemicalProperty[] | null, month: string, names: string[], driver: string | undefined) {
   const serviced = properties?.filter(property => property.participants.length);
@@ -43,8 +59,9 @@ function FuelSpending({ month, amount, volume }: { month: string; amount: number
   </>;
 }
 
-function MonthlyBars({ year, values, visited }: { year: string; values: ({ gallons: number; dollars: number } | null)[]; visited: (number | null)[] }) {
-  const volumes = values.map(value => value?.gallons ?? 0);
+function MonthlyBars({ series }: { series: MonthlySeries[] }) {
+  const comparing = series.length > 1;
+  const volumes = series.flatMap(({ values }) => values.map(value => value?.gallons ?? 0));
   const maximum = Math.max(0, ...volumes);
   const minimum = Math.min(0, ...volumes);
   const range = maximum - minimum || 1;
@@ -54,23 +71,24 @@ function MonthlyBars({ year, values, visited }: { year: string; values: ({ gallo
     <p className="gasoline-chart-legend"><span>Gallons purchased</span> Select a spending amount for details.</p>
     <div className="gasoline-chart-scroll" role="region" aria-label="Monthly fuel chart" tabIndex={0}
       onScroll={event => event.currentTarget.querySelector<HTMLElement>('.gasoline-spending-popover:popover-open')?.hidePopover()}>
-      <ul className="gasoline-chart" role="list">
-        {values.map((value, index) => {
+      <ul className={`gasoline-chart${comparing ? ' is-comparing' : ''}`} role="list">
+        {monthNumbers.flatMap((number, index) => series.map(({ year, values, visited }, seriesIndex) => {
+          const value = values[index];
           const month = new Date(Date.UTC(Number(year), index, 1));
-          const name = fullMonthLabel.format(month);
+          const name = fullMonthLabel.format(month) + (comparing ? ' ' + year : '');
           const label = value ? `${gallons.format(value.gallons)} gallons, ${dollars.format(value.dollars)}` : 'no transactions';
-          const height = volumes[index] / range * 100;
+          const height = (value?.gallons ?? 0) / range * 100;
           const propertyCount = visited[index];
           const propertyUnit = propertyCount === 1 ? 'property' : 'properties';
           const propertyLabel = propertyCount === null ? 'property data unavailable' : `${integer.format(propertyCount)} ${propertyUnit} visited`;
-          return <li key={index} aria-label={`${name} ${label}, ${propertyLabel}`}>
+          return <li key={year + number} className={seriesIndex ? 'is-second-year' : undefined} aria-label={`${name} ${label}, ${propertyLabel}`}>
             <div className="gasoline-chart-plot" aria-hidden="true">
               <span className="gasoline-chart-zero" style={{ top: `${baseline}%` }} />
               {!!height && <span className={`gasoline-chart-bar${height < 0 ? ' is-credit' : ''}`}
                 style={{ top: `${baseline - Math.max(0, height)}%`, height: `${Math.abs(height)}%` }} />}
               {value && <strong className="gasoline-chart-volume" style={{ top: `${baseline - Math.max(0, height)}%` }}>{gallons.format(value.gallons)}</strong>}
             </div>
-            <span className="gasoline-chart-month">{monthLabel.format(month)}</span>
+            <span className="gasoline-chart-month">{monthLabel.format(month)}{comparing && <small>{year}</small>}</span>
             <div className="gasoline-chart-spending">
               {value ? <FuelSpending month={name} amount={value.dollars} volume={value.gallons} /> : <span>—</span>}
             </div>
@@ -78,7 +96,7 @@ function MonthlyBars({ year, values, visited }: { year: string; values: ({ gallo
               {propertyCount === null ? '—' : integer.format(propertyCount)} <span>{propertyUnit}</span>
             </div>
           </li>;
-        })}
+        }))}
       </ul>
     </div>
   </>;
@@ -87,45 +105,53 @@ function MonthlyBars({ year, values, visited }: { year: string; values: ({ gallo
 export function GasolineMonthlyChart({ purchases, months, loadChemicalProperties }: {
   purchases: FuelPurchase[];
   months: string[];
-  loadChemicalProperties: (month: string, signal: AbortSignal) => Promise<ChemicalProperty[]>;
+  loadChemicalProperties: ChemicalLoader;
 }) {
   const [selectedYear, setSelectedYear] = useState('');
+  const [selectedComparison, setSelectedComparison] = useState('');
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
-  const [chemicalYear, setChemicalYear] = useState<{ year: string; months: (ChemicalProperty[] | null)[] } | null>(null);
   const years = [...new Set(months.map(month => month.slice(0, 4)))];
   const year = years.includes(selectedYear) ? selectedYear : years[0];
-  const summaries = useMemo(() => monthNumbers.map(month =>
-    summarizeFuel(purchases, year + '-' + month),
-  ), [purchases, year]);
-  useEffect(() => {
-    const controller = new AbortController();
-    void Promise.all(monthNumbers.map(month => loadChemicalProperties(year + '-' + month, controller.signal).catch(() => null)))
-      .then(properties => {
-        if (!controller.signal.aborted) setChemicalYear({ year, months: properties });
-      });
-    return () => controller.abort();
-  }, [year, loadChemicalProperties]);
-  const drivers = [...new Map(summaries.flatMap(summary => summary.drivers.map(driver => [driver.key, driver.name] as const)))]
+  const comparison = selectedComparison !== year && years.includes(selectedComparison) ? selectedComparison : '';
+  const primaryChemicals = useChemicalYear(year, loadChemicalProperties);
+  const comparisonChemicals = useChemicalYear(comparison, loadChemicalProperties);
+  const summaries = useMemo(() => [year, comparison].filter(Boolean).sort().map(item => ({
+    year: item,
+    months: monthNumbers.map(month => summarizeFuel(purchases, item + '-' + month)),
+  })), [purchases, year, comparison]);
+  const drivers = [...new Map(summaries.flatMap(series => series.months.flatMap(summary => summary.drivers.map(driver => [driver.key, driver.name] as const))))]
     .sort((first, second) => first[1].localeCompare(second[1], 'en'));
   const driverIndex = drivers.findIndex(([key]) => key === selectedDriver);
   const driverKey = drivers[driverIndex]?.[0];
   const names = drivers.filter(([key]) => key).map(([, name]) => name);
-  const visited = monthNumbers.map((month, index) =>
-    countVisited(chemicalYear?.year === year ? chemicalYear.months[index] : null, year + '-' + month, names, driverKey));
-  const values = summaries.map(summary => {
-    if (driverKey === undefined) {
-      return summary.first ? { dollars: summary.spent / 100, gallons: summary.gallons } : null;
-    }
-    const driver = summary.drivers.find(item => item.key === driverKey);
-    return driver ? { dollars: driver.cents / 100, gallons: driver.gallons } : null;
+  const series = summaries.map(item => {
+    const chemicals = item.year === year ? primaryChemicals : comparisonChemicals;
+    const visited = monthNumbers.map((month, index) =>
+      countVisited(chemicals?.[index] ?? null, item.year + '-' + month, names, driverKey));
+    const values = item.months.map(summary => {
+      if (driverKey === undefined) {
+        return summary.first ? { dollars: summary.spent / 100, gallons: summary.gallons } : null;
+      }
+      const driver = summary.drivers.find(candidate => candidate.key === driverKey);
+      return driver ? { dollars: driver.cents / 100, gallons: driver.gallons } : null;
+    });
+    return { year: item.year, values, visited };
   });
 
   return <section className="gasoline-panel" aria-labelledby="gasoline-monthly-title">
     <div className="gasoline-section-header">
       <h2 id="gasoline-monthly-title">Monthly fuel by technician</h2>
       <div className="gasoline-chart-filters">
-        <label>Year<select value={year} onChange={event => setSelectedYear(event.currentTarget.value)}>
+        <label>Year<select value={year} onChange={event => {
+          const nextYear = event.currentTarget.value;
+          setSelectedYear(nextYear);
+          if (nextYear === comparison) setSelectedComparison(year);
+        }}>
           {years.map(item => <option key={item}>{item}</option>)}
+        </select></label>
+        <label>Compare with<select value={comparison} onChange={event => setSelectedComparison(event.currentTarget.value)} disabled={years.length < 2}>
+          <option value="">{years.length < 2 ? 'No other year available' : 'None'}</option>
+          {years.filter(item => item !== year).map(item => <option key={item}>{item}</option>)}
         </select></label>
         <label>Technician<select value={driverIndex} onChange={event => setSelectedDriver(drivers[Number(event.currentTarget.value)]?.[0] ?? null)}>
           <option value={-1}>All technicians</option>
@@ -133,7 +159,7 @@ export function GasolineMonthlyChart({ purchases, months, loadChemicalProperties
         </select></label>
       </div>
     </div>
-    <MonthlyBars key={JSON.stringify([year, driverKey])} year={year} values={values} visited={visited} />
-    <p>{chemicalYear?.year !== year ? 'Loading property counts from Chemicals…' : 'Property counts use monthly service records from Chemicals.'} A dash indicates missing data.</p>
+    <MonthlyBars key={JSON.stringify([year, comparison, driverKey])} series={series} />
+    <p>{!primaryChemicals || (comparison && !comparisonChemicals) ? 'Loading property counts from Chemicals…' : 'Property counts use monthly service records from Chemicals.'} A dash indicates missing data.</p>
   </section>;
 }
