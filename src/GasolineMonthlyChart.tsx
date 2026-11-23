@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { summarizeFuel, type FuelPurchase } from './gasolineData';
+import { driverKey as fuelDriverKey, summarizeFuel, type FuelPurchase } from './gasolineData';
 import { gasolineChemicalCoverage, type ChemicalProperty } from './gasolineChemicalCoverage';
+import { chemicalTechnicianResolver, cleanChemicalTechnicianName } from './chemicalTechnicianIdentity';
 
 const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
 const fullMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' });
@@ -138,10 +139,11 @@ function YearPicker({ years, selection, onChange }: { years: string[]; selection
   </div>;
 }
 
-export function GasolineMonthlyChart({ purchases, months, archive, loadChemicalProperties, loadArchivedProperties }: {
+export function GasolineMonthlyChart({ purchases, months, archive, activeTechnicians, loadChemicalProperties, loadArchivedProperties }: {
   purchases: FuelPurchase[];
   months: string[];
   archive?: Record<string, number>;
+  activeTechnicians?: string[];
   loadChemicalProperties: ChemicalLoader;
   loadArchivedProperties: ArchiveLoader;
 }) {
@@ -168,24 +170,35 @@ export function GasolineMonthlyChart({ purchases, months, archive, loadChemicalP
     year: item,
     months: monthNumbers.map(month => summarizeFuel(purchases, item + '-' + month)),
   })), [purchases, year, comparison]);
-  const drivers = [...new Map(summaries.flatMap(series => series.months.flatMap(summary => summary.drivers.map(driver => [driver.key, driver.name] as const))))]
+  const resolveTechnician = useMemo(() => chemicalTechnicianResolver([
+    ...(activeTechnicians ?? []), ...new Set(purchases.map(purchase => purchase.driver)),
+  ]), [activeTechnicians, purchases]);
+  const importedDrivers = new Set(summaries.flatMap(series => series.months.flatMap(summary =>
+    summary.drivers.filter(driver => driver.key).map(driver => resolveTechnician(driver.name).key))));
+  const drivers = [...new Map((activeTechnicians ?? []).map(name => [resolveTechnician(name).key, cleanChemicalTechnicianName(name)] as const))]
+    .filter(([key]) => importedDrivers.has(key))
     .sort((first, second) => first[1].localeCompare(second[1], 'en'));
   const driverIndex = drivers.findIndex(([key]) => key === selectedDriver);
   const driverKey = drivers[driverIndex]?.[0];
-  const names = drivers.filter(([key]) => key).map(([, name]) => name);
+  const names = drivers.map(([, name]) => name);
+  const propertyDriverKey = driverIndex < 0 ? undefined : fuelDriverKey(drivers[driverIndex][1]);
   const series = summaries.map(item => {
     const chemicals = item.year === year ? primaryChemicals : comparisonChemicals;
     const archived = monthNumbers.map(month => driverKey === undefined && archive?.[item.year + '-' + month] !== undefined);
     const visited = monthNumbers.map((month, index) => {
       const period = item.year + '-' + month;
-      return archived[index] ? archive![period] : countVisited(chemicals?.[index] ?? null, period, names, driverKey);
+      return archived[index] ? archive![period] : countVisited(chemicals?.[index] ?? null, period, names, propertyDriverKey);
     });
     const values = item.months.map(summary => {
       if (driverKey === undefined) {
         return summary.first ? { dollars: summary.spent / 100, gallons: summary.gallons } : null;
       }
-      const driver = summary.drivers.find(candidate => candidate.key === driverKey);
-      return driver ? { dollars: driver.cents / 100, gallons: driver.gallons } : null;
+      const matched = summary.drivers.filter(candidate => candidate.key && resolveTechnician(candidate.name).key === driverKey);
+      if (!matched.length) return null;
+      return {
+        dollars: matched.reduce((total, driver) => total + driver.cents, 0) / 100,
+        gallons: matched.reduce((total, driver) => total + driver.gallons, 0),
+      };
     });
     return { year: item.year, values, visited, archived };
   });

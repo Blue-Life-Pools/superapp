@@ -197,7 +197,7 @@ export function GasolinePage({ sidebar, userId, canEdit }: { sidebar: ReactNode;
   const archive = history.archivedPropertyCounts;
   const hasArchive = Object.keys(archive ?? {}).length > 0;
   const monthlyChart = (month || hasArchive) && <GasolineMonthlyChart purchases={history.purchases} months={months}
-    archive={archive} loadChemicalProperties={loadChemicalProperties} loadArchivedProperties={loadArchivedProperties} />;
+    archive={archive} activeTechnicians={history.activeTechnicians} loadChemicalProperties={loadChemicalProperties} loadArchivedProperties={loadArchivedProperties} />;
 
   return <div className="page app-page gasoline-page">
     {sidebar}
