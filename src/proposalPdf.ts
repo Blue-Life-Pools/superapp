@@ -175,7 +175,7 @@ function drawHeroHeader(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.2);
   setTextColor(doc, navy);
-  doc.text('CPC 1461225  |  LICENSED & INSURED', 30, 99);
+  doc.text('CPC1461823  |  LICENSED & INSURED', 30, 99);
   doc.setFontSize(5.8);
   setTextColor(doc, mediumBlue);
   doc.text(proposalNumber, 30, 108);
