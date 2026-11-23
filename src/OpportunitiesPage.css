@@ -45,3 +45,8 @@
 @media (max-width: 380px) { .opportunities-kpis { gap: 8px; }.opportunity-kpi { gap: 8px; padding-inline: 9px; }.opportunity-kpi-icon { width: 29px; height: 29px; flex-basis: 29px; }.opportunity-kpi > span:last-child > span { font-size: 11px; }.opportunity-kpi strong { font-size: 24px; }.opportunities-header-actions { gap: 8px; }.opportunities-button { padding-inline: 11px; font-size: 12px; } }
 .opportunities-mail-reviews select { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; border: 1px solid #d4ddeb; border-radius: 6px; padding: 7px; background: #fff; color: #263a58; font: inherit; }.opportunities-mail-reviews > div > button { flex-shrink: 0; white-space: nowrap; }
 .opportunity-status.opportunity-status-readonly { display: inline-block; width: auto; cursor: default; }
+.opportunities-table.opportunity-invoice-table { min-width: 720px; table-layout: auto; }
+.opportunity-invoice-work { max-width: 360px; white-space: pre-line; }
+.opportunity-invoice-form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 14px; padding-block: 5px; }
+.opportunity-invoice-form label { display: grid; gap: 4px; font-size: 12px; }
+.opportunity-invoice-form input { min-width: 120px; min-height: 38px; padding: 7px 9px; border: 1px solid #dce3ef; border-radius: 7px; background: #fff; color: #253754; font: inherit; }
