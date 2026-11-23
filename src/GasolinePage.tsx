@@ -71,7 +71,7 @@ function RouteForm({ route, busy, onSave }: { route: FuelRoute; busy: boolean; o
   </form>;
 }
 
-export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: string }) {
+export function GasolinePage({ sidebar, userId, canEdit }: { sidebar: ReactNode; userId: string; canEdit: boolean }) {
   const key = `bluelife-gasoline-v1:${userId}`;
   const [history, setHistory] = useState<FuelData>(emptyFuelData);
   const [localHistory, setLocalHistory] = useState(() => readLocalHistory(key));
@@ -204,15 +204,15 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
     <main className="gasoline-content" aria-labelledby="gasoline-title">
       <header className="area-page-header gasoline-header">
         <div><span className="area-eyebrow">FLEET OPERATIONS</span><h1 id="gasoline-title">Gasoline</h1><p>Review monthly Wawa fuel purchases and compare technicians across service routes.</p></div>
-        <button type="button" className="gasoline-upload" disabled={busy || loading || loadFailed} onClick={() => upload.current?.click()}><WorkspaceIcon name="upload" />Import Wawa Excel</button>
+        {canEdit && <><button type="button" className="gasoline-upload" disabled={busy || loading || loadFailed} onClick={() => upload.current?.click()}><WorkspaceIcon name="upload" />Import Wawa Excel</button>
         <input ref={upload} type="file" hidden accept=".xlsx" aria-label="Wawa Transactions Excel" onChange={event => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = '';
           if (file) void importWorkbook(file);
-        }} />
+        }} /></>}
       </header>
       <p className="gasoline-storage">Fuel history is shared with authorized CRM users.</p>
-      {localHistory.purchases.length > 0 && <div className="gasoline-message is-review">
+      {canEdit && localHistory.purchases.length > 0 && <div className="gasoline-message is-review">
         <span>Found {localHistory.purchases.length} transactions saved in this browser from before shared history.</span>
         <button type="button" className="gasoline-link" disabled={loading || busy || loadFailed} onClick={() => void shareLocalHistory()}>Share previous browser data</button>
       </div>}
@@ -221,7 +221,7 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
       {loadFailed && <div className="gasoline-message is-error" role="alert"><span>Could not load shared fuel history.</span><button type="button" className="gasoline-link" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Retry</button></div>}
       {loading ? <p role="status">Loading shared fuel history…</p> : !month && !loadFailed ? <>
         {monthlyChart}
-        <section className="gasoline-panel gasoline-empty"><h2>No fuel transactions yet</h2><p>Import the Wawa Transactions Excel to see spending, gallons and purchases by driver.</p></section>
+        <section className="gasoline-panel gasoline-empty"><h2>No fuel transactions yet</h2>{canEdit && <p>Import the Wawa Transactions Excel to see spending, gallons and purchases by driver.</p>}</section>
       </> : month && <>
         <div className="gasoline-toolbar">
           <label>Purchase month<select value={month} onChange={event => {
@@ -244,14 +244,14 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
           }}><option value="gallons">Gallons</option><option value="spend">Spending</option></select></label></div>
           <p>Properties shows the purchase-period count or a saved manual count. The city breakdown uses the full selected month in Chemicals and counts each property once per technician.</p>
           {!chemicals ? <p role="status">Checking Chemicals…</p>
-            : chemicals.properties === null ? <p className="gasoline-message is-review">Could not load Chemicals for this month. Manual counts can still be used.</p>
-              : !chemicals.properties.length && <p className="gasoline-message is-review">No Chemicals property records for this month. Enter a manual count if needed.</p>}
+            : chemicals.properties === null ? <p className="gasoline-message is-review">Could not load Chemicals for this month.{canEdit && ' Manual counts can still be used.'}</p>
+              : !chemicals.properties.length && <p className="gasoline-message is-review">No Chemicals property records for this month.{canEdit && ' Enter a manual count if needed.'}</p>}
           <div className="gasoline-table-wrap" role="region" aria-label="Fuel and route metrics by driver" tabIndex={0}>
             <table className="gasoline-table"><thead><tr><th scope="col">Driver / zone</th><th scope="col">Gallons</th><th scope="col">Spending</th><th scope="col">Fill-ups</th><th scope="col">Properties</th><th scope="col" className="gasoline-city-column">Properties by city</th></tr></thead>
               <tbody>{visibleRows.map(row => <tr key={row.key} className={row.key === driver?.key ? 'is-selected' : undefined}>
                 <th scope="row"><button type="button" aria-pressed={row.key === driver?.key} onClick={() => setSelectedDriver(row.key)}>{row.name}</button>{row.route.zone && <small>{row.route.zone}</small>}</th>
                 <td>{quantities.format(row.gallons)}</td><td>{dollars.format(row.spend)}</td><td>{row.charges}</td>
-                <td>{row.propertyCount ?? (row.chemicalProperties.length ? '—' : row.key ? <a className="gasoline-link" href="#gasoline-route" onClick={() => setSelectedDriver(row.key)}>Add count</a> : '—')}
+                <td>{row.propertyCount ?? (!row.chemicalProperties.length && row.key && canEdit ? <a className="gasoline-link" href="#gasoline-route" onClick={() => setSelectedDriver(row.key)}>Add count</a> : '—')}
                   {!!row.chemicalProperties.length && <small><a className="gasoline-link" href="#gasoline-route" onClick={() => setSelectedDriver(row.key)}>{row.route.properties !== null ? 'Manual · View Chemicals' : row.chemicalCount ? 'From Chemicals' : `${row.chemicalProperties.length} in Chemicals this month`}</a></small>}
                 </td>
                 <td className="gasoline-city-column">
@@ -284,7 +284,7 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
               </table>
             </div>
           </details>}
-          {driver.key && <>
+          {driver.key && canEdit && <>
             <p>Enter route data for the same purchase dates. Clear the manual property count and save to use the Chemicals count.</p>
             <RouteForm key={routeKey(driver.key)} route={driver.route} busy={busy} onSave={route => void saveRoute(route)} />
           </>}
