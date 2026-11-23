@@ -24,7 +24,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) throw new Error(typeof data.message === 'string' ? data.message : 'Could not complete this action.');
   return data as T;
 }
-export function OpportunitiesPage({ sidebar, properties, canEdit, canEditStatus, canDelete }: { sidebar: ReactNode; properties: Array<{ id: string; name: string }>; canEdit: boolean; canEditStatus: boolean; canDelete: boolean }) {
+export function InvoicingPage({ sidebar, canRecord, onBack, onRecorded }: {
+  sidebar: ReactNode; canRecord: boolean; onBack?: () => void; onRecorded?: () => void;
+}) {
+  return <div className="page app-page opportunities-page">{sidebar}
+    <header className="area-page-header opportunities-header">
+      <div><span className="area-eyebrow">OPPORTUNITIES</span><h1>Invoicing</h1><p>Completed repairs waiting for an invoice number.</p></div>
+      {onBack && <button type="button" className="opportunities-button opportunities-button-secondary" onClick={onBack}>
+        <WorkspaceIcon name="chevron-left" />Back to opportunities
+      </button>}
+    </header>
+    <OpportunityInvoices request={request} canRecord={canRecord} onRecorded={onRecorded} />
+  </div>;
+}
+
+export function OpportunitiesPage({ sidebar, properties, canEdit, canEditStatus, canDelete }: {
+  sidebar: ReactNode; properties: Array<{ id: string; name: string }>; canEdit: boolean; canEditStatus: boolean; canDelete: boolean;
+}) {
   const [data, setData] = useState(initialResult), [filters, setFilters] = useState(emptyFilters), [page, setPage] = useState(1), [limit, setLimit] = useState(25);
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState('');
   const [version, setVersion] = useState(0), [moreFilters, setMoreFilters] = useState(false), [columns, setColumns] = useState<OpportunityField[]>(savedColumns);
@@ -99,15 +115,8 @@ export function OpportunitiesPage({ sidebar, properties, canEdit, canEditStatus,
     if (field === 'propertyName' || field === 'name') return <button type="button" className={`opportunity-text-button${field === 'propertyName' ? ' opportunity-property-name' : ''}`} onClick={() => showEditor(item, true)} title={opportunityText(item[field])}>{opportunityText(item[field]) || '—'}</button>;
     return item[field] || '—';
   }
-  if (billing) return <div className="page app-page opportunities-page">{sidebar}
-    <header className="area-page-header opportunities-header">
-      <div><span className="area-eyebrow">OPPORTUNITIES</span><h1>Invoicing</h1><p>Completed repairs waiting for an invoice number.</p></div>
-      <button type="button" className="opportunities-button opportunities-button-secondary" onClick={() => setBilling(false)}>
-        <WorkspaceIcon name="chevron-left" />Back to opportunities
-      </button>
-    </header>
-    <OpportunityInvoices request={request} canRecord={canEdit} onRecorded={() => setVersion(value => value + 1)} />
-  </div>;
+  if (billing) return <InvoicingPage sidebar={sidebar} canRecord={canEdit}
+    onBack={() => setBilling(false)} onRecorded={() => setVersion(value => value + 1)} />;
 
   return <div className="page app-page opportunities-page">{sidebar}
     <header className="area-page-header opportunities-header"><div><span className="area-eyebrow">COMMERCIAL OPERATIONS</span><h1>Opportunities</h1><p>Estimates, approvals, repairs and invoicing in one shared workspace.</p></div><div className="opportunities-header-actions"><button type="button" className="opportunities-button opportunities-button-secondary" onClick={() => setBilling(true)}><WorkspaceIcon name="contract" />Invoicing</button>{canEdit && <><button type="button" className="opportunities-button opportunities-button-secondary" onClick={() => setIntegrationOpen(true)}><WorkspaceIcon name="mail" />Email intake</button><button type="button" className="opportunities-button opportunities-button-secondary" disabled={busy} onClick={() => fileInput.current?.click()}><WorkspaceIcon name="upload" />Import CSV</button><button type="button" className="opportunities-button opportunities-button-primary" disabled={busy} onClick={() => showEditor('new')}><WorkspaceIcon name="plus" />New opportunity</button><input ref={fileInput} type="file" accept=".csv,text/csv" hidden aria-label="Import opportunities CSV" onChange={(event) => void importCsv(event.target.files?.[0])} /></>}</div></header>

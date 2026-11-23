@@ -14,7 +14,7 @@ import { GasolinePage } from './GasolinePage';
 import { LoginPage, type AppSession } from './LoginPage';
 import { ComplaintsPage } from './ComplaintsPage';
 import { QualityInspectionsPage } from './QualityInspectionsPage';
-import { OpportunitiesPage } from './OpportunitiesPage';
+import { InvoicingPage, OpportunitiesPage } from './OpportunitiesPage';
 import { QualityFindingPhotos } from './QualityFindingPhotos';
 import './App.css';
 import './PropertyHistoryPage.css';
@@ -28,7 +28,7 @@ import './CommercialPropertyOverview.css';
 import './WorkspaceSidebar.css';
 import './ChemicalsWorkspace.css';
 
-type AppArea = 'home' | 'commercial' | 'opportunities' | 'chemicals' | 'health' | 'reports' | 'gasoline' | 'complaints' | 'quality';
+type AppArea = 'home' | 'commercial' | 'opportunities' | 'invoicing' | 'chemicals' | 'health' | 'reports' | 'gasoline' | 'complaints' | 'quality';
 type PropertyTab = 'overview' | 'commercial' | 'estimates' | 'contracts' | 'quality';
 
 function initialAppArea(): AppArea {
@@ -2455,7 +2455,8 @@ function App() {
   function navigateToArea(area: AppArea, options?: { healthUnassignedOnly?: boolean; reportsUnassignedOnly?: boolean }) {
     const isNathalia = appSession?.user.name?.toLowerCase().includes('nathalia') || appSession?.user.email?.toLowerCase().includes('nathalia');
     const role = appSession?.user.role;
-    if (isNathalia && !['home', 'reports', 'gasoline', 'quality'].includes(area) && !(role === 'REPORTS' && area === 'opportunities')) area = 'home';
+    if (isNathalia && !['home', 'reports', 'gasoline', 'quality'].includes(area) &&
+      !(role === 'REPORTS' && area === 'opportunities') && !(role === 'CHEMICALS' && area === 'invoicing')) area = 'home';
     if (!sharedChemicalAccess && area !== 'home' && !(area === 'gasoline' && appSession)) {
       const assignedArea = role?.toLowerCase();
       const sharedAreas: AppArea[] = role === 'QUALITY'
@@ -2463,7 +2464,7 @@ function App() {
         : role === 'REPORTS'
           ? ['home', 'opportunities', 'reports', 'complaints', 'quality']
           : role === 'CHEMICALS'
-            ? ['home', 'commercial', 'chemicals']
+            ? ['home', 'commercial', 'chemicals', 'invoicing']
           : isNathalia
             ? ['home', 'quality']
             : ['home', 'complaints', 'quality'];
@@ -2482,6 +2483,7 @@ function App() {
       { id: 'home', label: 'Home' },
       { id: 'commercial', label: 'Commercial' },
       { id: 'opportunities', label: 'Opportunities' },
+      { id: 'invoicing', label: 'Invoicing' },
       { id: 'chemicals', label: 'Chemicals' },
       { id: 'health', label: 'Health Dept.' },
       { id: 'reports', label: 'Reports' },
@@ -2493,13 +2495,13 @@ function App() {
     const assignedArea = role?.toLowerCase();
     const isNathalia = appSession?.user.name?.toLowerCase().includes('nathalia') || appSession?.user.email?.toLowerCase().includes('nathalia');
     const areas = ['SUPER_ADMIN', 'OPERATIONS_DIRECTOR'].includes(role || '')
-      ? allAreas
+      ? allAreas.filter((area) => area.id !== 'invoicing')
       : role === 'QUALITY'
         ? allAreas.filter((area) => area.id === 'home' || area.id === 'gasoline' || area.id === 'quality')
       : role === 'REPORTS'
         ? allAreas.filter((area) => area.id === 'home' || area.id === 'opportunities' || area.id === 'reports' || area.id === 'gasoline' || area.id === 'quality' || (!isNathalia && area.id === 'complaints'))
       : role === 'CHEMICALS'
-        ? allAreas.filter((area) => area.id === 'home' || area.id === 'commercial' || area.id === 'chemicals' || area.id === 'gasoline')
+        ? allAreas.filter((area) => area.id === 'home' || area.id === 'commercial' || area.id === 'chemicals' || area.id === 'gasoline' || area.id === 'invoicing')
       : allAreas.filter((area) => area.id === 'gasoline' || (isNathalia
         ? area.id === 'home' || area.id === 'reports' || area.id === 'quality'
         : area.id === 'home' || area.id === 'complaints' || area.id === 'quality' || area.id === assignedArea || role === 'COMMERCIAL' && area.id === 'opportunities'));
@@ -2525,7 +2527,7 @@ function App() {
               key={area.id}
               onClick={() => navigateToArea(area.id)}
             >
-              <span aria-hidden="true"><WorkspaceIcon name={area.id === 'commercial' ? 'chart' : area.id} /></span>
+              <span aria-hidden="true"><WorkspaceIcon name={area.id === 'commercial' ? 'chart' : area.id === 'invoicing' ? 'contract' : area.id} /></span>
               {area.label}
             </button>
           ))}
@@ -2710,6 +2712,7 @@ function App() {
     canEdit={['COMMERCIAL', 'OPERATIONS_DIRECTOR', 'SUPER_ADMIN'].includes(appSession?.user.role || '')}
     canEditStatus={['REPORTS', 'COMMERCIAL', 'OPERATIONS_DIRECTOR', 'SUPER_ADMIN'].includes(appSession?.user.role || '')}
     canDelete={appSession?.user.role === 'SUPER_ADMIN' || appSession?.user.role === 'OPERATIONS_DIRECTOR'} />;
+  if (activeArea === 'invoicing' && appSession?.user.role === 'CHEMICALS') return <InvoicingPage sidebar={renderAppSidebar()} canRecord />;
   if (activeArea === 'home') return <PropertyHistoryPage sidebar={renderAppSidebar()} properties={properties} canEdit={appSession?.user.role === 'COMMERCIAL' || appSession?.user.role === 'OPERATIONS_DIRECTOR' || appSession?.user.role === 'SUPER_ADMIN'} onOpenHealth={appSession?.user.role === 'HEALTH' || appSession?.user.role === 'OPERATIONS_DIRECTOR' || appSession?.user.role === 'SUPER_ADMIN' ? () => navigateToArea('health', { healthUnassignedOnly: true }) : undefined} onOpenReports={appSession?.user.role === 'QUALITY' ? undefined : () => navigateToArea('reports', { reportsUnassignedOnly: true })} onNewProperty={() => openCreateForm('home')} onPropertyUpdated={(updatedProperty) => setProperties((current) => current.map((property) => property.id === updatedProperty.id ? { ...property, ...updatedProperty } : property))} />;
   if (
     selectedProperty

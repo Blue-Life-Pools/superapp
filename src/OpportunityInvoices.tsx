@@ -5,7 +5,7 @@ import { WorkspaceIcon } from './WorkspaceIcon';
 type InvoiceCandidate = Pick<Opportunity, 'id' | 'propertyName' | 'name' | 'estimateNumber' | 'estimateAmount' | 'actualRepairDate' | 'invoiceDate' | 'invoiceAmount'>;
 type OpportunityRequest = <T>(path: string, init?: RequestInit) => Promise<T>;
 
-export function OpportunityInvoices({ request, canRecord, onRecorded }: { request: OpportunityRequest; canRecord: boolean; onRecorded: () => void }) {
+export function OpportunityInvoices({ request, canRecord, onRecorded }: { request: OpportunityRequest; canRecord: boolean; onRecorded?: () => void }) {
   const [items, setItems] = useState<InvoiceCandidate[]>([]);
   const [selected, setSelected] = useState('');
   const [loading, setLoading] = useState(true);
@@ -45,7 +45,7 @@ export function OpportunityInvoices({ request, canRecord, onRecorded }: { reques
       setItems(previous => previous.filter(row => row.id !== item.id));
       setSelected('');
       setMessage(`Invoice recorded for ${item.propertyName}.`);
-      onRecorded();
+      onRecorded?.();
     } catch (failure) {
       setError((failure as Error).message);
     } finally {
