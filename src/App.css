@@ -5341,6 +5341,9 @@ tbody tr:hover,
   body:has(.app-sidebar[data-area-count="6"]) .app-sidebar,
   body:has(.app-sidebar[data-area-count="7"]) .app-sidebar,
   body:has(.app-sidebar[data-area-count="8"]) .app-sidebar { height: calc(180px + env(safe-area-inset-bottom)); }
+  .app-sidebar[data-area-count="9"] nav { align-content: start; }
+  body:has(.app-sidebar[data-area-count="9"]:not(.app-sidebar-collapsed)) .app-page { padding-bottom: calc(263px + env(safe-area-inset-bottom)); }
+  .app-sidebar[data-area-count="9"]:not(.app-sidebar-collapsed) { height: calc(245px + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 800px) {

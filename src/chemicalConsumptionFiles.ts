@@ -1,5 +1,6 @@
 import type { ConsumptionFile, ConsumptionImportRow } from './chemicalConsumptionImport';
 import { parseQuickBooksMonthlyFees, parseSkimmerDosages, pdfTextLines } from './chemicalConsumptionImport';
+import { readExcelRows } from './excelRows';
 
 export async function readConsumptionPdf(file: File, onProgress: (value: string) => void) {
   const pdfjs = await import('pdfjs-dist');
@@ -20,36 +21,7 @@ export async function readConsumptionPdf(file: File, onProgress: (value: string)
   } finally { await task.destroy(); }
 }
 export async function readMonthlyFees(file: File, month: string): Promise<ConsumptionFile> {
-  const { unzipSync, strFromU8 } = await import('fflate');
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const metadata = unzipSync(bytes, { filter: (entry) => ['xl/workbook.xml', 'xl/_rels/workbook.xml.rels'].includes(entry.name) && entry.originalSize < 5000000 });
-  const xml = (data: Uint8Array | undefined) => {
-    if (!data) throw new Error('A required Excel worksheet is missing.');
-    const document = new DOMParser().parseFromString(strFromU8(data), 'application/xml');
-    if (document.querySelector('parsererror')) throw new Error('The Excel file has an invalid format.');
-    return document;
-  };
-  const workbook = xml(metadata['xl/workbook.xml']);
-  const sheets = Array.from(workbook.getElementsByTagName('sheet'));
-  const sheet = sheets.find((item) => item.getAttribute('name') === 'Por Propiedad') || sheets[0];
-  if (!sheet) throw new Error('The Excel file is empty.');
-  const relationshipId = sheet.getAttribute('r:id');
-  const relation = Array.from(xml(metadata['xl/_rels/workbook.xml.rels']).getElementsByTagName('Relationship')).find((item) => item.getAttribute('Id') === relationshipId);
-  const target = relation?.getAttribute('Target');
-  if (!target) throw new Error('The monthly fee worksheet was not found.');
-  const sheetPath = target.startsWith('/') ? target.slice(1) : `xl/${target}`;
-  const content = unzipSync(bytes, { filter: (entry) => [sheetPath, 'xl/sharedStrings.xml'].includes(entry.name) && entry.originalSize < 30000000 });
-  const strings = content['xl/sharedStrings.xml'] ? Array.from(xml(content['xl/sharedStrings.xml']).getElementsByTagName('si')).map((item) => Array.from(item.getElementsByTagName('t')).map((node) => node.textContent || '').join('')) : [];
-  const sheetRows = Array.from(xml(content[sheetPath]).getElementsByTagName('row')).map((row) => {
-    const cells = new Map<string, string>();
-    for (const cell of Array.from(row.getElementsByTagName('c'))) {
-      const column = cell.getAttribute('r')?.replace(/\d/g, '') || '';
-      const raw = cell.getElementsByTagName('v')[0]?.textContent || '';
-      const value = cell.getAttribute('t') === 's' ? strings[Number(raw)] || '' : cell.getAttribute('t') === 'inlineStr' ? cell.getElementsByTagName('t')[0]?.textContent || '' : raw;
-      cells.set(column, value);
-    }
-    return cells;
-  });
+  const { rows: sheetRows } = await readExcelRows(file, 'Por Propiedad');
   const transactionReport = parseQuickBooksMonthlyFees(sheetRows, month, file.name);
   if (transactionReport) return transactionReport;
   const headers = new Map<string, string>();

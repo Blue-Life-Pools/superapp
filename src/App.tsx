@@ -10,6 +10,7 @@ import { ChemicalsPage } from './ChemicalsPage';
 import { HealthDepartmentPage } from './HealthDepartmentPage';
 import { PropertyHistoryPage } from './PropertyHistoryPage';
 import { ReportsPage } from './ReportsPage';
+import { GasolinePage } from './GasolinePage';
 import { LoginPage, type AppSession } from './LoginPage';
 import { ComplaintsPage } from './ComplaintsPage';
 import { QualityInspectionsPage } from './QualityInspectionsPage';
@@ -27,7 +28,7 @@ import './CommercialPropertyOverview.css';
 import './WorkspaceSidebar.css';
 import './ChemicalsWorkspace.css';
 
-type AppArea = 'home' | 'commercial' | 'opportunities' | 'chemicals' | 'health' | 'reports' | 'complaints' | 'quality';
+type AppArea = 'home' | 'commercial' | 'opportunities' | 'chemicals' | 'health' | 'reports' | 'gasoline' | 'complaints' | 'quality';
 type PropertyTab = 'overview' | 'commercial' | 'estimates' | 'contracts' | 'quality';
 
 function initialAppArea(): AppArea {
@@ -2460,7 +2461,7 @@ function App() {
       const sharedAreas: AppArea[] = role === 'QUALITY'
         ? ['home', 'quality']
         : role === 'REPORTS'
-          ? ['home', 'reports', 'complaints', 'quality']
+          ? ['home', 'reports', 'gasoline', 'complaints', 'quality']
           : role === 'CHEMICALS'
             ? ['home', 'commercial', 'chemicals']
           : isNathalia
@@ -2484,6 +2485,7 @@ function App() {
       { id: 'chemicals', label: 'Chemicals' },
       { id: 'health', label: 'Health Dept.' },
       { id: 'reports', label: 'Reports' },
+      { id: 'gasoline', label: 'Gasoline' },
       { id: 'complaints', label: 'Calls' },
       { id: 'quality', label: 'Quality' },
     ];
@@ -2495,7 +2497,7 @@ function App() {
       : role === 'QUALITY'
         ? allAreas.filter((area) => area.id === 'home' || area.id === 'quality')
       : role === 'REPORTS'
-        ? allAreas.filter((area) => area.id === 'home' || area.id === 'reports' || area.id === 'quality' || (!isNathalia && area.id === 'complaints'))
+        ? allAreas.filter((area) => area.id === 'home' || area.id === 'reports' || area.id === 'quality' || (!isNathalia && (area.id === 'complaints' || area.id === 'gasoline')))
       : role === 'CHEMICALS'
         ? allAreas.filter((area) => area.id === 'home' || area.id === 'commercial' || area.id === 'chemicals')
       : allAreas.filter((area) => isNathalia
@@ -2697,6 +2699,7 @@ function App() {
 
   if (activeArea === 'health') return <HealthDepartmentPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} unassignedOnly={healthUnassignedOnly} onClearUnassignedFilter={() => setHealthUnassignedOnly(false)} />;
   if (activeArea === 'reports') return <ReportsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} unassignedOnly={reportsUnassignedOnly} onClearUnassignedFilter={() => setReportsUnassignedOnly(false)} />;
+  if (activeArea === 'gasoline' && appSession) return <GasolinePage sidebar={renderAppSidebar()} userId={appSession.user.id} key={appSession.user.id} />;
   if (activeArea === 'chemicals') {
     return <ChemicalsPage sidebar={renderAppSidebar()} />;
   }

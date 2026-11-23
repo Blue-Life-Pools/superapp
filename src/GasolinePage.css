@@ -1,0 +1,50 @@
+.gasoline-page {
+  --fuel-ink: #111b34;
+  --fuel-muted: #51627c;
+  --fuel-line: #dfe5ef;
+  --fuel-blue: #0866ff;
+  min-height: 100vh;
+  background: #fff;
+  color: var(--fuel-ink);
+}
+.gasoline-content { display: grid; gap: 16px; min-width: 0; }
+.gasoline-content p { margin: 0; color: var(--fuel-muted); font-size: 13px; }
+.gasoline-content .gasoline-header { margin: 0; align-items: center; gap: 16px; }
+.gasoline-header .area-eyebrow { color: var(--fuel-blue); font-size: 12px; font-weight: 650; }
+.gasoline-header h1 { margin: 3px 0 4px; font-size: 30px; line-height: 1.2; letter-spacing: -.02em; }
+.gasoline-upload { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; border: 0; border-radius: 8px; padding: 8px 14px; background: var(--fuel-blue); color: #fff; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+.gasoline-upload:disabled { opacity: .6; cursor: wait; }
+.gasoline-upload .workspace-icon, .gasoline-message .workspace-icon { flex: none; width: 18px; height: 18px; }
+.gasoline-content .gasoline-storage { font-size: 12px; }
+.gasoline-toolbar, .gasoline-section-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; }
+.gasoline-content label { display: grid; gap: 5px; color: var(--fuel-muted); font-size: 12px; }
+.gasoline-content :is(select, input:not([type=file])) { width: 100%; min-height: 37px; min-width: 0; border: 1px solid var(--fuel-line); border-radius: 7px; padding: 7px 10px; background: #fff; color: var(--fuel-ink); font: inherit; font-size: 13px; }
+.gasoline-metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.gasoline-metrics > div { display: flex; min-width: 0; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--fuel-line); border-radius: 10px; }
+.gasoline-metrics .workspace-icon { flex: none; color: var(--fuel-blue); width: 23px; height: 23px; }
+.gasoline-metrics strong { display: block; margin-top: 4px; color: var(--fuel-ink); font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.gasoline-panel { display: grid; gap: 12px; min-width: 0; padding: 14px; border: 1px solid var(--fuel-line); border-radius: 12px; }
+.gasoline-panel h2, .gasoline-panel h3 { margin: 0; line-height: 1.35; }
+.gasoline-panel h2 { font-size: 20px; }
+.gasoline-panel h3 { font-size: 15px; }
+.gasoline-table-wrap { overflow-x: auto; }
+.gasoline-table { width: 100%; min-width: 650px; border-collapse: collapse; font-size: 13px; }
+.gasoline-purchases { min-width: 450px; }
+.gasoline-table :is(th, td) { padding: 9px; border-bottom: 1px solid var(--fuel-line); text-align: right; font-variant-numeric: tabular-nums; }
+.gasoline-table :is(th, td):first-child, .gasoline-purchases :is(th, td):nth-child(-n+3) { text-align: left; }
+.gasoline-table thead th { color: var(--fuel-muted); font-size: 12px; }
+.gasoline-table tr.is-selected { background: #f1f6ff; }
+.gasoline-table th button, .gasoline-link { width: fit-content; border: 0; background: transparent; color: #075abc; padding: 3px 0; font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
+.gasoline-table th button:hover, .gasoline-link:hover { text-decoration: underline; }
+.gasoline-table th small { display: block; margin-top: 3px; color: var(--fuel-muted); font-weight: 400; overflow-wrap: anywhere; }
+.gasoline-route-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.gasoline-content .gasoline-message { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--fuel-line); border-radius: 8px; }
+.gasoline-content .gasoline-message.is-error { color: #a12828; border-color: #efc7c7; background: #fff6f6; }
+.gasoline-content .gasoline-message.is-review { color: #785009; border-color: #f0d6a5; background: #fff8e8; }
+@media (max-width: 600px) {
+  .gasoline-metrics { gap: 6px; }
+  .gasoline-metrics > div { padding: 8px; }
+  .gasoline-metrics .workspace-icon { display: none; }
+  .gasoline-metrics strong { font-size: clamp(14px, 4vw, 22px); }
+  .gasoline-route-fields { grid-template-columns: 1fr; }
+}
