@@ -29,10 +29,15 @@
 .proposal-page-identity span, .proposal-page-history span, .proposal-page-kpis span { display: block; color: #64748b; font-size: 11px; margin-bottom: 3px; }
 .proposal-page-identity strong { display: block; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
 .proposal-page-overview { display: grid; grid-template-columns: 1.55fr 1fr; gap: 20px; margin-bottom: 23px; }
-.proposal-page-map { position: relative; border-radius: 12px; border: 1px solid #e2eaf1; background: #f4f6f8; overflow: hidden; min-height: 160px; display: grid; place-items: center; }
+.proposal-page-map-panel { min-width: 0; border: 1px solid #e2eaf1; border-radius: 12px; overflow: hidden; background: #fff; }
+.proposal-page-map { position: relative; background: #f4f6f8; min-height: 160px; display: grid; place-items: center; }
 .proposal-page-map iframe { width: 100%; height: 160px; border: 0; display: block; }
 .proposal-page-map a { position: absolute; display: flex; gap: 5px; align-items: center; bottom: 14px; color: #006ad1; padding: 8px 16px; background: #fff; border-radius: 10px; box-shadow: 0 3px 12px #14283f20; text-decoration: none; font-size: 12px; }
 .proposal-page-map a .workspace-icon { width: 14px; height: 14px; }
+.proposal-page-map-mileage { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; padding: 10px 14px; border-top: 1px solid #e2eaf1; }
+.proposal-page-map-mileage label { flex: 0 1 190px; }
+.proposal-page-map-mileage a { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; color: #006ad1; font-size: 12px; }
+.proposal-page-map-mileage a .workspace-icon { width: 14px; height: 14px; }
 .proposal-page-history { display: grid; gap: 10px; }
 .proposal-page-history > div { border: 1px solid #dfe8f2; border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 18px; }
 .proposal-page-history .workspace-icon { color: #63738a; }

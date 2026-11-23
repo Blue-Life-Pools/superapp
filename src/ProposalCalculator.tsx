@@ -46,6 +46,8 @@ export function ProposalCalculator(props: Props) {
   const destination = (property.addressLine1?.trim() && address) || property.formattedAddress?.trim() || coordinates;
   const directions = new URLSearchParams({ api: '1', origin: officeAddress, travelmode: 'driving' });
   if (destination) directions.set('destination', destination);
+  const directionsUrl = `https://www.google.com/maps/dir/?${directions}`;
+  const updateMileage = (miles: number) => props.onFuel({ oneWayMiles: Number.isFinite(miles) ? Math.max(0, miles) : null });
   const management = property.managementCompany?.name ?? 'Not assigned';
   const history = context?.chemicalHistory;
   const included = calc.lines.filter(line => line.body.include);
@@ -81,7 +83,15 @@ export function ProposalCalculator(props: Props) {
         {[{ icon: 'properties', title: 'Property', value: property.name }, { icon: 'pin', title: 'Address', value: address || 'Not recorded' }, { icon: 'drop', title: 'Water bodies', value: String(included.length) }, { icon: 'users', title: 'Management Company', value: management }].map(item => <div key={item.title}><WorkspaceIcon name={item.icon as 'properties' | 'pin' | 'drop' | 'users'} /><div><span>{item.title}</span><strong>{item.value}</strong></div></div>)}
       </div>
       <div className="proposal-page-overview">
-        <div className="proposal-page-map">{address ? <><iframe title={`Property map for ${property.name}`} src={`https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`} loading="lazy" /><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer">View property on map <WorkspaceIcon name="external" /></a></> : <span>Address not recorded</span>}</div>
+        <div className="proposal-page-map-panel">
+          <div className="proposal-page-map">{destination ? <><iframe title={`Property map for ${property.name}`} src={`https://www.google.com/maps?q=${encodeURIComponent(destination)}&output=embed`} loading="lazy" /><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`} target="_blank" rel="noreferrer">View property on map <WorkspaceIcon name="external" /></a></> : <span>Property location not recorded</span>}</div>
+          <div className="proposal-page-map-mileage">
+            <label>Office to property (one-way miles)
+              <input type="number" min="0" step="0.01" value={settings.fuel.oneWayMiles ?? ''} onChange={event => updateMileage(event.currentTarget.valueAsNumber)} />
+            </label>
+            <a href={directionsUrl} target="_blank" rel="noreferrer">View route from office <WorkspaceIcon name="external" /></a>
+          </div>
+        </div>
         <div className="proposal-page-history" aria-live="polite">
           <div><WorkspaceIcon name="calendar" /><div><span>Recorded monthly fee{context?.latestFee ? ` · ${monthLabel(context.latestFee.month)}` : ''}</span><strong>{props.historyLoading ? 'Loading…' : money(context?.latestFee?.monthlyFee ?? null)}</strong></div></div>
           <div><WorkspaceIcon name="chemicals" /><div><span>Recorded chemicals{history?.months ? ` · ${monthLabel(history.from)} – ${monthLabel(history.to)}` : ''}</span><strong>{props.historyLoading ? 'Loading…' : history?.averageMonthlyCost != null ? `${money(history.averageMonthlyCost)} / month` : 'No recorded history'}</strong></div></div>
@@ -124,10 +134,10 @@ export function ProposalCalculator(props: Props) {
           <h3 id="proposal-fuel-heading">Gasoline</h3>
           <p className="proposal-page-route-source" id="proposal-route-source">
             {destination ? 'Copy the one-way driving distance from Google Maps.' : 'Enter the property address in Google Maps, then copy the one-way driving distance.'}
-            {' '}<a href={`https://www.google.com/maps/dir/?${directions}`} target="_blank" rel="noreferrer">View route from office</a>
+            {' '}<a href={directionsUrl} target="_blank" rel="noreferrer">View route from office</a>
           </p>
           <div className="proposal-page-management proposal-page-cost-inputs proposal-page-fuel-inputs">
-            <label>Office to property (miles)<input aria-describedby="proposal-route-source" type="number" min="0" step="0.01" value={settings.fuel.oneWayMiles ?? ''} onChange={event => props.onFuel({ oneWayMiles: Number.isFinite(event.target.valueAsNumber) ? Math.max(0, event.target.valueAsNumber) : null })} /></label>
+            <label>Office to property (miles)<input aria-describedby="proposal-route-source" type="number" min="0" step="0.01" value={settings.fuel.oneWayMiles ?? ''} onChange={event => updateMileage(event.currentTarget.valueAsNumber)} /></label>
             <label>Fuel price ($/gal)<input type="number" min="0" step="0.01" value={settings.fuel.pricePerGallon ?? ''} onChange={event => props.onFuel({ pricePerGallon: Number.isFinite(event.target.valueAsNumber) ? Math.max(0, event.target.valueAsNumber) : null })} /></label>
             <label>Vehicle efficiency (MPG)<input type="number" min="0.01" step="0.01" value={settings.fuel.milesPerGallon ?? ''} onChange={event => props.onFuel({ milesPerGallon: Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : null })} /></label>
             <label>Trip per visit<select value={settings.fuel.roundTrip ? 'round' : 'one-way'} onChange={event => props.onFuel({ roundTrip: event.target.value === 'round' })}><option value="one-way">One way</option><option value="round">Round trip estimate</option></select></label>
