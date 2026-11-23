@@ -23,7 +23,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) throw new Error(typeof data.message === 'string' ? data.message : 'Could not complete this action.');
   return data as T;
 }
-export function OpportunitiesPage({ sidebar, properties, canEdit, canDelete }: { sidebar: ReactNode; properties: Array<{ id: string; name: string }>; canEdit: boolean; canDelete: boolean }) {
+export function OpportunitiesPage({ sidebar, properties, canEdit, canEditStatus, canDelete }: { sidebar: ReactNode; properties: Array<{ id: string; name: string }>; canEdit: boolean; canEditStatus: boolean; canDelete: boolean }) {
   const [data, setData] = useState(initialResult), [filters, setFilters] = useState(emptyFilters), [page, setPage] = useState(1), [limit, setLimit] = useState(25);
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState('');
   const [version, setVersion] = useState(0), [moreFilters, setMoreFilters] = useState(false), [columns, setColumns] = useState<OpportunityField[]>(savedColumns);
@@ -60,7 +60,7 @@ export function OpportunitiesPage({ sidebar, properties, canEdit, canDelete }: {
   }
   async function changeStatus(item: Opportunity, status: string) {
     if (busy) return; setBusy(true); setError('');
-    try { await request(`/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: status || null }) }); setVersion((value) => value + 1); }
+    try { await request(`/${encodeURIComponent(item.id)}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: status || null }) }); setVersion((value) => value + 1); }
     catch (failure) { setError((failure as Error).message); } finally { setBusy(false); }
   }
   async function remove(item: Opportunity) {
@@ -86,7 +86,7 @@ export function OpportunitiesPage({ sidebar, properties, canEdit, canDelete }: {
   function cell(item: Opportunity, field: OpportunityField, kind: string) {
     if (kind === 'status') {
       const statusClass = `opportunity-status opportunity-status-${(item.status || '').toLowerCase().replaceAll(' ', '-')}`;
-      return canEdit
+      return canEditStatus
         ? <select aria-label={`Status for estimate ${item.estimateNumber || item.id}`} disabled={busy || loading} className={statusClass} value={item.status || ''} onChange={(event) => void changeStatus(item, event.target.value)}><option value="">Not recorded</option>{statusOptions.map((status) => <option key={status}>{status}</option>)}</select>
         : <span className={statusClass + ' opportunity-status-readonly'}>{item.status || 'Not recorded'}</span>;
     }
