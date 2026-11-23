@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { API_URL, apiFetch } from './api';
 import { readWawaTransactions, summarizeFuel, type FuelData, type FuelPurchase, type FuelRoute } from './gasolineData';
 import { countPropertiesByCity, gasolineChemicalCoverage, type ChemicalProperty } from './gasolineChemicalCoverage';
+import { GasolineMonthlyChart } from './GasolineMonthlyChart';
 import { WorkspaceIcon } from './WorkspaceIcon';
 import './GasolinePage.css';
 
@@ -219,6 +220,7 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
           <div><WorkspaceIcon name="drop" /><p>Gallons purchased<strong>{quantities.format(summary.gallons)}</strong></p></div>
           <div><WorkspaceIcon name="gasoline" /><p>Fill-ups<strong>{summary.charges}</strong></p></div>
         </div>
+        <GasolineMonthlyChart purchases={history.purchases} months={months} />
         <section className="gasoline-panel" aria-labelledby="gasoline-drivers">
           <div className="gasoline-section-header"><h2 id="gasoline-drivers">Fuel by driver</h2><label>Sort by<select value={sort} onChange={event => {
             setSort(event.currentTarget.value as typeof sort);

@@ -27,6 +27,16 @@
 .gasoline-panel h2, .gasoline-panel h3 { margin: 0; line-height: 1.35; }
 .gasoline-panel h2 { font-size: 20px; }
 .gasoline-panel h3 { font-size: 15px; }
+.gasoline-chart-filters { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.gasoline-chart-scroll { overflow-x: auto; }
+.gasoline-chart { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); min-width: 760px; margin: 0; padding: 0; list-style: none; }
+.gasoline-chart li { display: grid; grid-template-rows: auto 112px auto; text-align: center; color: var(--fuel-muted); font-size: 12px; }
+.gasoline-chart-value { padding-block: 6px; color: var(--fuel-ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.gasoline-chart-plot { position: relative; }
+.gasoline-chart-zero { position: absolute; inset-inline: 0; border-top: 1px solid var(--fuel-line); }
+.gasoline-chart-bar { position: absolute; inset-inline: 0; width: min(36px, 60%); margin-inline: auto; border-radius: 4px 4px 0 0; background: var(--fuel-blue); }
+.gasoline-chart-bar.is-credit { border-radius: 0 0 4px 4px; }
+.gasoline-chart li > :last-child { padding-top: 7px; }
 .gasoline-table-wrap { overflow-x: auto; }
 .gasoline-table { width: 100%; min-width: 650px; border-collapse: collapse; font-size: 13px; }
 .gasoline-purchases { min-width: 450px; }
