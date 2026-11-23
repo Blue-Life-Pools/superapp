@@ -30,7 +30,7 @@ export function countPropertiesByCity(properties: { city: string | null }[]) {
     if (existing) existing.count += 1;
     else cities.set(key, { city, count: 1 });
   }
-  const counts = [...cities.values()].sort((a, b) => b.count - a.count || a.city.localeCompare(b.city));
+  const counts = [...cities.values()].sort((a, b) => a.city.localeCompare(b.city, 'en'));
   if (unknown) counts.push({ city: 'City not recorded', count: unknown });
   return counts;
 }
