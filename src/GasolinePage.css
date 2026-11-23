@@ -29,14 +29,19 @@
 .gasoline-panel h3 { font-size: 15px; }
 .gasoline-chart-filters { display: flex; flex-wrap: wrap; gap: 8px 12px; }
 .gasoline-chart-scroll { overflow-x: auto; }
-.gasoline-chart-series + .gasoline-chart-series { margin-top: 16px; }
-.gasoline-chart-series-spending { --gasoline-bar-color: #357a78; }
+.gasoline-chart-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; color: var(--fuel-muted); font-size: 12px; }
+.gasoline-chart-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.gasoline-chart-swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--gasoline-bar-color, var(--fuel-blue)); }
+.gasoline-panel .is-dollars { --gasoline-bar-color: #357a78; }
 .gasoline-chart { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); min-width: 760px; margin: 0; padding: 0; list-style: none; }
-.gasoline-chart li { display: grid; grid-template-rows: auto 112px auto; text-align: center; color: var(--fuel-muted); font-size: 12px; }
-.gasoline-chart-value { padding-block: 6px; color: var(--fuel-ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.gasoline-chart-plot { position: relative; }
+.gasoline-chart li { display: grid; grid-template-rows: subgrid; grid-row: span 3; text-align: center; color: var(--fuel-muted); font-size: 12px; }
+.gasoline-chart-values { display: grid; align-content: end; padding: 0 3px 7px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.gasoline-chart-values strong { color: var(--gasoline-bar-color, #075abc); }
+.gasoline-chart-plot { position: relative; height: 130px; }
 .gasoline-chart-zero { position: absolute; inset-inline: 0; border-top: 1px solid var(--fuel-line); }
-.gasoline-chart-bar { position: absolute; inset-inline: 0; width: min(36px, 60%); margin-inline: auto; border-radius: 4px 4px 0 0; background: var(--gasoline-bar-color, var(--fuel-blue)); }
+.gasoline-chart-bar { position: absolute; width: min(18px, 36%); border-radius: 4px 4px 0 0; background: var(--gasoline-bar-color, var(--fuel-blue)); }
+.gasoline-chart-bar.is-gallons { right: calc(50% + 2px); }
+.gasoline-chart-bar.is-dollars { left: calc(50% + 2px); }
 .gasoline-chart-bar.is-credit { border-radius: 0 0 4px 4px; }
 .gasoline-chart li > :last-child { padding-top: 7px; }
 .gasoline-table-wrap { overflow-x: auto; }

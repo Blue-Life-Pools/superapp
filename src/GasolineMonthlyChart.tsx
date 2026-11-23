@@ -6,33 +6,48 @@ const fullMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', timeZon
 const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const gallons = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 
-function MonthlyBars({ year, series, values }: { year: string; series: 'gallons' | 'spending'; values: (number | null)[] }) {
-  const maximum = Math.max(0, ...values.map(value => value ?? 0));
-  const minimum = Math.min(0, ...values.map(value => value ?? 0));
+const series = [
+  { key: 'gallons', label: 'Gallons purchased', format: gallons },
+  { key: 'dollars', label: 'Fuel spending (USD)', format: dollars },
+] as const;
+
+function MonthlyBars({ year, values }: { year: string; values: ({ gallons: number; dollars: number } | null)[] }) {
+  const scales = series.map(({ key }) => Math.max(...values.map(value => Math.abs(value?.[key] ?? 0))) || 1);
+  const heights = values.map(value => series.map(({ key }, index) => (value?.[key] ?? 0) / scales[index]));
+  const maximum = Math.max(0, ...heights.flat());
+  const minimum = Math.min(0, ...heights.flat());
   const range = maximum - minimum || 1;
   const baseline = minimum === 0 ? 100 : maximum / range * 100;
-  const format = series === 'spending' ? dollars : gallons;
-  const title = series === 'spending' ? 'Fuel spending (USD)' : 'Gallons purchased';
 
-  return <div className={`gasoline-chart-series gasoline-chart-series-${series}`}>
-    <h3>{title}</h3>
-    <ul className="gasoline-chart" role="list" aria-label={title}>
-      {values.map((value, index) => {
-        const month = new Date(Date.UTC(Number(year), index, 1));
-        const amount = value === null ? '—' : format.format(value);
-        const barSize = Math.abs(value ?? 0) / range * 100;
-        return <li key={index} aria-label={fullMonthLabel.format(month) + ' ' + (value === null ? 'no transactions' : amount + (series === 'gallons' ? ' gallons' : ''))}>
-          <strong className="gasoline-chart-value">{amount}</strong>
-          <div className="gasoline-chart-plot" aria-hidden="true">
-            <span className="gasoline-chart-zero" style={{ top: `${baseline}%` }} />
-            {value !== null && value !== 0 && <span className={value < 0 ? 'gasoline-chart-bar is-credit' : 'gasoline-chart-bar'}
-              style={{ top: `${value < 0 ? baseline : baseline - barSize}%`, height: `${barSize}%` }} />}
-          </div>
-          <span>{monthLabel.format(month)}</span>
-        </li>;
-      })}
-    </ul>
-  </div>;
+  return <>
+    <div className="gasoline-chart-legend">
+      {series.map(({ key, label }) => <span key={key}><i className={`gasoline-chart-swatch is-${key}`} aria-hidden="true" />{label}</span>)}
+      <small>Separate scales</small>
+    </div>
+    <div className="gasoline-chart-scroll" role="region" aria-label="Monthly fuel chart" tabIndex={0}>
+      <ul className="gasoline-chart" role="list">
+        {values.map((value, index) => {
+          const month = new Date(Date.UTC(Number(year), index, 1));
+          const label = value ? `${gallons.format(value.gallons)} gallons, ${dollars.format(value.dollars)}` : 'no transactions';
+          return <li key={index} aria-label={`${fullMonthLabel.format(month)} ${label}`}>
+            <div className="gasoline-chart-values">
+              {value ? series.map(({ key, format }) => <strong className={`is-${key}`} key={key}>{format.format(value[key])}</strong>) : <span>—</span>}
+            </div>
+            <div className="gasoline-chart-plot" aria-hidden="true">
+              <span className="gasoline-chart-zero" style={{ top: `${baseline}%` }} />
+              {series.map(({ key }, seriesIndex) => {
+                const height = heights[index][seriesIndex] / range * 100;
+                if (!height) return null;
+                return <span key={key} className={`gasoline-chart-bar is-${key}${height < 0 ? ' is-credit' : ''}`}
+                  style={{ top: `${baseline - Math.max(0, height)}%`, height: `${Math.abs(height)}%` }} />;
+              })}
+            </div>
+            <span>{monthLabel.format(month)}</span>
+          </li>;
+        })}
+      </ul>
+    </div>
+  </>;
 }
 
 export function GasolineMonthlyChart({ purchases, months }: { purchases: FuelPurchase[]; months: string[] }) {
@@ -68,10 +83,7 @@ export function GasolineMonthlyChart({ purchases, months }: { purchases: FuelPur
         </select></label>
       </div>
     </div>
-    <div className="gasoline-chart-scroll" role="region" aria-label="Monthly fuel charts" tabIndex={0}>
-      <MonthlyBars year={year} series="gallons" values={values.map(value => value?.gallons ?? null)} />
-      <MonthlyBars year={year} series="spending" values={values.map(value => value?.dollars ?? null)} />
-    </div>
+    <MonthlyBars year={year} values={values} />
     <p>— No transactions for the selected technician or team.</p>
   </section>;
 }
