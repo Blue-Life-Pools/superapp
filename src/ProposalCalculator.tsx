@@ -4,7 +4,7 @@ import { WorkspaceIcon } from './WorkspaceIcon';
 import { proposalServiceOptions } from './proposalServices';
 import type { ProposalService } from './proposalServices';
 import { defaultSuppliesPerPool } from './proposalCostModel';
-import type { CalculatorSettings, ProposalCalculation, ProposalChemicalEstimate, ProposalChemicalSource, ProposalContext, ProposalOverheadSettings, ProposalWaterBody } from './proposalCostModel';
+import type { CalculatorSettings, ProposalCalculation, ProposalChemicalEstimate, ProposalChemicalSource, ProposalContext, ProposalFuelSettings, ProposalOverheadSettings, ProposalWaterBody } from './proposalCostModel';
 import './ProposalCalculator.css';
 
 type Props = {
@@ -17,6 +17,10 @@ type Props = {
   onManagement: (status: string) => void; onAdjustment: (value: string) => void;
   onChemicals: (value: number | null) => void; onServices: (services: ProposalService[]) => void; onNotes: (value: string) => void;
   onSupplies: (value: number | null) => void;
+  routeLoading: boolean; manualMiles: number | null;
+  onManualMiles: (value: number | null) => void;
+  onFuel: (changes: Partial<ProposalFuelSettings>) => void;
+  onRetryRoute: () => void;
   onOverhead: (field: keyof ProposalOverheadSettings, value: number) => void;
   onInternalName: (value: string) => void;
   onClose: () => void; onReset: () => void; onSave: () => void; onRetryHistory: () => void;
@@ -24,6 +28,8 @@ type Props = {
 const money = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 const pct = (value: number | null) => value === null ? '—' : `${value.toFixed(1)}%`;
 const label = (value: string) => value.replaceAll('_', ' ').toLowerCase().replace(/^./, letter => letter.toUpperCase());
+const decimal = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+const officeAddress = '811 E 131st Ave, Tampa, FL 33612-4424, USA';
 const monthLabel = (value: string | null) => value ? new Date(`${value}-01T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : '';
 const coreServices: ProposalService[] = ['Chemical Testing & Balancing', 'Skimming', 'Brushing', 'Vacuuming', 'Filter Service', 'Chemical Supply'];
 
@@ -32,12 +38,15 @@ export function ProposalCalculator(props: Props) {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { window.scrollTo(0, 0); heading.current?.focus({ preventScroll: true }); }, []);
   const address = [property.addressLine1, property.city, property.state, property.zipCode].filter(Boolean).join(', ');
+  const directionsUrl = address ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(officeAddress)}&destination=${encodeURIComponent(address)}&travelmode=driving` : null;
   const management = property.managementCompany?.name ?? 'Not assigned';
   const history = context?.chemicalHistory;
   const included = calc.lines.filter(line => line.body.include);
   const suppliesSource = calc.suppliesPercent === null
     ? 'Monthly supplies cost'
     : `${calc.suppliesPercent.toLocaleString('en-US', { maximumFractionDigits: 2 })}% of final monthly fee`;
+  const fuelSource = calc.estimatedGasoline === null ? 'Enter distance, vehicle MPG and fuel price'
+    : `${decimal(calc.monthlyMiles!)} mi / month · ${decimal(calc.monthlyGallons!)} gal × ${money(settings.fuel.pricePerGallon)} / gal`;
   const belowTarget = calc.marginPercent !== null && calc.marginPercent + .01 < settings.targetMarginPercent;
   const scopeChanged = calc.lines.some(line => !line.body.include);
   const chemicalEstimate = props.chemicalEstimate;
@@ -53,7 +62,7 @@ export function ProposalCalculator(props: Props) {
           : 'Insufficient comparable data. Enter a monthly chemical estimate.',
   }[props.chemicalSource];
   const serviceOption = (service: ProposalService) => <label className="proposal-page-service" key={service}><input type="checkbox" checked={services.includes(service)} onChange={event => props.onServices(proposalServiceOptions.filter(option => option === service ? event.target.checked : services.includes(option)))} /><span>{service}</span></label>;
-  const canSave = !props.saving && !props.historyLoading && calc.chemicalCost !== null && included.length > 0 && services.length > 0 && included.every(line => line.costs!.revenue > 0);
+  const canSave = !props.saving && !props.historyLoading && calc.chemicalCost !== null && calc.estimatedGasoline !== null && included.length > 0 && services.length > 0 && included.every(line => line.costs!.revenue > 0);
   return <div className="page app-page commercial-proposal-page">
     {props.sidebar}
     <main className="proposal-workspace-content" aria-label="Commercial proposal calculator">
@@ -101,18 +110,34 @@ export function ProposalCalculator(props: Props) {
         <div className="proposal-page-management proposal-page-cost-inputs">
           <label>Projected chemicals / month ($)<input aria-label="Projected chemicals per month" aria-describedby="proposal-chemical-source" type="number" min="0" step="0.01" disabled={!settings.chemicalsIncluded} value={calc.chemicalCost ?? ''} onChange={event => props.onChemicals(Number.isFinite(event.target.valueAsNumber) ? Math.max(0, event.target.valueAsNumber) : null)} /></label>
           <label>Supplies / month ($)<input aria-label="Monthly supplies cost" type="number" min="0" step="0.01" value={calc.supplies} onChange={event => props.onSupplies(Number.isFinite(event.target.valueAsNumber) ? Math.max(0, event.target.valueAsNumber) : null)} /></label>
-          {([['administrationPercent', 'Administration (%)'], ['gasolinePercent', 'Gasoline (%)']] as const).map(([field, title]) => <label key={field}>{title}<input aria-label={title} type="number" min="0" max="100" step="0.01" value={settings[field]} onChange={event => props.onOverhead(field, Math.min(100, Math.max(0, Number(event.target.value))))} /></label>)}
+          <label>Administration (%)<input type="number" min="0" max="100" step="0.01" value={settings.administrationPercent} onChange={event => props.onOverhead('administrationPercent', Math.min(100, Math.max(0, Number(event.target.value))))} /></label>
         </div>
         <p className="proposal-page-forecast-source" id="proposal-chemical-source" aria-live="polite">{chemicalSource} {props.chemicalSource === 'MANUAL' && <button type="button" onClick={() => props.onChemicals(null)}>Reset chemical forecast</button>} {props.estimateError && <button type="button" onClick={props.onRetryHistory}>Retry estimate</button>}</p>
+        <div role="group" aria-labelledby="proposal-fuel-heading">
+          <h3 id="proposal-fuel-heading">Gasoline</h3>
+          <div className="proposal-page-management proposal-page-cost-inputs">
+            <label>Office to property (miles)<input aria-describedby="proposal-route-source" type="number" min="0" step="0.01" value={settings.fuel.oneWayMiles ?? ''} onChange={event => props.onManualMiles(Number.isFinite(event.target.valueAsNumber) ? Math.max(0, event.target.valueAsNumber) : null)} /></label>
+            <label>Fuel price ($/gal)<input type="number" min="0" step="0.01" value={settings.fuel.pricePerGallon ?? ''} onChange={event => props.onFuel({ pricePerGallon: Number.isFinite(event.target.valueAsNumber) ? Math.max(0, event.target.valueAsNumber) : null })} /></label>
+            <label>Vehicle efficiency (MPG)<input type="number" min="0.01" step="0.01" value={settings.fuel.milesPerGallon ?? ''} onChange={event => props.onFuel({ milesPerGallon: Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : null })} /></label>
+            <label>Trip per visit<select value={settings.fuel.roundTrip ? 'round' : 'one-way'} onChange={event => props.onFuel({ roundTrip: event.target.value === 'round' })}><option value="one-way">One way</option><option value="round">Round trip estimate</option></select></label>
+          </div>
+          <p className="proposal-page-route-source" id="proposal-route-source" aria-live="polite">
+            {props.manualMiles !== null ? 'Manual distance. Clear the field to use the automatic route.' : props.routeLoading ? 'Calculating driving distance…' : settings.fuel.oneWayMiles !== null
+              ? <>Driving distance from <span translate="no">Google Maps</span></>
+              : <>Driving distance unavailable. Enter the one-way miles or <button type="button" onClick={props.onRetryRoute}>retry the route</button>.</>}
+            {' · '}{calc.weeklyVisits} {calc.weeklyVisits === 1 ? 'visit' : 'visits'} per week.
+            {directionsUrl && <> <a href={directionsUrl} target="_blank" rel="noreferrer">View route from office</a></>}
+          </p>
+        </div>
         <div className="proposal-page-kpis" aria-live="polite">{[{ icon: 'coins', title: 'Final monthly fee', value: money(calc.total) }, { icon: 'tag', title: 'Projected listed costs', value: money(calc.totalCost) }, { icon: 'chart', title: 'Projected profit', value: money(calc.profit) }, { icon: 'percent', title: 'Projected margin', value: pct(calc.marginPercent) }].map(item => <div key={item.title}><WorkspaceIcon name={item.icon as 'coins' | 'tag' | 'chart' | 'percent'} /><div><span>{item.title}</span><strong>{item.value}</strong></div></div>)}</div>
         <div className="proposal-page-table-wrap"><table><thead><tr><th>Cost</th><th>Source / assumption</th><th>Monthly amount</th></tr></thead><tbody>{[
           ['Chemicals', calc.chemicalPercent === null || !settings.chemicalsIncluded ? chemicalSource : `${pct(calc.chemicalPercent)} of final monthly fee`, calc.chemicalCost],
-          ['Labor', 'Final monthly fee × 20%', calc.laborCost], ['Supplies', suppliesSource, calc.supplies], ['Administration', `${settings.administrationPercent}% of final fee`, calc.administration], ['Gasoline', `${settings.gasolinePercent}% of final fee · Included once`, calc.estimatedGasoline], ['Total costs', 'Under the assumptions shown above', calc.totalCost],
+          ['Labor', 'Final monthly fee × 20%', calc.laborCost], ['Supplies', suppliesSource, calc.supplies], ['Administration', `${settings.administrationPercent}% of final fee`, calc.administration], ['Gasoline', fuelSource, calc.estimatedGasoline], ['Total costs', 'Under the assumptions shown above', calc.totalCost],
         ].map(([name, source, amount]) => <tr key={name}><th scope="row">{name}</th><td>{source}</td><td>{money(amount === null ? null : Number(amount))}</td></tr>)}</tbody></table></div>
-        <div className={`proposal-page-check ${belowTarget ? 'is-warning' : ''}`} role="status"><WorkspaceIcon name={calc.marginPercent === null ? 'info' : belowTarget ? 'warning' : 'check'} /><span>Target {settings.targetMarginPercent}% · {!calc.targetSupportedByRates ? 'No price reference: the selected expense rates leave no allowance for fixed costs at this target.' : calc.priceReference === 0 ? 'Margin depends on the selected expense rates.' : calc.priceReference !== null ? `Price reference: ${money(calc.priceReference)} / month under these assumptions.` : 'A monthly chemical forecast is needed to calculate the margin.'} Current margin: {pct(calc.marginPercent)}.</span></div>
+        <div className={`proposal-page-check ${belowTarget ? 'is-warning' : ''}`} role="status"><WorkspaceIcon name={calc.marginPercent === null ? 'info' : belowTarget ? 'warning' : 'check'} /><span>Target {settings.targetMarginPercent}% · {!calc.targetSupportedByRates ? 'No price reference: the selected expense rates leave no allowance for fixed costs at this target.' : calc.priceReference === 0 ? 'Margin depends on the selected expense rates.' : calc.priceReference !== null ? `Price reference: ${money(calc.priceReference)} / month under these assumptions.` : 'Enter the missing costs to calculate the margin.'} Current margin: {pct(calc.marginPercent)}.</span></div>
         {settings.chemicalsIncluded && calc.chemicalCost !== null && <div className={`proposal-page-check ${calc.overconsumption ? 'is-warning' : ''}`}><WorkspaceIcon name={calc.overconsumption ? 'warning' : 'check'} /><span>Size-based chemical budget benchmark: <b>{money(calc.chemicalBudget)}</b>. Projection: <b>{money(calc.chemicalCost)}</b> · {calc.overconsumption ? 'Above benchmark.' : 'Within benchmark.'}</span></div>}
         {scopeChanged && history?.months ? <p className="proposal-page-alert">History covers the whole property. Review the chemical forecast if the quoted scope differs; recorded costs are not split between water bodies.</p> : null}
-        <details className="proposal-page-assumptions"><summary>Price reference and assumptions</summary><p>Small pool base $600; Medium $700; Large $900; Extra large $1,300; Spa $250; Kiddie pool / Splash pad $400; Fountain $150. Unknown pool size uses a $700 price reference and a 20% chemical budget.</p><p>Frequency: 1 visit/week −45%, 2 −20%, 3 base, 5 +35%, 7 +65%. Simple access 0%, Complex +5%; no disinfection system +5%. A change to these assumptions restores the calculated base price. Management adjustments apply afterward; proposal fees round up to whole dollars.</p><p>Chemical budgets: Small 17%, Medium 22%, Large / Extra large 24%, unspecified 20%. Monthly labor = final monthly fee × 20%, after management adjustment. Supplies default to {money(defaultSuppliesPerPool)} per included pool. Clear the supplies field to restore that default. Administration and gasoline use the editable percentages above. Gasoline is included once.</p><p>History uses uploaded consumption from the last 12 complete months ({history?.months ?? 0} recorded months available), excluding missing months and the current partial month. The margin includes only the listed costs. Price reference = (chemical forecast + supplies) ÷ (1 − target margin − 20% labor − administration − gasoline), rounded up to $10. The quote stays editable.</p></details>
+        <details className="proposal-page-assumptions"><summary>Price reference and assumptions</summary><p>Small pool base $600; Medium $700; Large $900; Extra large $1,300; Spa $250; Kiddie pool / Splash pad $400; Fountain $150. Unknown pool size uses a $700 price reference and a 20% chemical budget.</p><p>Frequency: 1 visit/week −45%, 2 −20%, 3 base, 5 +35%, 7 +65%. Simple access 0%, Complex +5%; no disinfection system +5%. A change to these assumptions restores the calculated base price. Management adjustments apply afterward; proposal fees round up to whole dollars.</p><p>Chemical budgets: Small 17%, Medium 22%, Large / Extra large 24%, unspecified 20%. Monthly labor = final monthly fee × 20%, after management adjustment. Supplies default to {money(defaultSuppliesPerPool)} per included pool. Clear the supplies field to restore that default. Administration uses the editable percentage above.</p><p>Gasoline uses one trip per property visit. Weekly visits use the highest included service frequency and convert to a monthly average with 52 ÷ 12. The round trip estimate doubles the outbound distance.</p><p>History uses uploaded consumption from the last 12 complete months ({history?.months ?? 0} recorded months available), excluding missing months and the current partial month. The margin includes only the listed costs. Price reference = (chemical forecast + supplies + gasoline) ÷ (1 − target margin − 20% labor − administration), rounded up to $10. The quote stays editable.</p></details>
         <details className="proposal-page-additional"><summary>Proposal notes (optional)</summary><label>Notes included in the proposal<textarea rows={3} value={props.notes} onChange={event => props.onNotes(event.target.value)} /></label></details>
       </section>
       <footer className="proposal-page-footer"><span>Final Monthly Proposal</span><strong>{money(calc.total)} <small>/ month</small></strong><div><button type="button" onClick={props.onReset} disabled={props.saving}>Reset preview</button><button type="button" className="proposal-page-save" onClick={props.onSave} disabled={!canSave}>{props.saving ? 'Saving…' : 'Save Proposal'}</button></div></footer>

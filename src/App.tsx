@@ -3,8 +3,8 @@ import { API_URL, apiFetch as fetch, getAppToken, setAppToken } from './api';
 import type { ProposalPdfData } from './proposalPdf';
 import { ProposalCalculator } from './ProposalCalculator';
 import { ProposalInternalNameEditor } from './ProposalInternalNameEditor';
-import { calculateProposal, calculatorRates, chemicalRatesBySize, defaultProposalOverhead, poolBasePrices } from './proposalCostModel';
-import type { ProposalChemicalEstimate, ProposalChemicalSource, ProposalContext, ProposalOverheadSettings, ProposalWaterBody } from './proposalCostModel';
+import { calculateProposal, calculatorRates, chemicalRatesBySize, defaultProposalFuel, defaultProposalOverhead, poolBasePrices } from './proposalCostModel';
+import type { ProposalChemicalEstimate, ProposalChemicalSource, ProposalContext, ProposalFuelSettings, ProposalOverheadSettings, ProposalWaterBody } from './proposalCostModel';
 import { proposalServiceOptions, type ProposalService } from './proposalServices';
 import { ChemicalsPage } from './ChemicalsPage';
 import { HealthDepartmentPage } from './HealthDepartmentPage';
@@ -793,7 +793,28 @@ function App() {
   const [proposalEstimateResult, setProposalEstimateResult] = useState<{ key: string; estimate: ProposalChemicalEstimate | null; error: boolean } | null>(null);
   const [proposalOverhead, setProposalOverhead] = useState<ProposalOverheadSettings>(() => ({ ...defaultProposalOverhead }));
   const [proposalSuppliesOverride, setProposalSuppliesOverride] = useState<number | null>(null);
+  const [proposalFuel, setProposalFuel] = useState<ProposalFuelSettings>(defaultProposalFuel);
+  const [proposalManualMiles, setProposalManualMiles] = useState<number | null>(null);
+  const [proposalRouteRefresh, setProposalRouteRefresh] = useState(0);
+  const [proposalRoute, setProposalRoute] = useState<{ key: string; miles: number | null } | null>(null);
   const proposalPropertyId = selectedProperty?.id;
+  const proposalRouteKey = showProposal && proposalPropertyId ? JSON.stringify([proposalPropertyId, proposalRouteRefresh]) : null;
+  const proposalRouteResult = proposalRouteKey && proposalRoute?.key === proposalRouteKey ? proposalRoute : null;
+  useEffect(() => {
+    if (!proposalRouteKey || !proposalPropertyId) return;
+    const controller = new AbortController();
+    void fetch(`${API_URL}/properties/${proposalPropertyId}/proposal-route`, { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Route unavailable');
+        const { oneWayMiles } = await response.json() as { oneWayMiles: unknown };
+        const miles = typeof oneWayMiles === 'number' && Number.isFinite(oneWayMiles) && oneWayMiles >= 0 ? oneWayMiles : null;
+        if (!controller.signal.aborted) setProposalRoute({ key: proposalRouteKey, miles });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setProposalRoute({ key: proposalRouteKey, miles: null });
+      });
+    return () => controller.abort();
+  }, [proposalRouteKey, proposalPropertyId]);
   const proposalHasChemicalSupply = proposalServices.includes('Chemical Supply');
   const proposalRecordedCost = proposalContext?.chemicalHistory.averageMonthlyCost ?? null;
   const proposalEstimateBodies = proposalWaterBodies.filter(body => body.include).map(body => ({
@@ -874,6 +895,7 @@ function App() {
   const proposalCalculatorSettings = {
     ...proposalOverhead,
     suppliesOverride: proposalSuppliesOverride,
+    fuel: { ...proposalFuel, oneWayMiles: proposalManualMiles ?? proposalRouteResult?.miles ?? null },
     targetMarginPercent: proposalTargetMargin, discountPercent: adjustmentPercentage,
     surchargePercent: managementStatus === 'SURCHARGE' ? Math.min(100, Math.max(0, Number(adjustments || 0))) : 0,
     chemicalsIncluded: proposalHasChemicalSupply,
@@ -884,7 +906,7 @@ function App() {
       : proposalRecordedCost !== null ? 'RECORDED_HISTORY'
         : proposalChemicalEstimate ? 'COMPARABLE_PROPERTIES' : 'UNAVAILABLE';
   const proposalCalculation = calculateProposal(proposalWaterBodies, proposalCalculatorSettings);
-  // Gasoline is a configurable percentage of the final fee, included once.
+  // Gasoline is an internal operating cost. The PDF allocation has no fuel surcharge.
   const monthlyTransportationCost = 0;
   const monthlyInvestment = proposalCalculation.total;
   const effectiveWaterBodyPrice = (body: ProposalWaterBody) => proposalCalculation.lines.find(line => line.body === body)?.grossPrice ?? 0;
@@ -1651,6 +1673,7 @@ function App() {
       setProposalHistoryLoading(true);
       setProposalHistoryError('');
       setProposalEstimateResult(null);
+      setProposalRoute(null);
     }
     setProposalTargetMargin(60);
     setManagementStatus('CURRENT');
@@ -1660,6 +1683,8 @@ function App() {
     setProposalChemicalProjection(null);
     setProposalOverhead({ ...defaultProposalOverhead });
     setProposalSuppliesOverride(null);
+    setProposalFuel(defaultProposalFuel);
+    setProposalManualMiles(null);
     setProposalServices([...proposalServiceOptions]);
     setProposalWaterBodies(
       selectedProperty.waterBodies.map((body) => {
@@ -1987,6 +2012,10 @@ function App() {
       window.alert('Enter a monthly chemical forecast before saving the proposal.');
       return;
     }
+    if (proposalCalculation.estimatedGasoline === null) {
+      window.alert('Enter the driving distance and fuel assumptions before saving the proposal.');
+      return;
+    }
 
     if (proposalCalculation.lines.some(line => line.costs !== null && line.costs.revenue <= 0)) {
       window.alert('Enter a positive monthly price for every included water body.');
@@ -1998,15 +2027,23 @@ function App() {
 
     try {
       setSavingProposal(true);
+      const { fuel, ...otherSettings } = proposalCalculatorSettings;
       const proposalData = {
         ...pdfData,
         internalName: proposalInternalName.trim() || null,
         proposalDate: pdfData.proposalDate.toISOString(),
         allocations: proposalCalculation.allocations,
         pricingModel: {
-          version: 5, basis: 'DOLLAR_CHEMICAL_AND_SUPPLIES_FORECAST_WITH_PERCENTAGE_COSTS', targetMarginPercent: proposalTargetMargin,
+          version: 6, basis: 'DOLLAR_FORECAST_WITH_ROUTE_FUEL_AND_PERCENTAGE_COSTS', targetMarginPercent: proposalTargetMargin,
           rates: { ...calculatorRates, ...proposalCalculation.rates }, chemicalRatesBySize, chemicalsIncluded: proposalCalculatorSettings.chemicalsIncluded,
-          settings: proposalCalculatorSettings, history: proposalContext,
+          settings: {
+            ...otherSettings,
+            fuel: {
+              pricePerGallon: fuel.pricePerGallon, milesPerGallon: fuel.milesPerGallon, roundTrip: fuel.roundTrip,
+              distanceSource: proposalManualMiles === null ? 'ROUTE' : 'MANUAL',
+              manualOneWayMiles: proposalManualMiles, weeklyVisits: proposalCalculation.weeklyVisits,
+            },
+          }, history: proposalContext,
           chemicalProjectionSource: proposalChemicalSource, chemicalComparableEstimate: proposalChemicalEstimate,
           managementStatus, managementAdjustment: proposalCalculation.managementAdjustment,
           chemicalCost: proposalCalculation.chemicalCost, chemicalBudget: proposalCalculation.chemicalBudget,
@@ -2697,6 +2734,10 @@ function App() {
       managementStatus={managementStatus} adjustment={adjustments} services={proposalServices} notes={proposalNotes} internalName={proposalInternalName} saving={savingProposal}
       onUpdate={updateProposalWaterBody} onTarget={setProposalTargetMargin} onChemicals={setProposalChemicalProjection}
       onSupplies={setProposalSuppliesOverride}
+      routeLoading={proposalRouteKey !== null && proposalRouteResult === null}
+      manualMiles={proposalManualMiles} onManualMiles={setProposalManualMiles}
+      onFuel={changes => setProposalFuel(current => ({ ...current, ...changes }))}
+      onRetryRoute={() => setProposalRouteRefresh(value => value + 1)}
       onOverhead={(field, value) => setProposalOverhead(current => ({ ...current, [field]: value }))}
       onInternalName={setProposalInternalName}
       onManagement={status => { setManagementStatus(status); setAdjustments(status === 'VIP' ? '20' : '0'); }}

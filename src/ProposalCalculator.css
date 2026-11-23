@@ -75,6 +75,9 @@
 .proposal-workspace-content .proposal-page-cost-inputs input { margin-top: auto; }
 .proposal-workspace-content .proposal-page-forecast-source { font-size: 10px; margin: 0 0 12px; }
 .proposal-page-forecast-source button { padding: 0; border: 0; min-height: 0; font-size: 10px; }
+.proposal-workspace-content .proposal-page-route-source { margin: 0 0 12px; font-size: 12px; }
+.proposal-page-route-source button { padding: 0; border: 0; min-height: 0; font-size: inherit; }
+.proposal-page-route-source a { margin-left: 4px; }
 .proposal-page-inline-summary { display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 11px; color: #65738a; margin-top: 12px; }
 .proposal-page-inline-summary b { color: #344259; font-weight: 600; }
 .proposal-page-management small { display: block; font-size: 10px; line-height: 1.4; margin-top: 5px; }

@@ -7,11 +7,11 @@ function load(file) {
   new Function('exports', 'module', 'require', code)(module.exports, module, name => name.startsWith('./') ? load(name.slice(2)) : require(name));
   return module.exports;
 }
-const { calculateProposal, commercialBasePrice, chemicalRateForSize, defaultProposalOverhead } = load('proposalCostModel');
+const { calculateProposal, commercialBasePrice, chemicalRateForSize, defaultProposalFuel, defaultProposalOverhead } = load('proposalCostModel');
 const { allocateProposalCosts } = load('proposalPricing');
 const pool = { id: 'pool', name: 'Pool', type: 'SWIMMING_POOL', include: true, category: 'MEDIUM', gallons: 40000, monthlyPrice: 700, frequency: '3x Weekly', disinfectionSystem: true, accessDifficulty: 'SIMPLE', priceManuallyAdjusted: false, priceMode: 'SUGGESTED' };
 const fountain = { ...pool, id: 'fountain', name: 'Fountain', type: 'DECORATIVE_WATER_FEATURE', category: '', gallons: null, monthlyPrice: 150 };
-const settings = { ...defaultProposalOverhead, targetMarginPercent: 60, discountPercent: 0, surchargePercent: 0, chemicalsIncluded: true, chemicalProjection: 84.45, suppliesOverride: null };
+const settings = { ...defaultProposalOverhead, targetMarginPercent: 60, discountPercent: 0, surchargePercent: 0, chemicalsIncluded: true, chemicalProjection: 84.45, suppliesOverride: null, fuel: { ...defaultProposalFuel, oneWayMiles: 10 } };
 const near = (value, expected) => assert.ok(Math.abs(value - expected) < .005, `${value} != ${expected}`);
 assert.equal(commercialBasePrice(pool).price, 700, 'Simple access must not add 3%');
 assert.equal(commercialBasePrice(fountain).price, 150);
@@ -21,8 +21,17 @@ assert.equal(commercialBasePrice({ ...pool, disinfectionSystem: false }).price, 
 assert.equal(commercialBasePrice({ ...pool, frequency: '5x Weekly' }).price, 945);
 for (const [size, rate] of [['SMALL', .17], ['MEDIUM', .22], ['LARGE', .24], ['EXTRA_LARGE', .24], ['', .2], ['UNKNOWN', .2], [null, .2], [undefined, .2]]) assert.equal(chemicalRateForSize(size), rate);
 const result = calculateProposal([pool, fountain], settings);
-assert.deepEqual([result.total, result.chemicalCost, result.chemicalBudget, result.laborCost, result.supplies, result.administration, result.estimatedGasoline, result.totalCost, result.profit, result.priceReference], [850, 84.45, 184, 170, 15, 17, 12.75, 299.2, 550.8, 610]);
-near(result.marginPercent, 64.8);
+assert.deepEqual([result.total, result.chemicalCost, result.chemicalBudget, result.laborCost, result.supplies, result.administration, result.estimatedGasoline, result.totalCost, result.profit, result.priceReference], [850, 84.45, 184, 170, 15, 17, 22.75, 309.2, 540.8, 680]);
+near(result.marginPercent, 63.6235);
+assert.deepEqual([result.weeklyVisits, result.monthlyMiles, result.monthlyGallons], [3, 130, 6.5]);
+const roundTrip = calculateProposal([pool, { ...fountain, frequency: '5x Weekly' }], { ...settings, fuel: { oneWayMiles: 12, milesPerGallon: 24, pricePerGallon: 4, roundTrip: true } });
+assert.equal(roundTrip.weeklyVisits, 5);
+assert.equal(roundTrip.monthlyMiles, 520);
+assert.equal(roundTrip.estimatedGasoline, 86.67);
+for (const fuel of [{ oneWayMiles: null }, { milesPerGallon: 0 }, { pricePerGallon: null }]) {
+  const incomplete = calculateProposal([pool], { ...settings, fuel: { ...settings.fuel, ...fuel } });
+  assert.deepEqual([incomplete.estimatedGasoline, incomplete.totalCost, incomplete.marginPercent, incomplete.priceReference], [null, null, null, null]);
+}
 for (const discountPercent of [0, 5, 7.5, 20, 33.3, 99, 100]) {
   const quote = calculateProposal([pool, fountain], { ...settings, discountPercent });
   assert.equal(quote.allocations.reduce((sum, line) => sum + line.monthlyCents, 0), quote.total * 100);
@@ -30,6 +39,7 @@ for (const discountPercent of [0, 5, 7.5, 20, 33.3, 99, 100]) {
   near(quote.totalCost + quote.profit, quote.total);
   assert.equal(quote.chemicalCost, 84.45, 'A discount must not reduce a dollar chemical forecast');
   assert.equal(quote.supplies, 15, 'A discount must not reduce a dollar supplies forecast');
+  assert.equal(quote.estimatedGasoline, 22.75, 'The gas cost follows road distance, mileage, price and visits');
   near(quote.laborCost, quote.total * .2, 'Monthly labor follows the final fee after discount');
   const exported = quote.lines.filter(line => line.body.include).map(line => ({ description: line.body.name, type: line.body.type, frequency: line.body.frequency, baseMonthlyCost: line.grossPrice }));
   assert.deepEqual(allocateProposalCosts(exported, 0, discountPercent, quote.total), quote.allocations);
@@ -45,7 +55,7 @@ assert.equal(discounted.laborCost, 192, 'Monthly labor is 20% of the discounted 
 assert.equal(discounted.supplies, 15);
 assert.equal(discounted.suppliesPercent, 1.5625);
 const at1200 = calculateProposal([{ ...pool, monthlyPrice: 1200, priceManuallyAdjusted: true }], { ...settings, chemicalProjection: 229.83 });
-assert.deepEqual([at1200.supplies, at1200.suppliesPercent, at1200.totalCost, at1200.priceReference], [15, 1.25, 526.83, 1490]);
+assert.deepEqual([at1200.supplies, at1200.suppliesPercent, at1200.totalCost, at1200.priceReference], [15, 1.25, 531.58, 1490]);
 assert.deepEqual(calculateProposal([pool, pool], settings).lines.map(line => line.costs.laborRate), [.2, .2]);
 assert.equal(calculateProposal([pool, { ...pool, type: 'KIDDIE_POOL' }, { ...pool, include: false }, fountain], settings).supplies, 30);
 assert.equal(calculateProposal([fountain], settings).supplies, 0);
@@ -60,9 +70,9 @@ assert.deepEqual([noHistory.chemicalCost, noHistory.totalCost, noHistory.profit,
 assert.equal(noHistory.chemicalBudget, 184, 'The legacy benchmark does not supply the missing forecast');
 const smallPremiumPool = { ...pool, category: 'SMALL', monthlyPrice: 1100, priceManuallyAdjusted: true };
 const withComparable = calculateProposal([smallPremiumPool], { ...settings, chemicalProjection: 125 });
-assert.deepEqual([withComparable.total, withComparable.chemicalCost, withComparable.chemicalBudget, withComparable.profit], [1100, 125, 187, 701.5]);
+assert.deepEqual([withComparable.total, withComparable.chemicalCost, withComparable.chemicalBudget, withComparable.profit], [1100, 125, 187, 695.25]);
 near(withComparable.chemicalPercent, 11.3636);
-near(withComparable.marginPercent, 63.7727);
+near(withComparable.marginPercent, 63.2045);
 assert.equal(calculateProposal([smallPremiumPool], { ...settings, chemicalsIncluded: false, chemicalProjection: null }).chemicalCost, 0);
 const scope = calculateProposal([pool, { ...fountain, include: false }], settings);
 assert.equal(scope.total, 700);
@@ -73,14 +83,14 @@ assert.equal(calculateProposal([pool], { ...settings, chemicalsIncluded: false }
 assert.equal(calculateProposal([pool], { ...settings, chemicalProjection: 200 }).overconsumption, true);
 assert.equal(calculateProposal([pool], { ...settings, targetMarginPercent: 90 }).total, 700, 'Target must not silently change the quote');
 assert.equal(calculateProposal([{ ...pool, include: false }], settings).total, 0);
-const custom = calculateProposal([pool, fountain], { ...settings, chemicalProjection: 120, suppliesOverride: 25.5, administrationPercent: 4, gasolinePercent: 2 });
-assert.deepEqual([custom.total, custom.chemicalCost, custom.laborCost, custom.supplies, custom.administration, custom.estimatedGasoline, custom.totalCost, custom.profit, custom.priceReference], [850, 120, 170, 25.5, 34, 17, 366.5, 483.5, 1040]);
-near(custom.marginPercent, 56.8824);
-const targetQuote = calculateProposal([{ ...pool, monthlyPrice: custom.priceReference, priceManuallyAdjusted: true }], { ...settings, chemicalProjection: 120, suppliesOverride: 25.5, administrationPercent: 4, gasolinePercent: 2 });
+const custom = calculateProposal([pool, fountain], { ...settings, chemicalProjection: 120, suppliesOverride: 25.5, administrationPercent: 4 });
+assert.deepEqual([custom.total, custom.chemicalCost, custom.laborCost, custom.supplies, custom.administration, custom.estimatedGasoline, custom.totalCost, custom.profit, custom.priceReference], [850, 120, 170, 25.5, 34, 22.75, 372.25, 477.75, 1060]);
+near(custom.marginPercent, 56.2059);
+const targetQuote = calculateProposal([{ ...pool, monthlyPrice: custom.priceReference, priceManuallyAdjusted: true }], { ...settings, chemicalProjection: 120, suppliesOverride: 25.5, administrationPercent: 4 });
 assert.ok(targetQuote.marginPercent >= 60, 'The reference must include fixed supplies and percentage-based labor');
-const zeroOverhead = calculateProposal([pool], { ...settings, suppliesOverride: 0, administrationPercent: 0, gasolinePercent: 0, chemicalProjection: 0 });
+const zeroOverhead = calculateProposal([pool], { ...settings, suppliesOverride: 0, administrationPercent: 0, fuel: { ...settings.fuel, pricePerGallon: 0 }, chemicalProjection: 0 });
 assert.deepEqual([zeroOverhead.supplies, zeroOverhead.administration, zeroOverhead.estimatedGasoline, zeroOverhead.totalCost, zeroOverhead.marginPercent], [0, 0, 0, 140, 80]);
-const impossible = calculateProposal([pool], { ...settings, suppliesOverride: 400, administrationPercent: 30, gasolinePercent: 20 });
+const impossible = calculateProposal([pool], { ...settings, suppliesOverride: 400, administrationPercent: 30 });
 assert.equal(impossible.priceReference, null);
 assert.equal(impossible.targetSupportedByRates, false);
 assert.ok(impossible.profit < 0, 'High editable costs must show an actual loss');
@@ -88,4 +98,4 @@ const cents = calculateProposal([{ ...pool, monthlyPrice: 101, priceManuallyAdju
 assert.equal(cents.administration, 1.01, 'Round the selected percentage once on the total monthly fee');
 const fixedPriceFrequency = calculateProposal([{ ...pool, monthlyPrice: 700, priceManuallyAdjusted: true, frequency: '7x Weekly' }], settings);
 assert.equal(fixedPriceFrequency.laborCost, 140, 'Monthly labor must not multiply the percentage by visits again');
-console.log('PASS: editable chemical and overhead costs, flat monthly labor at 20%, after-discount costs, target reference equation, zero and loss scenarios, monetary rounding, one gasoline allocation, and saved PDF totals.');
+console.log('PASS: route-based monthly fuel, adjustable costs, after-discount fees, target reference, missing inputs, and saved PDF totals.');
