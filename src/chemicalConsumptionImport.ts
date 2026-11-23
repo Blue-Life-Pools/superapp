@@ -1,6 +1,6 @@
 import { cleanChemicalTechnicianName } from './chemicalTechnicianIdentity';
 
-export type ConsumptionTechnicianUsage = { name: string; quantity: number; cost: number };
+export type ConsumptionTechnicianUsage = { name: string; quantity: number; cost: number; serviceDates?: string[] };
 export type ConsumptionChemical = { name: string; unit: string; quantity: number; cost: number; technicians?: ConsumptionTechnicianUsage[] };
 export type ConsumptionImportRow = { propertyName: string; code?: string; addressLine1?: string; propertyId?: string; chemicals?: ConsumptionChemical[]; monthlyFee?: number };
 export type ConsumptionFile = { month: string; sourceName: string; rows: ConsumptionImportRow[]; warnings: string[] };
@@ -127,6 +127,11 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
   const rowDetails = new Map<ConsumptionImportRow, string[]>();
   let detailSignatures: string[] = [];
   let lastDetailUsage: ConsumptionTechnicianUsage | null = null;
+  const mergeUsage = (target: ConsumptionTechnicianUsage, usage: ConsumptionTechnicianUsage) => {
+    target.quantity += usage.quantity;
+    target.cost = Math.round((target.cost + usage.cost) * 100) / 100;
+    if (usage.serviceDates?.length) target.serviceDates = [...new Set([...(target.serviceDates ?? []), ...usage.serviceDates])].sort();
+  };
   const complete = () => {
     const finished = current;
     const recordedTotal = grandTotal;
@@ -188,9 +193,13 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
       const existing = usages.find((usage) => usage.name.toLowerCase() === technicianName.toLowerCase());
       const value = quantityValue(quantity);
       const amount = Number(cost.replace(/,/g, ''));
-      detailSignatures.push(JSON.stringify([line.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)![0], technicianName.toLowerCase(), detail[2].trim().toLowerCase(), name.trim().toLowerCase(), unit.toLowerCase(), value, amount]));
-      if (existing) { existing.quantity += value; existing.cost = Math.round((existing.cost + amount) * 100) / 100; }
-      else usages.push({ name: technicianName, quantity: value, cost: amount });
+      const rawDate = line.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)![0];
+      const [serviceMonth, serviceDay, serviceYear] = rawDate.split('/');
+      const serviceDate = `${serviceYear}-${serviceMonth.padStart(2, '0')}-${serviceDay.padStart(2, '0')}`;
+      const usage = { name: technicianName, quantity: value, cost: amount, serviceDates: [serviceDate] };
+      detailSignatures.push(JSON.stringify([rawDate, technicianName.toLowerCase(), detail[2].trim().toLowerCase(), name.trim().toLowerCase(), unit.toLowerCase(), value, amount]));
+      if (existing) mergeUsage(existing, usage);
+      else usages.push(usage);
       technicianDetails.set(key, usages);
       lastDetailUsage = line.includes('\t') ? null : existing || usages[usages.length - 1];
       continue;
@@ -204,10 +213,8 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
     const rawTechnicians = technicianDetails.get(`${name}|${unit.toLowerCase()}`);
     const technicians = rawTechnicians?.reduce<ConsumptionTechnicianUsage[]>((merged, usage) => {
       const existing = merged.find((item) => item.name.toLowerCase() === usage.name.toLowerCase());
-      if (existing) {
-        existing.quantity += usage.quantity;
-        existing.cost = Math.round((existing.cost + usage.cost) * 100) / 100;
-      } else {
+      if (existing) mergeUsage(existing, usage);
+      else {
         merged.push({ ...usage });
       }
       return merged;
@@ -248,7 +255,7 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
       chemical.cost = Math.round((chemical.cost + item.cost) * 100) / 100;
       for (const usage of item.technicians || []) {
         const existing = chemical.technicians!.find((other) => other.name.toLowerCase() === usage.name.toLowerCase());
-        if (existing) { existing.quantity += usage.quantity; existing.cost = Math.round((existing.cost + usage.cost) * 100) / 100; }
+        if (existing) mergeUsage(existing, usage);
         else chemical.technicians!.push({ ...usage });
       }
     }

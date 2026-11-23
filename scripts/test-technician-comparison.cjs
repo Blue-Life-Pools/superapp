@@ -10,6 +10,7 @@ function load(file) {
 const { technicianChemicalComparison } = load('chemicalTechnicianComparison.ts');
 const { cleanChemicalTechnicianName, chemicalTechnicianResolver } = load('chemicalTechnicianIdentity.ts');
 const { pdfTextLines, parseSkimmerDosages } = load('chemicalConsumptionImport.ts');
+const { gasolineChemicalCoverage } = load('gasolineChemicalCoverage.ts');
 const usage = (name, quantity) => ({ name, quantity });
 const periods = [{ chemicals: [
   { name: 'Liquid', quantity: 4335, technicians: [usage('Georky', 4335)] },
@@ -53,10 +54,10 @@ const secondHeaders = [item('Tech', 145, 300), item('Body of Water', 230, 300), 
 const secondTable = pdfTextLines([...headers, ...detailItems('Miguel', 'Pool', 'Tabs', '1', '1.00', 500), item('Morales', 125, 485), ...secondHeaders, item('10/3/2026', 52, 260), item('Nelson', 145, 260), item('Pool', 230, 260), item('Tabs', 320, 260), item('1 Qty', 510, 260), item('($1.00)', 604, 260), item('$0.00', 652, 260), item('Belauzaran', 145, 245)]);
 assert.ok(secondTable.includes('10/3/2026\tNelson Belauzaran\tPool\tTabs\t1 Qty\t($1.00)\t$0.00'), 'Each table on the page uses its own column positions');
 const parsed = parseSkimmerDosages(['10/1/2026 - 10/31/2026', 'Example (ABC12345)', ...lines, 'Liquid Chlorine 7½ GAL ($13.58) $0.00', 'Grand Total for Example ($13.58)'], 'example.pdf');
-assert.deepEqual(parsed.rows[0].chemicals[0].technicians, [{ name: 'Miguel Morales', quantity: 2.5, cost: 4.53 }, { name: 'Jose Lugo', quantity: 5, cost: 9.05 }]);
+assert.deepEqual(parsed.rows[0].chemicals[0].technicians, [{ name: 'Miguel Morales', quantity: 2.5, cost: 4.53, serviceDates: ['2026-10-02'] }, { name: 'Jose Lugo', quantity: 5, cost: 9.05, serviceDates: ['2026-10-02'] }]);
 // A returning technician must update their own usage, not the last technician added.
 const repeated = parseSkimmerDosages(['10/1/2026 - 10/31/2026', 'Example (ABC12345)', '10/2/2026 Miguel Pool Tabs 1 Qty ($1.00) $0.00', 'Morales', '10/3/2026 Jose Lugo Pool Tabs 1 Qty ($1.00) $0.00', '10/4/2026 Miguel Pool Tabs 1 Qty ($1.00) $0.00', 'Morales', 'Tabs 3 Qty ($3.00) $0.00', 'Grand Total for Example ($3.00)'], 'example.pdf');
-assert.deepEqual(repeated.rows[0].chemicals[0].technicians, [{ name: 'Miguel Morales', quantity: 2, cost: 2 }, { name: 'Jose Lugo', quantity: 1, cost: 1 }]);
+assert.deepEqual(repeated.rows[0].chemicals[0].technicians, [{ name: 'Miguel Morales', quantity: 2, cost: 2, serviceDates: ['2026-10-02', '2026-10-04'] }, { name: 'Jose Lugo', quantity: 1, cost: 1, serviceDates: ['2026-10-03'] }]);
 console.log('PASS: technician aliases, combined balances, order independence, ambiguous names, wrapped PDF columns and repeated technicians');
 
 const block = (technician, day, amount, cost, body = 'Pool') => [
@@ -68,9 +69,10 @@ const block = (technician, day, amount, cost, body = 'Pool') => [
 const splitBlocks = parseSkimmerDosages(['10/1/2026 - 10/31/2026', ...block('Georky Quinones', 1, 30, '54.30'), ...block('Georky Quinones', 30, 30, '54.30')], 'october.pdf');
 assert.equal(splitBlocks.rows.length, 1, 'One monthly property includes all disjoint blocks with the same code');
 assert.equal(splitBlocks.rows[0].chemicals[0].quantity, 60);
-assert.deepEqual(splitBlocks.rows[0].chemicals[0].technicians, [{ name: 'Georky Quiñonez', quantity: 60, cost: 108.6 }]);
+assert.deepEqual(splitBlocks.rows[0].chemicals[0].technicians, [{ name: 'Georky Quiñonez', quantity: 60, cost: 108.6, serviceDates: ['2026-10-01', '2026-10-30'] }]);
 const multipleBodies = parseSkimmerDosages(['10/1/2026 - 10/31/2026', ...block('Miguel Morales', 1, 10, '18.10', 'Pool'), ...block('Miguel Morales', 1, 10, '18.10', 'Water Feature')], 'october.pdf');
 assert.equal(multipleBodies.rows[0].chemicals[0].quantity, 20, 'Distinct water bodies both contribute to the monthly total');
+assert.deepEqual(multipleBodies.rows[0].chemicals[0].technicians[0].serviceDates, ['2026-10-01']);
 assert.throws(() => parseSkimmerDosages(['10/1/2026 - 10/31/2026', ...block('Georky Quinones', 1, 30, '54.30'), ...block('Georky Quinones', 1, 30, '54.30')], 'duplicate.pdf'), /No properties without duplicates/);
 const overlap = parseSkimmerDosages(['10/1/2026 - 10/31/2026', ...block('Georky Quinones', 1, 30, '54.30'), ...block('Georky Quinones', 1, 30, '54.30'), 'Other (XYZ12345)', '10/2/2026\tJose Lugo\tPool\tTabs\t1 Qty\t($1.70)\t$0.00', 'Tabs 1 Qty ($1.70) $0.00', 'Grand Total for Other ($1.70)'], 'overlap.pdf');
 assert.equal(overlap.rows.length, 1);
@@ -89,7 +91,7 @@ const withoutCode = parseSkimmerDosages(['10/1/2026 - 10/31/2026',
 assert.equal(withoutCode.rows.length, 2, 'Same customer name at different addresses must remain separate properties');
 assert.equal(withoutCode.rows[0].code, undefined);
 assert.equal(withoutCode.rows[0].addressLine1, '10380 Lafoy Rd');
-assert.deepEqual(withoutCode.rows[0].chemicals[0].technicians, [{ name: 'Alexander Lara', quantity: 10, cost: 18.12 }]);
+assert.deepEqual(withoutCode.rows[0].chemicals[0].technicians, [{ name: 'Alexander Lara', quantity: 10, cost: 18.12, serviceDates: ['2026-10-02', '2026-10-09', '2026-10-16', '2026-10-23'] }]);
 assert.equal(withoutCode.rows[1].addressLine1, '4623 w Browning ave');
 const previouslyLoadedAlexander = { chemicals: [{ name: 'Liquid Chlorine', quantity: 582.5, technicians: [usage('Alexander Lara', 582.5)] }] };
 const correctedAlexander = technicianChemicalComparison([previouslyLoadedAlexander, ...withoutCode.rows], [register('10 Alexander Lara', 107)]).find(row => row.name === 'Alexander Lara');
@@ -114,3 +116,20 @@ const shortCode = parseSkimmerDosages(['10/1/2026 - 10/31/2026', 'Stella Stephen
 assert.equal(shortCode.rows[0].code, '001');
 assert.equal(shortCode.rows[0].chemicals[0].quantity, 2.5);
 console.log('PASS: distinct location blocks sharing visits, combined property codes and short customer codes');
+
+const properties = [
+  { id: 'assigned', name: 'Assigned route', city: 'Tampa', assigned: ['10 Alexander Lara'], participants: [{ name: 'Alexander Lara', dates: ['2026-10-26'] }] },
+  { id: 'additional', name: 'Covered once', city: 'Tampa', assigned: ['Miguel Morales'], participants: [{ name: 'Alexander Lara', dates: ['2026-10-27'] }, { name: 'Lara Alexander', dates: ['2026-10-27'] }] },
+  { id: 'monthly', name: 'Old report', city: null, assigned: [], participants: [{ name: 'Alexander Lara', dates: [] }] },
+  { id: 'earlier', name: 'Earlier service', city: null, assigned: [], participants: [{ name: 'Alexander Lara', dates: ['2026-10-02'] }] },
+];
+const linked = gasolineChemicalCoverage(properties, ['Alexander Lara', 'Miguel Morales'], '2026-10-24', '2026-10-31');
+assert.deepEqual(linked.get('alexander lara').map(item => [item.id, item.assignment, item.scope, item.counted, item.dates.length]), [
+  ['assigned', 'official', 'in range', true, 1],
+  ['additional', 'additional', 'in range', true, 1],
+  ['monthly', 'unconfirmed', 'month only', false, 0],
+  ['earlier', 'unconfirmed', 'outside range', false, 1],
+]);
+assert.equal(linked.get('miguel morales')[0].counted, false);
+assert.equal(gasolineChemicalCoverage(properties, ['Alexander Lara'], '2026-10-01', '2026-10-31').get('alexander lara').filter(item => item.counted).length, 4);
+console.log('PASS: official and additional property coverage, unique dates, partial-period and older-record rules');

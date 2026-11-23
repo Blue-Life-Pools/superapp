@@ -37,7 +37,10 @@
 .gasoline-table th button, .gasoline-link { width: fit-content; border: 0; background: transparent; color: #075abc; padding: 3px 0; font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
 .gasoline-table th button:hover, .gasoline-link:hover { text-decoration: underline; }
 .gasoline-link:disabled { cursor: default; opacity: .55; }
-.gasoline-table th small { display: block; margin-top: 3px; color: var(--fuel-muted); font-weight: 400; overflow-wrap: anywhere; }
+.gasoline-table :is(th, td) small { display: block; margin-top: 3px; color: var(--fuel-muted); font-weight: 400; overflow-wrap: anywhere; }
+.gasoline-chemical-details summary { color: #075abc; cursor: pointer; font-size: 14px; font-weight: 600; }
+.gasoline-chemical-details > p { margin-block: 8px; }
+.gasoline-chemical-properties { min-width: 560px; }
 .gasoline-route-form { display: grid; gap: 10px; }
 .gasoline-route-form > button { justify-self: start; }
 .gasoline-route-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
