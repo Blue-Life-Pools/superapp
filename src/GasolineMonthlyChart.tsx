@@ -102,6 +102,39 @@ function MonthlyBars({ series }: { series: MonthlySeries[] }) {
   </>;
 }
 
+function YearPicker({ years, selection, onChange }: { years: string[]; selection: string[]; onChange: (years: string[]) => void }) {
+  const picker = useRef<HTMLDetailsElement>(null);
+  const trigger = useRef<HTMLElement>(null);
+  useEffect(() => {
+    function closeOutside(event: PointerEvent) {
+      if (picker.current?.open && event.target instanceof Node && !picker.current.contains(event.target)) picker.current.open = false;
+    }
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, []);
+
+  return <div className="gasoline-year-filter">
+    <span>Year</span>
+    <details ref={picker} className="gasoline-year-picker" onBlur={event => {
+      if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+    }} onKeyDown={event => {
+      if (event.key !== 'Escape' || !event.currentTarget.open) return;
+      event.preventDefault();
+      event.currentTarget.open = false;
+      trigger.current?.focus();
+    }}>
+      <summary ref={trigger} aria-label={`Year: ${selection.join(', ')}`}>{selection.join(', ')}</summary>
+      <div className="gasoline-year-options" role="group" aria-label="Years">
+        {years.map(year => {
+          const checked = selection.includes(year);
+          return <label key={year}><input type="checkbox" checked={checked} disabled={checked && selection.length === 1}
+            onChange={() => onChange(checked ? selection.filter(item => item !== year) : [...selection, year].slice(-2))} />{year}</label>;
+        })}
+      </div>
+    </details>
+  </div>;
+}
+
 export function GasolineMonthlyChart({ purchases, months, loadChemicalProperties }: {
   purchases: FuelPurchase[];
   months: string[];
@@ -141,17 +174,7 @@ export function GasolineMonthlyChart({ purchases, months, loadChemicalProperties
     <div className="gasoline-section-header">
       <h2 id="gasoline-monthly-title">Monthly fuel by technician</h2>
       <div className="gasoline-chart-filters">
-        <label>Year<select className="gasoline-chart-year" multiple size={Math.min(3, Math.max(2, years.length))}
-          value={comparison ? [year, comparison] : [year]} onChange={event => {
-            const next = Array.from(event.currentTarget.selectedOptions, option => option.value);
-            if (!next.length) return;
-            const current = [year, comparison];
-            const retained = current.filter(item => next.includes(item));
-            const added = next.filter(item => !current.includes(item));
-            setSelectedYears([...retained, ...added].slice(-2));
-          }}>
-          {years.map(item => <option key={item}>{item}</option>)}
-        </select></label>
+        <YearPicker years={years} selection={comparison ? [year, comparison] : [year]} onChange={setSelectedYears} />
         <label>Technician<select value={driverIndex} onChange={event => setSelectedDriver(drivers[Number(event.currentTarget.value)]?.[0] ?? null)}>
           <option value={-1}>All technicians</option>
           {drivers.map(([key, name], index) => <option value={index} key={key}>{name}</option>)}
