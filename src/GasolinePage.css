@@ -29,21 +29,22 @@
 .gasoline-panel h3 { font-size: 15px; }
 .gasoline-chart-filters { display: flex; flex-wrap: wrap; gap: 8px 12px; }
 .gasoline-chart-scroll { overflow-x: auto; }
-.gasoline-chart-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; color: var(--fuel-muted); font-size: 12px; }
-.gasoline-chart-legend > span { display: inline-flex; align-items: center; gap: 6px; }
-.gasoline-chart-swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--gasoline-bar-color, var(--fuel-blue)); }
-.gasoline-panel .is-dollars { --gasoline-bar-color: #357a78; }
+.gasoline-chart-legend span { margin-right: 8px; color: var(--fuel-ink); font-weight: 650; }
 .gasoline-chart { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); min-width: 760px; margin: 0; padding: 0; list-style: none; }
-.gasoline-chart li { display: grid; grid-template-rows: subgrid; grid-row: span 3; text-align: center; color: var(--fuel-muted); font-size: 12px; }
-.gasoline-chart-values { display: grid; align-content: end; padding: 0 3px 7px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.gasoline-chart-values strong { color: var(--gasoline-bar-color, #075abc); }
-.gasoline-chart-plot { position: relative; height: 130px; }
+.gasoline-chart li { display: grid; grid-template-rows: subgrid; grid-row: span 3; text-align: center; color: var(--fuel-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.gasoline-chart-plot { position: relative; height: 130px; margin-top: 24px; }
 .gasoline-chart-zero { position: absolute; inset-inline: 0; border-top: 1px solid var(--fuel-line); }
-.gasoline-chart-bar { position: absolute; width: min(18px, 36%); border-radius: 4px 4px 0 0; background: var(--gasoline-bar-color, var(--fuel-blue)); }
-.gasoline-chart-bar.is-gallons { right: calc(50% + 2px); }
-.gasoline-chart-bar.is-dollars { left: calc(50% + 2px); }
-.gasoline-chart-bar.is-credit { border-radius: 0 0 4px 4px; }
-.gasoline-chart li > :last-child { padding-top: 7px; }
+.gasoline-chart-bar { position: absolute; left: 50%; width: min(27px, 45%); translate: -50%; border-radius: 5px 5px 0 0; background: #0866ff; }
+.gasoline-chart-bar.is-credit { border-radius: 0 0 5px 5px; }
+.gasoline-chart-volume { position: absolute; inset-inline: 0; translate: 0 calc(-100% - 5px); color: #174a7a; white-space: nowrap; }
+.gasoline-chart-month { padding-top: 8px; }
+.gasoline-chart-spending { padding-block: 5px 4px; }
+.gasoline-spending-button { padding: 4px 7px; border: 1px solid #c9dfd5; border-radius: 6px; background: #f0f8f4; color: #215d45; font: inherit; font-weight: 650; cursor: pointer; }
+.gasoline-spending-button:hover { background: #def0e7; }
+.gasoline-spending-popover { position: fixed; inset: auto; top: var(--fuel-anchor-y); left: clamp(8px, calc(var(--fuel-anchor-x) - 110px), calc(100% - 228px)); translate: 0 var(--fuel-anchor-offset); width: 220px; margin: 0; padding: 12px; border: 1px solid #dfe5ef; border-radius: 10px; background: white; color: #111b34; box-shadow: 0 8px 24px #111b3422; text-align: left; }
+.gasoline-spending-popover dl { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; margin: 8px 0 0; }
+.gasoline-spending-popover dt { color: #51627c; }
+.gasoline-spending-popover dd { margin: 0; font-weight: 650; text-align: right; }
 .gasoline-table-wrap { overflow-x: auto; }
 .gasoline-table { width: 100%; min-width: 650px; border-collapse: collapse; font-size: 13px; }
 .gasoline-purchases { min-width: 450px; }

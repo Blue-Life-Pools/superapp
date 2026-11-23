@@ -1,48 +1,64 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { summarizeFuel, type FuelPurchase } from './gasolineData';
 
 const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
 const fullMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' });
 const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+const compactDollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 });
 const gallons = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 
-const series = [
-  { key: 'gallons', label: 'Gallons purchased', format: gallons },
-  { key: 'dollars', label: 'Fuel spending (USD)', format: dollars },
-] as const;
+function FuelSpending({ month, amount, volume }: { month: string; amount: number; volume: number }) {
+  const id = useId();
+  const popover = useRef<HTMLDivElement>(null);
+  const exact = dollars.format(amount);
+
+  return <>
+    <button type="button" className="gasoline-spending-button" popoverTarget={id}
+      aria-label={`${month} fuel spending ${exact}. View fuel details`} onClick={event => {
+        const anchor = event.currentTarget.getBoundingClientRect();
+        const above = anchor.top >= 130;
+        popover.current?.style.setProperty('--fuel-anchor-x', `${anchor.left + anchor.width / 2}px`);
+        popover.current?.style.setProperty('--fuel-anchor-y', `${above ? anchor.top - 8 : anchor.bottom + 8}px`);
+        popover.current?.style.setProperty('--fuel-anchor-offset', above ? '-100%' : '0%');
+      }}>{Math.abs(amount) >= 1000 ? compactDollars.format(amount) : exact}</button>
+    <div className="gasoline-spending-popover" id={id} ref={popover} popover="auto" role="region" aria-label={`${month} fuel details`}>
+      <strong>{month}</strong>
+      <dl>
+        <dt>Fuel spending</dt><dd>{exact}</dd>
+        <dt>Gallons purchased</dt><dd>{gallons.format(volume)}</dd>
+      </dl>
+    </div>
+  </>;
+}
 
 function MonthlyBars({ year, values }: { year: string; values: ({ gallons: number; dollars: number } | null)[] }) {
-  const scales = series.map(({ key }) => Math.max(...values.map(value => Math.abs(value?.[key] ?? 0))) || 1);
-  const heights = values.map(value => series.map(({ key }, index) => (value?.[key] ?? 0) / scales[index]));
-  const maximum = Math.max(0, ...heights.flat());
-  const minimum = Math.min(0, ...heights.flat());
+  const volumes = values.map(value => value?.gallons ?? 0);
+  const maximum = Math.max(0, ...volumes);
+  const minimum = Math.min(0, ...volumes);
   const range = maximum - minimum || 1;
   const baseline = minimum === 0 ? 100 : maximum / range * 100;
 
   return <>
-    <div className="gasoline-chart-legend">
-      {series.map(({ key, label }) => <span key={key}><i className={`gasoline-chart-swatch is-${key}`} aria-hidden="true" />{label}</span>)}
-      <small>Separate scales</small>
-    </div>
-    <div className="gasoline-chart-scroll" role="region" aria-label="Monthly fuel chart" tabIndex={0}>
+    <p className="gasoline-chart-legend"><span>Gallons purchased</span> Select a spending amount for details.</p>
+    <div className="gasoline-chart-scroll" role="region" aria-label="Monthly fuel chart" tabIndex={0}
+      onScroll={event => event.currentTarget.querySelector<HTMLElement>('.gasoline-spending-popover:popover-open')?.hidePopover()}>
       <ul className="gasoline-chart" role="list">
         {values.map((value, index) => {
           const month = new Date(Date.UTC(Number(year), index, 1));
+          const name = fullMonthLabel.format(month);
           const label = value ? `${gallons.format(value.gallons)} gallons, ${dollars.format(value.dollars)}` : 'no transactions';
-          return <li key={index} aria-label={`${fullMonthLabel.format(month)} ${label}`}>
-            <div className="gasoline-chart-values">
-              {value ? series.map(({ key, format }) => <strong className={`is-${key}`} key={key}>{format.format(value[key])}</strong>) : <span>—</span>}
-            </div>
+          const height = volumes[index] / range * 100;
+          return <li key={index} aria-label={`${name} ${label}`}>
             <div className="gasoline-chart-plot" aria-hidden="true">
               <span className="gasoline-chart-zero" style={{ top: `${baseline}%` }} />
-              {series.map(({ key }, seriesIndex) => {
-                const height = heights[index][seriesIndex] / range * 100;
-                if (!height) return null;
-                return <span key={key} className={`gasoline-chart-bar is-${key}${height < 0 ? ' is-credit' : ''}`}
-                  style={{ top: `${baseline - Math.max(0, height)}%`, height: `${Math.abs(height)}%` }} />;
-              })}
+              {!!height && <span className={`gasoline-chart-bar${height < 0 ? ' is-credit' : ''}`}
+                style={{ top: `${baseline - Math.max(0, height)}%`, height: `${Math.abs(height)}%` }} />}
+              {value && <strong className="gasoline-chart-volume" style={{ top: `${baseline - Math.max(0, height)}%` }}>{gallons.format(value.gallons)}</strong>}
             </div>
-            <span>{monthLabel.format(month)}</span>
+            <span className="gasoline-chart-month">{monthLabel.format(month)}</span>
+            <div className="gasoline-chart-spending">
+              {value ? <FuelSpending month={name} amount={value.dollars} volume={value.gallons} /> : <span>—</span>}
+            </div>
           </li>;
         })}
       </ul>
@@ -83,7 +99,7 @@ export function GasolineMonthlyChart({ purchases, months }: { purchases: FuelPur
         </select></label>
       </div>
     </div>
-    <MonthlyBars year={year} values={values} />
+    <MonthlyBars key={JSON.stringify([year, driverKey])} year={year} values={values} />
     <p>— No transactions for the selected technician or team.</p>
   </section>;
 }
