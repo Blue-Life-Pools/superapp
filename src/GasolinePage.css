@@ -36,7 +36,10 @@
 .gasoline-table tr.is-selected { background: #f1f6ff; }
 .gasoline-table th button, .gasoline-link { width: fit-content; border: 0; background: transparent; color: #075abc; padding: 3px 0; font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
 .gasoline-table th button:hover, .gasoline-link:hover { text-decoration: underline; }
+.gasoline-link:disabled { cursor: default; opacity: .55; }
 .gasoline-table th small { display: block; margin-top: 3px; color: var(--fuel-muted); font-weight: 400; overflow-wrap: anywhere; }
+.gasoline-route-form { display: grid; gap: 10px; }
+.gasoline-route-form > button { justify-self: start; }
 .gasoline-route-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
 .gasoline-content .gasoline-message { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--fuel-line); border-radius: 8px; }
 .gasoline-content .gasoline-message.is-error { color: #a12828; border-color: #efc7c7; background: #fff6f6; }

@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { readWawaTransactions, summarizeFuel, type FuelData, type FuelRoute } from './gasolineData';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { API_URL, apiFetch } from './api';
+import { readWawaTransactions, summarizeFuel, type FuelData, type FuelPurchase, type FuelRoute } from './gasolineData';
 import { WorkspaceIcon } from './WorkspaceIcon';
 import './GasolinePage.css';
 
@@ -12,8 +13,11 @@ const dayName = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric
 const readDate = (day: string) => new Date(day + 'T00:00:00Z');
 const positiveNumber = (value: number) => Number.isFinite(value) && value > 0 ? value : null;
 
-function readHistory(key: string): FuelData {
+type RoutePayload = FuelRoute & { first: string; last: string; driver: string };
+
+function readLocalHistory(key: string): FuelData {
   try {
+    if (localStorage.getItem(key + ':shared')) return emptyFuelData;
     const data = JSON.parse(localStorage.getItem(key) ?? 'null') as FuelData | null;
     return Array.isArray(data?.purchases) && data?.routes ? data : emptyFuelData;
   } catch {
@@ -21,9 +25,49 @@ function readHistory(key: string): FuelData {
   }
 }
 
+function localRoutes(routes: FuelData['routes']): RoutePayload[] {
+  return Object.entries(routes).flatMap(([key, route]) => {
+    try {
+      const [first, last, driver] = JSON.parse(key) as string[];
+      return first && last && driver ? [{ first, last, driver, ...route }] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+async function request<T>(path = '', options?: RequestInit): Promise<T> {
+  const response = await apiFetch(`${API_URL}/gasoline${path}`, options);
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data === null) {
+    const message = Array.isArray(data?.message) ? data.message.join(' ') : data?.message;
+    throw new Error(typeof message === 'string' ? message : 'Could not load or save shared gasoline data.');
+  }
+  return data as T;
+}
+
+function RouteForm({ route, busy, onSave }: { route: FuelRoute; busy: boolean; onSave: (route: FuelRoute) => void }) {
+  const [draft, setDraft] = useState(route);
+  return <form className="gasoline-route-form" onSubmit={event => { event.preventDefault(); onSave(draft); }}>
+    <div className="gasoline-route-fields">
+      <label>Service zone<input type="text" maxLength={60} value={draft.zone} onChange={event => setDraft({ ...draft, zone: event.currentTarget.value })} /></label>
+      <label>Unique properties served<input type="number" min="1" step="1" value={draft.properties ?? ''} onChange={event => {
+        const value = event.currentTarget.valueAsNumber;
+        setDraft({ ...draft, properties: Number.isInteger(value) ? positiveNumber(value) : null });
+      }} /></label>
+      <label>Verified miles<input type="number" min="0.01" step="0.01" value={draft.miles ?? ''} onChange={event => setDraft({ ...draft, miles: positiveNumber(event.currentTarget.valueAsNumber) })} /></label>
+    </div>
+    <button className="gasoline-upload" type="submit" disabled={busy}>Save route data</button>
+  </form>;
+}
+
 export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: string }) {
   const key = `bluelife-gasoline-v1:${userId}`;
-  const [history, setHistory] = useState(() => readHistory(key));
+  const [history, setHistory] = useState<FuelData>(emptyFuelData);
+  const [localHistory, setLocalHistory] = useState(() => readLocalHistory(key));
+  const [loading, setLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
   const [sort, setSort] = useState<'gallons' | 'spend' | 'perProperty' | 'efficiency'>('gallons');
@@ -32,6 +76,16 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
   const [message, setMessage] = useState('');
   const [showAll, setShowAll] = useState(false);
   const upload = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setLoadFailed(false);
+    void request<FuelData>('', { signal: controller.signal })
+      .then(data => { if (!controller.signal.aborted) setHistory(data); })
+      .catch(() => { if (!controller.signal.aborted) setLoadFailed(true); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [loadAttempt]);
   const months = useMemo(() => [...new Set(history.purchases.map(purchase => purchase.date.slice(0, 7)))].sort().reverse(), [history.purchases]);
   const month = months.includes(selectedMonth) ? selectedMonth : months[0] ?? '';
   const summary = useMemo(() => summarizeFuel(history.purchases, month), [history.purchases, month]);
@@ -48,9 +102,16 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
   const driver = rows.find(row => row.key === selectedDriver) ?? visibleRows[0];
   const largestPurchases = driver?.purchases.filter(purchase => purchase.gallons > 0).sort((a, b) => b.gallons - a.gallons).slice(0, 3) ?? [];
 
-  function save(next: FuelData) {
-    localStorage.setItem(key, JSON.stringify(next));
-    setHistory(next);
+  async function importHistory(purchases: FuelPurchase[], routes?: RoutePayload[]) {
+    const result = await request<{ newPurchases: number; newRoutes: number }>('/import', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purchases, routes }),
+    });
+    setSelectedMonth(purchases.reduce((last, purchase) => purchase.date > last ? purchase.date : last, '').slice(0, 7));
+    setSelectedDriver(null);
+    setShowAll(false);
+    setLoading(true);
+    setLoadAttempt(attempt => attempt + 1);
+    return result;
   }
 
   async function importWorkbook(file: File) {
@@ -59,15 +120,8 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
     setMessage('');
     try {
       const purchases = await readWawaTransactions(file);
-      const existing = readHistory(key);
-      const merged = new Map(existing.purchases.map(purchase => [purchase.id, purchase]));
-      for (const purchase of purchases) merged.set(purchase.id, purchase);
-      const newCount = merged.size - existing.purchases.length;
-      save({ ...existing, purchases: [...merged.values()] });
-      setSelectedMonth(purchases.reduce((last, purchase) => purchase.date > last ? purchase.date : last, '').slice(0, 7));
-      setSelectedDriver(null);
-      setShowAll(false);
-      setMessage(`Report imported. ${newCount} new ${newCount === 1 ? 'transaction' : 'transactions'}.`);
+      const { newPurchases } = await importHistory(purchases);
+      setMessage(`Report shared with the team. ${newPurchases} new ${newPurchases === 1 ? 'transaction' : 'transactions'}.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not import the Wawa report.');
     } finally {
@@ -75,16 +129,42 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
     }
   }
 
-  function updateRoute(changes: Partial<FuelRoute>) {
-    if (!driver?.key) return;
+  async function shareLocalHistory() {
+    setBusy(true);
+    setError('');
+    setMessage('');
     try {
-      const existing = readHistory(key);
-      const driverPeriod = routeKey(driver.key);
-      const route = existing.routes[driverPeriod] ?? emptyRoute;
-      save({ ...existing, routes: { ...existing.routes, [driverPeriod]: { ...route, ...changes } } });
-      setError('');
-    } catch {
-      setError('Could not save the route data in this browser.');
+      const { newPurchases, newRoutes } = await importHistory(localHistory.purchases, localRoutes(localHistory.routes));
+      setLocalHistory(emptyFuelData);
+      try {
+        localStorage.setItem(key + ':shared', '1');
+      } catch {
+        // The shared import has already succeeded.
+      }
+      setMessage(`Browser data shared. ${newPurchases} new transactions and ${newRoutes} new route records.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not share the browser data.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveRoute(route: FuelRoute) {
+    if (!driver?.key) return;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const { id, ...saved } = await request<FuelRoute & { id: string }>('/route', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ first: summary.first, last: summary.last, driver: driver.key, ...route }),
+      });
+      setHistory(current => ({ ...current, routes: { ...current.routes, [id]: saved } }));
+      setMessage('Route data saved for the team.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not save the route data.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -93,17 +173,22 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
     <main className="gasoline-content" aria-labelledby="gasoline-title">
       <header className="area-page-header gasoline-header">
         <div><span className="area-eyebrow">FLEET OPERATIONS</span><h1 id="gasoline-title">Gasoline</h1><p>Review monthly Wawa fuel purchases and compare technicians across service routes.</p></div>
-        <button type="button" className="gasoline-upload" disabled={busy} onClick={() => upload.current?.click()}><WorkspaceIcon name="upload" />{busy ? 'Importing…' : 'Import Wawa Excel'}</button>
+        <button type="button" className="gasoline-upload" disabled={busy || loading || loadFailed} onClick={() => upload.current?.click()}><WorkspaceIcon name="upload" />Import Wawa Excel</button>
         <input ref={upload} type="file" hidden accept=".xlsx" aria-label="Wawa Transactions Excel" onChange={event => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = '';
           if (file) void importWorkbook(file);
         }} />
       </header>
-      <p className="gasoline-storage">Imports and route data are saved for this account in this browser.</p>
+      <p className="gasoline-storage">Fuel history is shared with authorized CRM users.</p>
+      {localHistory.purchases.length > 0 && <div className="gasoline-message is-review">
+        <span>Found {localHistory.purchases.length} transactions saved in this browser from before shared history.</span>
+        <button type="button" className="gasoline-link" disabled={loading || busy || loadFailed} onClick={() => void shareLocalHistory()}>Share previous browser data</button>
+      </div>}
       {error && <p className="gasoline-message is-error" role="alert">{error}</p>}
       {message && <p className="gasoline-message" role="status">{message}</p>}
-      {!month ? <section className="gasoline-panel gasoline-empty"><h2>No fuel transactions yet</h2><p>Import the Wawa Transactions Excel to see spending, gallons and purchases by driver.</p></section> : <>
+      {loadFailed && <div className="gasoline-message is-error" role="alert"><span>Could not load shared fuel history.</span><button type="button" className="gasoline-link" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Retry</button></div>}
+      {loading ? <p role="status">Loading shared fuel history…</p> : !month && !loadFailed ? <section className="gasoline-panel gasoline-empty"><h2>No fuel transactions yet</h2><p>Import the Wawa Transactions Excel to see spending, gallons and purchases by driver.</p></section> : month && <>
         <div className="gasoline-toolbar">
           <label>Purchase month<select value={month} onChange={event => {
             setSelectedMonth(event.currentTarget.value);
@@ -122,12 +207,15 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
             setSort(event.currentTarget.value as typeof sort);
             setSelectedDriver(null);
           }}><option value="gallons">Gallons</option><option value="spend">Spending</option><option value="perProperty">Cost per property</option><option value="efficiency">Gallons per 100 mi</option></select></label></div>
+          <p>Cost per property uses the number of properties served. Gallons per 100 mi uses verified miles.</p>
           <div className="gasoline-table-wrap" role="region" aria-label="Fuel and route metrics by driver" tabIndex={0}>
             <table className="gasoline-table"><thead><tr><th scope="col">Driver / zone</th><th scope="col">Gallons</th><th scope="col">Spending</th><th scope="col">Fill-ups</th><th scope="col">Properties</th><th scope="col">$/property</th><th scope="col">Gal / 100 mi</th></tr></thead>
               <tbody>{visibleRows.map(row => <tr key={row.key} className={row.key === driver?.key ? 'is-selected' : undefined}>
                 <th scope="row"><button type="button" aria-pressed={row.key === driver?.key} onClick={() => setSelectedDriver(row.key)}>{row.name}</button>{row.route.zone && <small>{row.route.zone}</small>}</th>
-                <td>{quantities.format(row.gallons)}</td><td>{dollars.format(row.spend)}</td><td>{row.charges}</td><td>{row.route.properties ?? '—'}</td>
-                <td>{row.perProperty === null ? '—' : dollars.format(row.perProperty)}</td><td>{row.efficiency === null ? '—' : quantities.format(row.efficiency)}</td>
+                <td>{quantities.format(row.gallons)}</td><td>{dollars.format(row.spend)}</td><td>{row.charges}</td>
+                <td>{row.route.properties ?? (row.key ? <a className="gasoline-link" href="#gasoline-route" onClick={() => setSelectedDriver(row.key)}>Add count</a> : '—')}</td>
+                <td>{row.perProperty === null ? '—' : dollars.format(row.perProperty)}</td>
+                <td>{row.efficiency === null ? (row.key ? <a className="gasoline-link" href="#gasoline-route" onClick={() => setSelectedDriver(row.key)}>Add miles</a> : '—') : quantities.format(row.efficiency)}</td>
               </tr>)}</tbody>
             </table>
           </div>
@@ -140,14 +228,7 @@ export function GasolinePage({ sidebar, userId }: { sidebar: ReactNode; userId: 
           <h2 id="gasoline-route">{driver.name}</h2>
           {driver.key && <>
             <p>Enter service data for the purchase dates shown above.</p>
-            <div className="gasoline-route-fields">
-              <label>Service zone<input type="text" maxLength={60} value={driver.route.zone} onChange={event => updateRoute({ zone: event.currentTarget.value })} /></label>
-              <label>Unique properties served<input type="number" min="1" step="1" value={driver.route.properties ?? ''} onChange={event => {
-                const value = event.currentTarget.valueAsNumber;
-                updateRoute({ properties: Number.isInteger(value) ? positiveNumber(value) : null });
-              }} /></label>
-              <label>Verified miles<input type="number" min="0.01" step="0.01" value={driver.route.miles ?? ''} onChange={event => updateRoute({ miles: positiveNumber(event.currentTarget.valueAsNumber) })} /></label>
-            </div>
+            <RouteForm key={routeKey(driver.key)} route={driver.route} busy={busy} onSave={route => void saveRoute(route)} />
           </>}
           {largestPurchases.length > 0 && <>
             <h3>Largest fill-ups</h3>
