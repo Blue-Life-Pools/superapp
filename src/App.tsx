@@ -217,6 +217,9 @@ type Property = {
   county: string | null;
   state: string | null;
   zipCode: string | null;
+  formattedAddress?: string | null;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
 
   sharepointFolderUrl: string | null;
   maintenanceChiefInfo: string | null;
@@ -794,27 +797,7 @@ function App() {
   const [proposalOverhead, setProposalOverhead] = useState<ProposalOverheadSettings>(() => ({ ...defaultProposalOverhead }));
   const [proposalSuppliesOverride, setProposalSuppliesOverride] = useState<number | null>(null);
   const [proposalFuel, setProposalFuel] = useState<ProposalFuelSettings>(defaultProposalFuel);
-  const [proposalManualMiles, setProposalManualMiles] = useState<number | null>(null);
-  const [proposalRouteRefresh, setProposalRouteRefresh] = useState(0);
-  const [proposalRoute, setProposalRoute] = useState<{ key: string; miles: number | null } | null>(null);
   const proposalPropertyId = selectedProperty?.id;
-  const proposalRouteKey = showProposal && proposalPropertyId ? JSON.stringify([proposalPropertyId, proposalRouteRefresh]) : null;
-  const proposalRouteResult = proposalRouteKey && proposalRoute?.key === proposalRouteKey ? proposalRoute : null;
-  useEffect(() => {
-    if (!proposalRouteKey || !proposalPropertyId) return;
-    const controller = new AbortController();
-    void fetch(`${API_URL}/properties/${proposalPropertyId}/proposal-route`, { signal: controller.signal })
-      .then(async response => {
-        if (!response.ok) throw new Error('Route unavailable');
-        const { oneWayMiles } = await response.json() as { oneWayMiles: unknown };
-        const miles = typeof oneWayMiles === 'number' && Number.isFinite(oneWayMiles) && oneWayMiles >= 0 ? oneWayMiles : null;
-        if (!controller.signal.aborted) setProposalRoute({ key: proposalRouteKey, miles });
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setProposalRoute({ key: proposalRouteKey, miles: null });
-      });
-    return () => controller.abort();
-  }, [proposalRouteKey, proposalPropertyId]);
   const proposalHasChemicalSupply = proposalServices.includes('Chemical Supply');
   const proposalRecordedCost = proposalContext?.chemicalHistory.averageMonthlyCost ?? null;
   const proposalEstimateBodies = proposalWaterBodies.filter(body => body.include).map(body => ({
@@ -895,7 +878,7 @@ function App() {
   const proposalCalculatorSettings = {
     ...proposalOverhead,
     suppliesOverride: proposalSuppliesOverride,
-    fuel: { ...proposalFuel, oneWayMiles: proposalManualMiles ?? proposalRouteResult?.miles ?? null },
+    fuel: proposalFuel,
     targetMarginPercent: proposalTargetMargin, discountPercent: adjustmentPercentage,
     surchargePercent: managementStatus === 'SURCHARGE' ? Math.min(100, Math.max(0, Number(adjustments || 0))) : 0,
     chemicalsIncluded: proposalHasChemicalSupply,
@@ -1673,7 +1656,6 @@ function App() {
       setProposalHistoryLoading(true);
       setProposalHistoryError('');
       setProposalEstimateResult(null);
-      setProposalRoute(null);
     }
     setProposalTargetMargin(60);
     setManagementStatus('CURRENT');
@@ -1684,7 +1666,6 @@ function App() {
     setProposalOverhead({ ...defaultProposalOverhead });
     setProposalSuppliesOverride(null);
     setProposalFuel(defaultProposalFuel);
-    setProposalManualMiles(null);
     setProposalServices([...proposalServiceOptions]);
     setProposalWaterBodies(
       selectedProperty.waterBodies.map((body) => {
@@ -2040,8 +2021,7 @@ function App() {
             ...otherSettings,
             fuel: {
               pricePerGallon: fuel.pricePerGallon, milesPerGallon: fuel.milesPerGallon, roundTrip: fuel.roundTrip,
-              distanceSource: proposalManualMiles === null ? 'ROUTE' : 'MANUAL',
-              manualOneWayMiles: proposalManualMiles, weeklyVisits: proposalCalculation.weeklyVisits,
+              distanceSource: 'MANUAL', manualOneWayMiles: fuel.oneWayMiles, weeklyVisits: proposalCalculation.weeklyVisits,
             },
           }, history: proposalContext,
           chemicalProjectionSource: proposalChemicalSource, chemicalComparableEstimate: proposalChemicalEstimate,
@@ -2734,10 +2714,7 @@ function App() {
       managementStatus={managementStatus} adjustment={adjustments} services={proposalServices} notes={proposalNotes} internalName={proposalInternalName} saving={savingProposal}
       onUpdate={updateProposalWaterBody} onTarget={setProposalTargetMargin} onChemicals={setProposalChemicalProjection}
       onSupplies={setProposalSuppliesOverride}
-      routeLoading={proposalRouteKey !== null && proposalRouteResult === null}
-      manualMiles={proposalManualMiles} onManualMiles={setProposalManualMiles}
       onFuel={changes => setProposalFuel(current => ({ ...current, ...changes }))}
-      onRetryRoute={() => setProposalRouteRefresh(value => value + 1)}
       onOverhead={(field, value) => setProposalOverhead(current => ({ ...current, [field]: value }))}
       onInternalName={setProposalInternalName}
       onManagement={status => { setManagementStatus(status); setAdjustments(status === 'VIP' ? '20' : '0'); }}

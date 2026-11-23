@@ -9,7 +9,11 @@ import './ProposalCalculator.css';
 
 type Props = {
   sidebar: ReactNode; headerActions: ReactNode;
-  property: { name: string; addressLine1: string | null; city: string | null; state: string | null; zipCode: string | null; managementCompany: { name: string } | null };
+  property: {
+    name: string; addressLine1: string | null; city: string | null; state: string | null; zipCode: string | null;
+    formattedAddress?: string | null; latitude?: string | number | null; longitude?: string | number | null;
+    managementCompany: { name: string } | null;
+  };
   calculation: ProposalCalculation; settings: CalculatorSettings; context: ProposalContext | null; historyLoading: boolean; historyError: string;
   chemicalSource: ProposalChemicalSource; chemicalEstimate: ProposalChemicalEstimate | null; estimateLoading: boolean; estimateError: boolean;
   managementStatus: string; adjustment: string; services: ProposalService[]; notes: string; internalName: string; saving: boolean;
@@ -17,10 +21,7 @@ type Props = {
   onManagement: (status: string) => void; onAdjustment: (value: string) => void;
   onChemicals: (value: number | null) => void; onServices: (services: ProposalService[]) => void; onNotes: (value: string) => void;
   onSupplies: (value: number | null) => void;
-  routeLoading: boolean; manualMiles: number | null;
-  onManualMiles: (value: number | null) => void;
   onFuel: (changes: Partial<ProposalFuelSettings>) => void;
-  onRetryRoute: () => void;
   onOverhead: (field: keyof ProposalOverheadSettings, value: number) => void;
   onInternalName: (value: string) => void;
   onClose: () => void; onReset: () => void; onSave: () => void; onRetryHistory: () => void;
@@ -37,8 +38,14 @@ export function ProposalCalculator(props: Props) {
   const { property, calculation: calc, settings, context, services, onUpdate } = props;
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { window.scrollTo(0, 0); heading.current?.focus({ preventScroll: true }); }, []);
-  const address = [property.addressLine1, property.city, property.state, property.zipCode].filter(Boolean).join(', ');
-  const directionsUrl = address ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(officeAddress)}&destination=${encodeURIComponent(address)}&travelmode=driving` : null;
+  const address = [property.addressLine1, property.city, property.state, property.zipCode].map(part => part?.trim()).filter(Boolean).join(', ');
+  const latitude = Number(property.latitude);
+  const longitude = Number(property.longitude);
+  const coordinates = property.latitude != null && property.longitude != null && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 && (latitude !== 0 || longitude !== 0)
+    ? `${latitude},${longitude}` : null;
+  const destination = (property.addressLine1?.trim() && address) || property.formattedAddress?.trim() || coordinates;
+  const directions = new URLSearchParams({ api: '1', origin: officeAddress, travelmode: 'driving' });
+  if (destination) directions.set('destination', destination);
   const management = property.managementCompany?.name ?? 'Not assigned';
   const history = context?.chemicalHistory;
   const included = calc.lines.filter(line => line.body.include);
@@ -115,19 +122,17 @@ export function ProposalCalculator(props: Props) {
         <p className="proposal-page-forecast-source" id="proposal-chemical-source" aria-live="polite">{chemicalSource} {props.chemicalSource === 'MANUAL' && <button type="button" onClick={() => props.onChemicals(null)}>Reset chemical forecast</button>} {props.estimateError && <button type="button" onClick={props.onRetryHistory}>Retry estimate</button>}</p>
         <div role="group" aria-labelledby="proposal-fuel-heading">
           <h3 id="proposal-fuel-heading">Gasoline</h3>
-          <div className="proposal-page-management proposal-page-cost-inputs">
-            <label>Office to property (miles)<input aria-describedby="proposal-route-source" type="number" min="0" step="0.01" value={settings.fuel.oneWayMiles ?? ''} onChange={event => props.onManualMiles(Number.isFinite(event.target.valueAsNumber) ? Math.max(0, event.target.valueAsNumber) : null)} /></label>
+          <p className="proposal-page-route-source" id="proposal-route-source">
+            {destination ? 'Copy the one-way driving distance from Google Maps.' : 'Enter the property address in Google Maps, then copy the one-way driving distance.'}
+            {' '}<a href={`https://www.google.com/maps/dir/?${directions}`} target="_blank" rel="noreferrer">View route from office</a>
+          </p>
+          <div className="proposal-page-management proposal-page-cost-inputs proposal-page-fuel-inputs">
+            <label>Office to property (miles)<input aria-describedby="proposal-route-source" type="number" min="0" step="0.01" value={settings.fuel.oneWayMiles ?? ''} onChange={event => props.onFuel({ oneWayMiles: Number.isFinite(event.target.valueAsNumber) ? Math.max(0, event.target.valueAsNumber) : null })} /></label>
             <label>Fuel price ($/gal)<input type="number" min="0" step="0.01" value={settings.fuel.pricePerGallon ?? ''} onChange={event => props.onFuel({ pricePerGallon: Number.isFinite(event.target.valueAsNumber) ? Math.max(0, event.target.valueAsNumber) : null })} /></label>
             <label>Vehicle efficiency (MPG)<input type="number" min="0.01" step="0.01" value={settings.fuel.milesPerGallon ?? ''} onChange={event => props.onFuel({ milesPerGallon: Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : null })} /></label>
             <label>Trip per visit<select value={settings.fuel.roundTrip ? 'round' : 'one-way'} onChange={event => props.onFuel({ roundTrip: event.target.value === 'round' })}><option value="one-way">One way</option><option value="round">Round trip estimate</option></select></label>
           </div>
-          <p className="proposal-page-route-source" id="proposal-route-source" aria-live="polite">
-            {props.manualMiles !== null ? 'Manual distance. Clear the field to use the automatic route.' : props.routeLoading ? 'Calculating driving distance…' : settings.fuel.oneWayMiles !== null
-              ? <>Driving distance from <span translate="no">Google Maps</span></>
-              : <>Driving distance unavailable. Enter the one-way miles or <button type="button" onClick={props.onRetryRoute}>retry the route</button>.</>}
-            {' · '}{calc.weeklyVisits} {calc.weeklyVisits === 1 ? 'visit' : 'visits'} per week.
-            {directionsUrl && <> <a href={directionsUrl} target="_blank" rel="noreferrer">View route from office</a></>}
-          </p>
+          <p className="proposal-page-route-source">{calc.weeklyVisits} {calc.weeklyVisits === 1 ? 'visit' : 'visits'} per week.</p>
         </div>
         <div className="proposal-page-kpis" aria-live="polite">{[{ icon: 'coins', title: 'Final monthly fee', value: money(calc.total) }, { icon: 'tag', title: 'Projected listed costs', value: money(calc.totalCost) }, { icon: 'chart', title: 'Projected profit', value: money(calc.profit) }, { icon: 'percent', title: 'Projected margin', value: pct(calc.marginPercent) }].map(item => <div key={item.title}><WorkspaceIcon name={item.icon as 'coins' | 'tag' | 'chart' | 'percent'} /><div><span>{item.title}</span><strong>{item.value}</strong></div></div>)}</div>
         <div className="proposal-page-table-wrap"><table><thead><tr><th>Cost</th><th>Source / assumption</th><th>Monthly amount</th></tr></thead><tbody>{[

@@ -6,12 +6,12 @@ export type ProposalWaterBody = {
   priceManuallyAdjusted: boolean; priceMode: 'SUGGESTED' | 'CUSTOM';
 };
 export type ProposalOverheadSettings = { administrationPercent: number };
-export type ProposalFuelSettings = { pricePerGallon: number | null; milesPerGallon: number | null; roundTrip: boolean };
+export type ProposalFuelSettings = { oneWayMiles: number | null; pricePerGallon: number | null; milesPerGallon: number | null; roundTrip: boolean };
 export type CalculatorSettings = {
   targetMarginPercent: number; discountPercent: number; surchargePercent: number;
   chemicalsIncluded: boolean; chemicalProjection: number | null;
   suppliesOverride: number | null;
-  fuel: ProposalFuelSettings & { oneWayMiles: number | null };
+  fuel: ProposalFuelSettings;
 } & ProposalOverheadSettings;
 export type ProposalContext = {
   chemicalHistory: { averageMonthlyCost: number | null; months: number; from: string | null; to: string | null };
@@ -27,7 +27,7 @@ export const frequencyMultipliers: Record<string, number> = { '1x Weekly': .55, 
 export const chemicalRatesBySize: Record<string, number> = { SMALL: .17, MEDIUM: .22, LARGE: .24, EXTRA_LARGE: .24 };
 export const calculatorRates = { chemicalDefault: .2, labor: .2, administration: .02 } as const;
 export const defaultProposalOverhead: ProposalOverheadSettings = { administrationPercent: 2 };
-export const defaultProposalFuel: ProposalFuelSettings = { pricePerGallon: 3.5, milesPerGallon: 20, roundTrip: false };
+export const defaultProposalFuel: ProposalFuelSettings = { oneWayMiles: null, pricePerGallon: 3.5, milesPerGallon: 20, roundTrip: false };
 export const defaultSuppliesPerPool = 15;
 const suppliesPoolTypes = new Set(['POOL', 'SWIMMING_POOL', 'KIDDIE_POOL']);
 export const roundMoney = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
