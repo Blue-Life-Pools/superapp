@@ -28,8 +28,6 @@
 .gasoline-panel h2 { font-size: 20px; }
 .gasoline-panel h3 { font-size: 15px; }
 .gasoline-chart-filters { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 12px; }
-.gasoline-chart-year { display: grid; gap: 4px; }
-.gasoline-chart-year small { color: var(--fuel-muted); font-size: 11px; }
 .gasoline-chart-year option { padding: 2px 4px; }
 .gasoline-chart-scroll { overflow-x: auto; }
 .gasoline-chart-legend span { margin-right: 8px; color: var(--fuel-ink); font-weight: 650; }
