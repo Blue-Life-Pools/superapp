@@ -55,6 +55,15 @@ const secondTable = pdfTextLines([...headers, ...detailItems('Miguel', 'Pool', '
 assert.ok(secondTable.includes('10/3/2026\tNelson Belauzaran\tPool\tTabs\t1 Qty\t($1.00)\t$0.00'), 'Each table on the page uses its own column positions');
 const parsed = parseSkimmerDosages(['10/1/2026 - 10/31/2026', 'Example (ABC12345)', ...lines, 'Liquid Chlorine 7½ GAL ($13.58) $0.00', 'Grand Total for Example ($13.58)'], 'example.pdf');
 assert.deepEqual(parsed.rows[0].chemicals[0].technicians, [{ name: 'Miguel Morales', quantity: 2.5, cost: 4.53, serviceDates: ['2026-10-02'] }, { name: 'Jose Lugo', quantity: 5, cost: 9.05, serviceDates: ['2026-10-02'] }]);
+const dosageAliases = parseSkimmerDosages([
+  '10/1/2026 - 10/31/2026', 'Example (ABC12345)',
+  '10/2/2026\tJose Lugo\tPool\tLiquid Chlorine\t5 GAL\t($9.05)\t$0.00',
+  'Liquid 5 Gal ($9.05) $0.00',
+  'Muriatic 2 Gal ($4.00) $0.00', 'Grand Total for Example ($13.05)',
+], 'example.pdf');
+assert.deepEqual(dosageAliases.rows[0].chemicals[0].technicians, [{ name: 'Jose Lugo', quantity: 5, cost: 9.05, serviceDates: ['2026-10-02'] }]);
+assert.equal(dosageAliases.rows[0].chemicals[1].quantity, 2, 'Keep the reported total if detail is missing');
+assert.deepEqual(dosageAliases.warnings, ['Example: incomplete technician breakdown for Muriatic.']);
 // A returning technician must update their own usage, not the last technician added.
 const repeated = parseSkimmerDosages(['10/1/2026 - 10/31/2026', 'Example (ABC12345)', '10/2/2026 Miguel Pool Tabs 1 Qty ($1.00) $0.00', 'Morales', '10/3/2026 Jose Lugo Pool Tabs 1 Qty ($1.00) $0.00', '10/4/2026 Miguel Pool Tabs 1 Qty ($1.00) $0.00', 'Morales', 'Tabs 3 Qty ($3.00) $0.00', 'Grand Total for Example ($3.00)'], 'example.pdf');
 assert.deepEqual(repeated.rows[0].chemicals[0].technicians, [{ name: 'Miguel Morales', quantity: 2, cost: 2, serviceDates: ['2026-10-02', '2026-10-04'] }, { name: 'Jose Lugo', quantity: 1, cost: 1, serviceDates: ['2026-10-03'] }]);

@@ -114,6 +114,25 @@ function quantityValue(raw: string) {
   const match = raw.match(/[¼½¾]/);
   return Number(raw.replace(/[¼½¾]/g, '').replace(/,/g, '').trim() || '0') + (match ? fractions[match[0]] : 0);
 }
+
+const skimmerProductAliases: Record<string, string> = {
+  liquid: 'liquidchlorine', cloroliquido: 'liquidchlorine',
+  muriatic: 'muriaticacid', acidomuriatico: 'muriaticacid',
+  tablets: 'tabs', chlorinetablets: 'tabs', cloroentabletas: 'tabs',
+  estabilizador: 'stabilizer', defilter: 'defilterpowder', depowder: 'defilterpowder',
+  cloroenpolvo: 'chlorinepowder', bicarbonato: 'bicarbonate', sal: 'salt',
+  fosfato: 'phosphates', fosfatos: 'phosphates', phosphate: 'phosphates',
+};
+const skimmerUnitAliases: Record<string, string> = {
+  gallon: 'gal', gallons: 'gal', gals: 'gal', bags: 'bag', scoops: 'scoop',
+  units: 'qty', unit: 'qty', quantity: 'qty', ounces: 'oz', ounce: 'oz',
+};
+function skimmerDosageKey(name: string, unit: string) {
+  const product = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalizedUnit = unit.trim().toLowerCase();
+  return `${skimmerProductAliases[product] ?? product}|${skimmerUnitAliases[normalizedUnit] ?? normalizedUnit}`;
+}
+
 export function parseSkimmerDosages(lines: string[], sourceName: string): ConsumptionFile {
   const range = lines.join('\n').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s*[-–]\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (!range || range[1] !== range[4] || range[3] !== range[6]) throw new Error('The PDF must cover a single month.');
@@ -137,13 +156,34 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
     const recordedTotal = grandTotal;
     const finishedDetails = detailSignatures;
     detailSignatures = [];
-    current = null; grandTotal = null; totalPending = false; technicianDetails.clear(); lastDetailUsage = null;
+    current = null; grandTotal = null; totalPending = false; lastDetailUsage = null;
+    const details = new Map(technicianDetails);
+    technicianDetails.clear();
     if (!finished) return;
     if (!finished.chemicals?.length && !finishedDetails.length && recordedTotal === null) return;
     const sum = (finished.chemicals || []).reduce((value, chemical) => value + chemical.cost, 0);
     if (!finished.chemicals?.length || recordedTotal === null || Math.abs(sum - recordedTotal) > .03) {
       warnings.push(`${finished.propertyName}: the line items could not be reconciled with the total and were excluded from the import.`);
-    } else { rows.push(finished); rowDetails.set(finished, finishedDetails); }
+      return;
+    }
+    for (const chemical of finished.chemicals) {
+      const usagesByName = new Map<string, ConsumptionTechnicianUsage>();
+      for (const usage of details.get(skimmerDosageKey(chemical.name, chemical.unit)) ?? []) {
+        const name = usage.name.toLowerCase();
+        const previous = usagesByName.get(name);
+        if (previous) mergeUsage(previous, usage);
+        else usagesByName.set(name, { ...usage });
+      }
+      const usages = [...usagesByName.values()];
+      const assigned = usages.reduce((total, usage) => total + usage.quantity, 0);
+      const assignedCost = usages.reduce((total, usage) => total + usage.cost, 0);
+      if (usages.length && assigned <= chemical.quantity + .0001 && assignedCost <= chemical.cost + .03) chemical.technicians = usages;
+      if (Math.abs(assigned - chemical.quantity) > .0001 || Math.abs(assignedCost - chemical.cost) > .03) {
+        warnings.push(`${finished.propertyName}: incomplete technician breakdown for ${chemical.name}.`);
+      }
+    }
+    rows.push(finished);
+    rowDetails.set(finished, finishedDetails);
   };
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -187,10 +227,9 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
       : line.match(/^\d{1,2}\/\d{1,2}\/\d{4}\s+(.+?)\s+((?:Back )?Pool)\s+(.+?)\s+([\d,]+(?:\.\d+)?\s*[¼½¾]?|[¼½¾])\s+(\S+)\s+\(?\$([\d,]+\.\d{2})\)?/i);
     if (detail) {
       const [, technician, , name, quantity, unit, cost] = detail;
-      const key = `${name.trim()}|${unit.toLowerCase()}`;
+      const key = skimmerDosageKey(name, unit);
       const usages = technicianDetails.get(key) || [];
       const technicianName = cleanChemicalTechnicianName(technician);
-      const existing = usages.find((usage) => usage.name.toLowerCase() === technicianName.toLowerCase());
       const value = quantityValue(quantity);
       const amount = Number(cost.replace(/,/g, ''));
       const rawDate = line.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)![0];
@@ -198,10 +237,9 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
       const serviceDate = `${serviceYear}-${serviceMonth.padStart(2, '0')}-${serviceDay.padStart(2, '0')}`;
       const usage = { name: technicianName, quantity: value, cost: amount, serviceDates: [serviceDate] };
       detailSignatures.push(JSON.stringify([rawDate, technicianName.toLowerCase(), detail[2].trim().toLowerCase(), name.trim().toLowerCase(), unit.toLowerCase(), value, amount]));
-      if (existing) mergeUsage(existing, usage);
-      else usages.push(usage);
+      usages.push(usage);
       technicianDetails.set(key, usages);
-      lastDetailUsage = line.includes('\t') ? null : existing || usages[usages.length - 1];
+      lastDetailUsage = line.includes('\t') ? null : usage;
       continue;
     }
     const summary = line.match(/^(.+?)\s+([\d,]+(?:\.\d+)?\s*[¼½¾]?|[¼½¾])\s+(\S+)\s+\(?\$([\d,]+\.\d{2})\)?\s+\$[\d,.]+/);
@@ -209,18 +247,10 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
     const [, name, quantity, unit, cost] = summary;
     const value = quantityValue(quantity);
     const amount = Number(cost.replace(/,/g, ''));
-    const chemical = current.chemicals!.find((entry) => entry.name === name && entry.unit.toLowerCase() === unit.toLowerCase());
-    const rawTechnicians = technicianDetails.get(`${name}|${unit.toLowerCase()}`);
-    const technicians = rawTechnicians?.reduce<ConsumptionTechnicianUsage[]>((merged, usage) => {
-      const existing = merged.find((item) => item.name.toLowerCase() === usage.name.toLowerCase());
-      if (existing) mergeUsage(existing, usage);
-      else {
-        merged.push({ ...usage });
-      }
-      return merged;
-    }, []);
-    if (chemical) { chemical.quantity += value; chemical.cost = Math.round((chemical.cost + amount) * 100) / 100; if (technicians?.length) chemical.technicians = technicians; }
-    else current.chemicals!.push({ name, quantity: value, unit, cost: amount, ...(technicians?.length ? { technicians } : {}) });
+    const key = skimmerDosageKey(name, unit);
+    const chemical = current.chemicals!.find(entry => skimmerDosageKey(entry.name, entry.unit) === key);
+    if (chemical) { chemical.quantity += value; chemical.cost = Math.round((chemical.cost + amount) * 100) / 100; }
+    else current.chemicals!.push({ name, quantity: value, unit, cost: amount });
   }
   if (current) complete();
   if (!rows.length) throw new Error('No properties with reconciled quantities and totals were found.');
@@ -249,7 +279,8 @@ export function parseSkimmerDosages(lines: string[], sourceName: string): Consum
     }
     const chemicals: ConsumptionChemical[] = [];
     for (const row of group) for (const item of row.chemicals!) {
-      let chemical = chemicals.find((other) => other.name.toLowerCase() === item.name.toLowerCase() && other.unit.toLowerCase() === item.unit.toLowerCase());
+      const key = skimmerDosageKey(item.name, item.unit);
+      let chemical = chemicals.find(other => skimmerDosageKey(other.name, other.unit) === key);
       if (!chemical) { chemical = { ...item, quantity: 0, cost: 0, technicians: [] }; chemicals.push(chemical); }
       chemical.quantity += item.quantity;
       chemical.cost = Math.round((chemical.cost + item.cost) * 100) / 100;
