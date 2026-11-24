@@ -50,3 +50,13 @@
 .opportunity-invoice-form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 14px; padding-block: 5px; }
 .opportunity-invoice-form label { display: grid; gap: 4px; font-size: 12px; }
 .opportunity-invoice-form input { min-width: 120px; min-height: 38px; padding: 7px 9px; border: 1px solid #dce3ef; border-radius: 7px; background: #fff; color: #253754; font: inherit; }
+.opportunity-property-picker { display: grid; align-content: start; gap: 6px; min-width: 0; }
+.opportunity-property-picker-control { position: relative; }
+.opportunity-editor-fields .opportunity-property-picker-control > input { padding-right: 36px; }
+.opportunity-property-picker-control > button { position: absolute; inset: 0 0 0 auto; display: grid; place-items: center; width: 34px; border: 0; background: transparent; color: #52627b; cursor: pointer; }
+.opportunity-property-picker-control > button .workspace-icon { width: 16px; height: 16px; transform: rotate(90deg); }
+.opportunity-property-picker-menu { position: absolute; z-index: 10; top: calc(100% + 4px); inset-inline: 0; overflow: hidden; border: 1px solid #d4ddeb; border-radius: 8px; background: white; box-shadow: 0 6px 18px #111b3420; }
+.opportunity-property-picker-menu ul { max-height: 220px; overflow-y: auto; margin: 0; padding: 4px; list-style: none; }
+.opportunity-property-picker-menu li, .opportunity-property-picker-menu > span { display: block; padding: 7px 8px; color: #253754; font-size: 13px; overflow-wrap: anywhere; }
+.opportunity-property-picker-menu li { border-radius: 4px; cursor: pointer; }
+.opportunity-property-picker-menu li:is(:hover, .is-highlighted, [aria-selected='true']) { background: #edf4ff; }

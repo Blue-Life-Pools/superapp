@@ -39,7 +39,7 @@ export function InvoicingPage({ sidebar, canRecord, onBack, onRecorded }: {
 }
 
 export function OpportunitiesPage({ sidebar, properties, canEdit, canEditWork, canDelete }: {
-  sidebar: ReactNode; properties: Array<{ id: string; name: string }>; canEdit: boolean; canEditWork: boolean; canDelete: boolean;
+  sidebar: ReactNode; properties: string[]; canEdit: boolean; canEditWork: boolean; canDelete: boolean;
 }) {
   const [data, setData] = useState(initialResult), [filters, setFilters] = useState(emptyFilters), [page, setPage] = useState(1), [limit, setLimit] = useState(25);
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState('');
@@ -100,7 +100,7 @@ export function OpportunitiesPage({ sidebar, properties, canEdit, canEditWork, c
   }
   function chooseColumns(next: OpportunityField[]) { if (!next.length) return; setColumns(next); try { localStorage.setItem(columnsKey, JSON.stringify(next)); } catch { /* The current view still works without browser storage. */ } }
   const fields = columns.flatMap((key) => opportunityFields.filter(([field]) => field === key));
-  const propertyOptions = [...new Set([...data.facets.properties, ...properties.map((item) => item.name)])].sort((a, b) => a.localeCompare(b));
+  const propertyOptions = [...new Set(properties.map(name => name.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const statusOptions = [...new Set([...opportunityStatuses, ...data.facets.statuses])];
   function cell(item: Opportunity, field: OpportunityField, kind: string) {
     if (kind === 'status') {

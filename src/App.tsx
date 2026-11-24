@@ -2708,7 +2708,8 @@ function App() {
   }
   if (activeArea === 'complaints') return <ComplaintsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))} />;
   if (activeArea === 'quality') return <QualityInspectionsPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name, waterBodies: property.waterBodies }))} isSuperAdmin={appSession?.user.role === 'SUPER_ADMIN' || appSession?.user.role === 'OPERATIONS_DIRECTOR'} />;
-  if (activeArea === 'opportunities') return <OpportunitiesPage sidebar={renderAppSidebar()} properties={properties.map((property) => ({ id: property.id, name: property.name }))}
+  if (activeArea === 'opportunities') return <OpportunitiesPage sidebar={renderAppSidebar()}
+    properties={properties.filter(property => property.lifecycleStatus !== 'INACTIVE').map(property => property.name)}
     canEdit={['COMMERCIAL', 'OPERATIONS_DIRECTOR', 'SUPER_ADMIN'].includes(appSession?.user.role || '')}
     canEditWork={['REPORTS', 'COMMERCIAL', 'OPERATIONS_DIRECTOR', 'SUPER_ADMIN'].includes(appSession?.user.role || '')}
     canDelete={appSession?.user.role === 'SUPER_ADMIN' || appSession?.user.role === 'OPERATIONS_DIRECTOR'} />;
